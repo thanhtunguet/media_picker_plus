@@ -16,6 +16,8 @@ class MediaOptions {
   // 'topLeft', 'topRight', 'bottomLeft', 'bottomRight'
   final String? watermarkPosition;
 
+  final Duration? maxDuration;
+
   const MediaOptions({
     this.imageQuality = 80,
     this.width,
@@ -24,6 +26,7 @@ class MediaOptions {
     this.watermark,
     this.watermarkFontSize = 30,
     this.watermarkPosition = WatermarkPosition.bottomRight,
+    this.maxDuration,
   });
 
   Map<String, dynamic> toMap() {
@@ -35,6 +38,7 @@ class MediaOptions {
       'watermark': watermark,
       'watermarkFontSize': watermarkFontSize,
       'watermarkPosition': watermarkPosition,
+      'maxDuration': maxDuration?.inSeconds,
     };
   }
 }

@@ -10,6 +10,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  plugin_platform_interface: ^2.1.8
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
@@ -23,4 +27,8 @@ flutter:
         package: info.thanhtunguet.media_picker_plus
         pluginClass: MediaPickerPlusPlugin
       ios:
+        pluginClass: MediaPickerPlusPlugin
+      macos:
+        pluginClass: MediaPickerPlusPlugin
+      web:
         pluginClass: MediaPickerPlusPlugin

@@ -1,5 +1,5 @@
 group = "info.thanhtunguet.media_picker_plus"
-version = "1.0-SNAPSHOT"
+version = "1.0.0"
 
 buildscript {
     ext.kotlin_version = "1.8.22"
@@ -10,7 +10,7 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:8.1.0")
+        classpath("com.android.tools.build:gradle:8.1.4")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
     }
 }
@@ -43,6 +43,10 @@ android {
     sourceSets {
         main.java.srcDirs += "src/main/kotlin"
         test.java.srcDirs += "src/test/kotlin"
+
+        androidTest {
+            assets.srcDirs += 'src/androidTest/assets'
+        }
     }
 
     defaultConfig {
@@ -51,8 +55,24 @@ android {
 
     dependencies {
         testImplementation("org.jetbrains.kotlin:kotlin-test")
-        testImplementation("org.mockito:mockito-core:5.0.0")
+        testImplementation("org.mockito:mockito-core:5.14.2")
         implementation 'com.github.MasayukiSuda:Mp4Composer-android:v0.4.1'
+
+        implementation "androidx.appcompat:appcompat:1.7.0"
+        implementation "androidx.constraintlayout:constraintlayout:2.2.1"
+
+
+        // AndroidX Test - Core, JUnit, and Runner
+        androidTestImplementation 'androidx.test:core:1.6.1'
+        androidTestImplementation 'androidx.test:rules:1.6.1'
+        androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+        androidTestImplementation 'androidx.test:runner:1.6.2'
+
+        // Espresso (optional, if using UI interaction)
+        androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+
+        // JUnit for unit assertions
+        testImplementation 'junit:junit:4.13.2'
     }
 
     testOptions {
@@ -60,9 +80,9 @@ android {
             useJUnitPlatform()
 
             testLogging {
-               events "passed", "skipped", "failed", "standardOut", "standardError"
-               outputs.upToDateWhen {false}
-               showStandardStreams = true
+                events "passed", "skipped", "failed", "standardOut", "standardError"
+                outputs.upToDateWhen { false }
+                showStandardStreams = true
             }
         }
     }
