@@ -8,7 +8,6 @@ import 'package:media_picker_plus/media_type.dart';
 export 'media_options.dart';
 export 'media_source.dart';
 export 'media_type.dart';
-export 'video_bit_rate.dart';
 export 'watermark_position.dart';
 
 class MediaPickerPlus {
@@ -44,7 +43,10 @@ class MediaPickerPlus {
   }
 
   static Future<String?> _pickMedia(
-      MediaSource source, MediaType type, MediaOptions options) async {
+    MediaSource source,
+    MediaType type,
+    MediaOptions options,
+  ) async {
     try {
       final result = await _channel.invokeMethod<String>('pickMedia', {
         'source': source.toString().split('.').last,

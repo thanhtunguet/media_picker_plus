@@ -26,9 +26,13 @@ flutter:
       android:
         package: info.thanhtunguet.media_picker_plus
         pluginClass: MediaPickerPlusPlugin
+        fileName: MediaPickerPlusPlugin.kt
       ios:
         pluginClass: MediaPickerPlusPlugin
+        fileName: MediaPickerPlusPlugin.swift
       macos:
         pluginClass: MediaPickerPlusPlugin
+        fileName: MediaPickerPlusPlugin.swift
       web:
         pluginClass: MediaPickerPlusPlugin
+        fileName: MediaPickerPlusPlugin.dart

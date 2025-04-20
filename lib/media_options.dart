@@ -3,11 +3,9 @@ import 'watermark_position.dart';
 class MediaOptions {
   final int imageQuality;
 
-  final int? width;
+  final int? maxWidth;
 
-  final int? height;
-
-  final int? videoBitrate;
+  final int? maxHeight;
 
   final String? watermark;
 
@@ -20,21 +18,19 @@ class MediaOptions {
 
   const MediaOptions({
     this.imageQuality = 80,
-    this.width,
-    this.height,
-    this.videoBitrate,
+    this.maxWidth = 1280,
+    this.maxHeight = 1280,
     this.watermark,
     this.watermarkFontSize = 30,
     this.watermarkPosition = WatermarkPosition.bottomRight,
-    this.maxDuration,
+    this.maxDuration = const Duration(seconds: 60),
   });
 
   Map<String, dynamic> toMap() {
     return {
       'imageQuality': imageQuality,
-      'width': width,
-      'height': height,
-      'videoBitrate': videoBitrate,
+      'maxWidth': maxWidth,
+      'maxHeight': maxHeight,
       'watermark': watermark,
       'watermarkFontSize': watermarkFontSize,
       'watermarkPosition': watermarkPosition,

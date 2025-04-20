@@ -1,1 +1,5 @@
-enum MediaSource { gallery, camera }
+enum MediaSource {
+  gallery,
+  camera,
+  files,
+}
