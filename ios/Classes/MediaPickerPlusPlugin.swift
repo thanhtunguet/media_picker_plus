@@ -74,7 +74,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                     case "image":
                         capturePhoto()
                     case "video":
-                        recordVideo()
+                        recordVideoWithPermissions()
                     default:
                         result(MediaPickerPlusError.invalidType())
                     }
@@ -85,7 +85,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                             case "image":
                                 self.capturePhoto()
                             case "video":
-                                self.recordVideo()
+                                self.recordVideoWithPermissions()
                             default:
                                 result(MediaPickerPlusError.invalidType())
                             }
@@ -166,6 +166,18 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         }
     }
 
+    private func hasMicrophonePermission() -> Bool {
+        return AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+    }
+
+    private func requestMicrophonePermission(completion: @escaping (Bool) -> Void) {
+        AVCaptureDevice.requestAccess(for: .audio) { granted in
+            DispatchQueue.main.async {
+                completion(granted)
+            }
+        }
+    }
+
     private func hasGalleryPermission() -> Bool {
         return PHPhotoLibrary.authorizationStatus() == .authorized
     }
@@ -202,6 +214,22 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         presentPickerController(picker)
     }
 
+    private func recordVideoWithPermissions() {
+        // Check if microphone permission is granted
+        if hasMicrophonePermission() {
+            recordVideo()
+        } else {
+            requestMicrophonePermission { granted in
+                if granted {
+                    self.recordVideo()
+                } else {
+                    self.pendingResult?(MediaPickerPlusError.permissionDenied())
+                    self.pendingResult = nil
+                }
+            }
+        }
+    }
+
     private func recordVideo() {
         let picker = UIImagePickerController()
         picker.delegate = self
@@ -219,6 +247,10 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                 } else {
                     picker.videoQuality = .typeHigh
                 }
+            }
+            
+            if let maxDuration = options["maxDuration"] as? Int {
+                picker.videoMaximumDuration = TimeInterval(maxDuration)
             }
         }
 

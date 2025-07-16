@@ -59,6 +59,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private val REQUEST_PICK_MULTIPLE_MEDIA = 1007
     private val REQUEST_CAMERA_PERMISSION = 2001
     private val REQUEST_GALLERY_PERMISSION = 2002
+    private val REQUEST_MICROPHONE_PERMISSION = 2003
 
     // Watermark positions enum
     enum class WatermarkPosition {
@@ -146,7 +147,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                         if (hasCameraPermission()) {
                             when (type) {
                                 "image" -> capturePhoto()
-                                "video" -> recordVideo()
+                                "video" -> recordVideoWithPermissions()
                                 else -> result.error(
                                     "INVALID_TYPE",
                                     "Invalid media type specified",
@@ -252,6 +253,14 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         }
     }
 
+    private fun recordVideoWithPermissions() {
+        if (hasMicrophonePermission()) {
+            recordVideo()
+        } else {
+            requestMicrophonePermission()
+        }
+    }
+
     private fun recordVideo() {
         val activity = activity ?: return
 
@@ -283,6 +292,13 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                             val height = options["height"] as Int?
                             if (width != null && height != null) {
                                 intent.putExtra(MediaStore.EXTRA_SIZE_LIMIT, width * height)
+                            }
+                        }
+                        
+                        if (options.containsKey("maxDuration")) {
+                            val maxDuration = options["maxDuration"] as Int?
+                            if (maxDuration != null) {
+                                intent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, maxDuration)
                             }
                         }
                     }
@@ -320,6 +336,23 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 it,
                 arrayOf(Manifest.permission.CAMERA),
                 REQUEST_CAMERA_PERMISSION
+            )
+        }
+    }
+
+    private fun hasMicrophonePermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun requestMicrophonePermission() {
+        activity?.let {
+            ActivityCompat.requestPermissions(
+                it,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
+                REQUEST_MICROPHONE_PERMISSION
             )
         }
     }
@@ -1042,6 +1075,16 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     pendingResult?.success(true)
                 } else {
                     pendingResult?.success(false)
+                }
+                return true
+            }
+
+            REQUEST_MICROPHONE_PERMISSION -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    recordVideo()
+                } else {
+                    pendingResult?.error("PERMISSION_DENIED", "Microphone permission denied", null)
+                    pendingResult = null
                 }
                 return true
             }
