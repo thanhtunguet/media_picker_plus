@@ -54,6 +54,9 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private val REQUEST_VIDEO_CAPTURE = 1002
     private val REQUEST_PICK_IMAGE = 1003
     private val REQUEST_PICK_VIDEO = 1004
+    private val REQUEST_PICK_FILE = 1005
+    private val REQUEST_PICK_MULTIPLE_FILES = 1006
+    private val REQUEST_PICK_MULTIPLE_MEDIA = 1007
     private val REQUEST_CAMERA_PERMISSION = 2001
     private val REQUEST_GALLERY_PERMISSION = 2002
 
@@ -175,6 +178,28 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             "requestGalleryPermission" -> {
                 pendingResult = result
                 requestGalleryPermission()
+            }
+
+            "pickFile" -> {
+                val allowedExtensions = call.argument<List<String>>("allowedExtensions")
+                mediaOptions = call.argument<HashMap<String, Any>>("options")
+                pendingResult = result
+                pickFile(allowedExtensions)
+            }
+
+            "pickMultipleFiles" -> {
+                val allowedExtensions = call.argument<List<String>>("allowedExtensions")
+                mediaOptions = call.argument<HashMap<String, Any>>("options")
+                pendingResult = result
+                pickMultipleFiles(allowedExtensions)
+            }
+
+            "pickMultipleMedia" -> {
+                val source = call.argument<String>("source")
+                val type = call.argument<String>("type")
+                mediaOptions = call.argument<HashMap<String, Any>>("options")
+                pendingResult = result
+                pickMultipleMedia(source, type)
             }
 
             else -> result.notImplemented()
@@ -735,6 +760,95 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         }
     }
 
+    private fun pickFile(allowedExtensions: List<String>?) {
+        val activity = activity ?: return
+        
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "*/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+            
+            // Set MIME types based on extensions
+            if (!allowedExtensions.isNullOrEmpty()) {
+                val mimeTypes = allowedExtensions.mapNotNull { ext ->
+                    getMimeTypeFromExtension(ext)
+                }.toTypedArray()
+                
+                if (mimeTypes.isNotEmpty()) {
+                    putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
+                }
+            }
+        }
+        
+        activity.startActivityForResult(intent, REQUEST_PICK_FILE)
+    }
+
+    private fun pickMultipleFiles(allowedExtensions: List<String>?) {
+        val activity = activity ?: return
+        
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "*/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            
+            // Set MIME types based on extensions
+            if (!allowedExtensions.isNullOrEmpty()) {
+                val mimeTypes = allowedExtensions.mapNotNull { ext ->
+                    getMimeTypeFromExtension(ext)
+                }.toTypedArray()
+                
+                if (mimeTypes.isNotEmpty()) {
+                    putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
+                }
+            }
+        }
+        
+        activity.startActivityForResult(intent, REQUEST_PICK_MULTIPLE_FILES)
+    }
+
+    private fun pickMultipleMedia(source: String?, type: String?) {
+        val activity = activity ?: return
+        
+        when (source) {
+            "gallery" -> {
+                val intent = Intent(Intent.ACTION_PICK).apply {
+                    when (type) {
+                        "image" -> setDataAndType(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*")
+                        "video" -> setDataAndType(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, "video/*")
+                        else -> setDataAndType(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*,video/*")
+                    }
+                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                }
+                activity.startActivityForResult(intent, REQUEST_PICK_MULTIPLE_MEDIA)
+            }
+            else -> {
+                pendingResult?.error("INVALID_SOURCE", "Multiple media picking only supports gallery source", null)
+            }
+        }
+    }
+
+    private fun getMimeTypeFromExtension(extension: String): String? {
+        return when (extension.lowercase()) {
+            "jpg", "jpeg" -> "image/jpeg"
+            "png" -> "image/png"
+            "gif" -> "image/gif"
+            "webp" -> "image/webp"
+            "mp4" -> "video/mp4"
+            "mov" -> "video/quicktime"
+            "avi" -> "video/x-msvideo"
+            "mkv" -> "video/x-matroska"
+            "pdf" -> "application/pdf"
+            "doc" -> "application/msword"
+            "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            "xls" -> "application/vnd.ms-excel"
+            "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            "txt" -> "text/plain"
+            "mp3" -> "audio/mpeg"
+            "wav" -> "audio/wav"
+            "aac" -> "audio/aac"
+            else -> null
+        }
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
         if (resultCode == Activity.RESULT_OK) {
             when (requestCode) {
@@ -801,6 +915,94 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     pendingResult = null
                     return true
                 }
+
+                REQUEST_PICK_FILE -> {
+                    data?.data?.let { uri ->
+                        val filePath = getFilePathFromUri(uri)
+                        filePath?.let { path ->
+                            pendingResult?.success(path)
+                        } ?: run {
+                            pendingResult?.error(
+                                "NO_FILE",
+                                "Could not get file path from URI",
+                                null
+                            )
+                        }
+                    } ?: run {
+                        pendingResult?.error("NO_FILE", "No file was selected", null)
+                    }
+                    pendingResult = null
+                    return true
+                }
+
+                REQUEST_PICK_MULTIPLE_FILES -> {
+                    val filePaths = mutableListOf<String>()
+                    
+                    data?.clipData?.let { clipData ->
+                        // Multiple files selected
+                        for (i in 0 until clipData.itemCount) {
+                            val uri = clipData.getItemAt(i).uri
+                            val filePath = getFilePathFromUri(uri)
+                            filePath?.let { filePaths.add(it) }
+                        }
+                    } ?: data?.data?.let { uri ->
+                        // Single file selected
+                        val filePath = getFilePathFromUri(uri)
+                        filePath?.let { filePaths.add(it) }
+                    }
+                    
+                    if (filePaths.isNotEmpty()) {
+                        pendingResult?.success(filePaths)
+                    } else {
+                        pendingResult?.error("NO_FILE", "No files were selected", null)
+                    }
+                    pendingResult = null
+                    return true
+                }
+
+                REQUEST_PICK_MULTIPLE_MEDIA -> {
+                    val filePaths = mutableListOf<String>()
+                    
+                    data?.clipData?.let { clipData ->
+                        // Multiple files selected
+                        for (i in 0 until clipData.itemCount) {
+                            val uri = clipData.getItemAt(i).uri
+                            val filePath = getFilePathFromUri(uri)
+                            filePath?.let { path ->
+                                // Process based on media type
+                                val processedPath = if (isImageFile(path)) {
+                                    processImage(path)
+                                } else if (isVideoFile(path)) {
+                                    processVideo(path)
+                                } else {
+                                    path
+                                }
+                                filePaths.add(processedPath)
+                            }
+                        }
+                    } ?: data?.data?.let { uri ->
+                        // Single file selected
+                        val filePath = getFilePathFromUri(uri)
+                        filePath?.let { path ->
+                            val processedPath = if (isImageFile(path)) {
+                                processImage(path)
+                            } else if (isVideoFile(path)) {
+                                processVideo(path)
+                            } else {
+                                path
+                            }
+                            filePaths.add(processedPath)
+                        }
+                    }
+                    
+                    if (filePaths.isNotEmpty()) {
+                        pendingResult?.success(filePaths)
+                    } else {
+                        pendingResult?.error("NO_FILE", "No media files were selected", null)
+                    }
+                    pendingResult = null
+                    return true
+                }
             }
         } else if (resultCode == Activity.RESULT_CANCELED) {
             pendingResult?.error("CANCELLED", "User cancelled the operation", null)
@@ -808,6 +1010,16 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             return true
         }
         return false
+    }
+
+    private fun isImageFile(path: String): Boolean {
+        val extension = path.substringAfterLast('.', "").lowercase()
+        return extension in listOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
+    }
+
+    private fun isVideoFile(path: String): Boolean {
+        val extension = path.substringAfterLast('.', "").lowercase()
+        return extension in listOf("mp4", "mov", "avi", "mkv", "webm", "m4v", "3gp")
     }
 
     override fun onRequestPermissionsResult(

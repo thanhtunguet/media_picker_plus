@@ -8,6 +8,7 @@ public enum MediaPickerPlusErrorCode: String {
     case permissionDenied = "permission_denied"
     case saveFailed = "save_failed"
     case cancelled = "cancelled"
+    case unsupportedOS = "unsupported_os"
 }
 
 public class MediaPickerPlusError {
@@ -33,6 +34,10 @@ public class MediaPickerPlusError {
 
     static func cancelled() -> [String: Any] {
         return createError(code: .cancelled, message: "User cancelled")
+    }
+
+    static func unsupportedOS() -> [String: Any] {
+        return createError(code: .unsupportedOS, message: "Feature not supported on this iOS version")
     }
 
     private static func createError(code: MediaPickerPlusErrorCode, message: String) -> [String:

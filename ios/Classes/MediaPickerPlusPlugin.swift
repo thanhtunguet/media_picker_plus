@@ -3,7 +3,9 @@ import Flutter
 import Foundation
 import MobileCoreServices
 import Photos
+import PhotosUI
 import UIKit
+import UniformTypeIdentifiers
 
 public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     public static func register(with registrar: FlutterPluginRegistrar) {
@@ -13,7 +15,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
 }
 
 public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerControllerDelegate,
-    UINavigationControllerDelegate
+    UINavigationControllerDelegate, UIDocumentPickerDelegate, PHPickerViewControllerDelegate
 {
     private var pendingResult: FlutterResult?
     private var mediaOptions: [String: Any]?
@@ -111,6 +113,41 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             requestGalleryPermission { granted in
                 result(granted)
             }
+
+        case "pickFile":
+            guard let args = call.arguments as? [String: Any] else {
+                result(MediaPickerPlusError.invalidArgs())
+                return
+            }
+            
+            mediaOptions = args["options"] as? [String: Any]
+            let allowedExtensions = args["allowedExtensions"] as? [String]
+            pendingResult = result
+            pickFile(allowedExtensions: allowedExtensions)
+
+        case "pickMultipleFiles":
+            guard let args = call.arguments as? [String: Any] else {
+                result(MediaPickerPlusError.invalidArgs())
+                return
+            }
+            
+            mediaOptions = args["options"] as? [String: Any]
+            let allowedExtensions = args["allowedExtensions"] as? [String]
+            pendingResult = result
+            pickMultipleFiles(allowedExtensions: allowedExtensions)
+
+        case "pickMultipleMedia":
+            guard let args = call.arguments as? [String: Any],
+                let source = args["source"] as? String,
+                let type = args["type"] as? String
+            else {
+                result(MediaPickerPlusError.invalidArgs())
+                return
+            }
+
+            mediaOptions = args["options"] as? [String: Any]
+            pendingResult = result
+            pickMultipleMedia(source: source, type: type)
 
         default:
             result(FlutterMethodNotImplemented)
@@ -617,6 +654,149 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         }
     }
 
+    private func pickFile(allowedExtensions: [String]?) {
+        let documentPicker: UIDocumentPickerViewController
+        
+        if #available(iOS 14.0, *) {
+            documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: getContentTypes(for: allowedExtensions))
+        } else {
+            documentPicker = UIDocumentPickerViewController(documentTypes: getDocumentTypes(for: allowedExtensions), in: .open)
+        }
+        
+        documentPicker.delegate = self
+        if #available(iOS 11.0, *) {
+            documentPicker.allowsMultipleSelection = false
+        }
+        
+        DispatchQueue.main.async {
+            UIApplication.shared.windows.first?.rootViewController?.present(
+                documentPicker, animated: true, completion: nil)
+        }
+    }
+
+    private func pickMultipleFiles(allowedExtensions: [String]?) {
+        let documentPicker: UIDocumentPickerViewController
+        
+        if #available(iOS 14.0, *) {
+            documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: getContentTypes(for: allowedExtensions))
+        } else {
+            documentPicker = UIDocumentPickerViewController(documentTypes: getDocumentTypes(for: allowedExtensions), in: .open)
+        }
+        
+        documentPicker.delegate = self
+        if #available(iOS 11.0, *) {
+            documentPicker.allowsMultipleSelection = true
+        }
+        
+        DispatchQueue.main.async {
+            UIApplication.shared.windows.first?.rootViewController?.present(
+                documentPicker, animated: true, completion: nil)
+        }
+    }
+
+    private func pickMultipleMedia(source: String, type: String) {
+        // For iOS, we'll use PHPickerViewController for multiple selection
+        if #available(iOS 14.0, *) {
+            var config = PHPickerConfiguration()
+            config.selectionLimit = 0 // 0 means unlimited
+            
+            switch type {
+            case "image":
+                config.filter = .images
+            case "video":
+                config.filter = .videos
+            default:
+                config.filter = .any(of: [.images, .videos])
+            }
+            
+            let picker = PHPickerViewController(configuration: config)
+            picker.delegate = self
+            
+            DispatchQueue.main.async {
+                UIApplication.shared.windows.first?.rootViewController?.present(
+                    picker, animated: true, completion: nil)
+            }
+        } else {
+            // Fallback for older iOS versions - use single picker multiple times
+            pendingResult?(MediaPickerPlusError.unsupportedOS())
+        }
+    }
+
+    @available(iOS 14.0, *)
+    private func getContentTypes(for extensions: [String]?) -> [UTType] {
+        guard let extensions = extensions else {
+            return [UTType.data] // Default to all files
+        }
+        
+        var contentTypes: [UTType] = []
+        for ext in extensions {
+            switch ext.lowercased() {
+            case "pdf":
+                contentTypes.append(UTType.pdf)
+            case "txt":
+                contentTypes.append(UTType.text)
+            case "doc", "docx":
+                if let type = UTType(filenameExtension: ext) {
+                    contentTypes.append(type)
+                }
+            case "xls", "xlsx":
+                if let type = UTType(filenameExtension: ext) {
+                    contentTypes.append(type)
+                }
+            case "jpg", "jpeg":
+                contentTypes.append(UTType.jpeg)
+            case "png":
+                contentTypes.append(UTType.png)
+            case "mp4":
+                contentTypes.append(UTType.mpeg4Movie)
+            case "mp3":
+                contentTypes.append(UTType.mp3)
+            default:
+                if let type = UTType(filenameExtension: ext) {
+                    contentTypes.append(type)
+                }
+            }
+        }
+        
+        return contentTypes.isEmpty ? [UTType.data] : contentTypes
+    }
+
+    private func getDocumentTypes(for extensions: [String]?) -> [String] {
+        guard let extensions = extensions else {
+            return ["public.data"] // Default to all files
+        }
+        
+        var documentTypes: [String] = []
+        for ext in extensions {
+            switch ext.lowercased() {
+            case "pdf":
+                documentTypes.append("com.adobe.pdf")
+            case "txt":
+                documentTypes.append("public.text")
+            case "doc":
+                documentTypes.append("com.microsoft.word.doc")
+            case "docx":
+                documentTypes.append("org.openxmlformats.wordprocessingml.document")
+            case "xls":
+                documentTypes.append("com.microsoft.excel.xls")
+            case "xlsx":
+                documentTypes.append("org.openxmlformats.spreadsheetml.sheet")
+            case "jpg", "jpeg":
+                documentTypes.append("public.jpeg")
+            case "png":
+                documentTypes.append("public.png")
+            case "mp4":
+                documentTypes.append("public.mpeg-4")
+            case "mp3":
+                documentTypes.append("public.mp3")
+            default:
+                documentTypes.append("public.data")
+            }
+        }
+        
+        return documentTypes.isEmpty ? ["public.data"] : documentTypes
+    }
+
     // UIImagePickerControllerDelegate methods
     public func imagePickerController(
         _ picker: UIImagePickerController,
@@ -638,6 +818,130 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             self.pendingResult?(MediaPickerPlusError.cancelled())
             self.pendingResult = nil
             self.mediaOptions = nil
+        }
+    }
+
+    // UIDocumentPickerDelegate methods
+    public func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        controller.dismiss(animated: true) {
+            var isMultipleSelection = false
+            if #available(iOS 11.0, *) {
+                isMultipleSelection = controller.allowsMultipleSelection
+            }
+            
+            if isMultipleSelection {
+                // Multiple files selected
+                var filePaths: [String] = []
+                for url in urls {
+                    if url.startAccessingSecurityScopedResource() {
+                        // Copy file to temp directory
+                        if let tempPath = self.copyFileToTemp(from: url) {
+                            filePaths.append(tempPath)
+                        }
+                        url.stopAccessingSecurityScopedResource()
+                    }
+                }
+                self.pendingResult?(filePaths)
+            } else {
+                // Single file selected
+                if let url = urls.first {
+                    if url.startAccessingSecurityScopedResource() {
+                        let tempPath = self.copyFileToTemp(from: url)
+                        self.pendingResult?(tempPath)
+                        url.stopAccessingSecurityScopedResource()
+                    } else {
+                        self.pendingResult?(MediaPickerPlusError.saveFailed())
+                    }
+                } else {
+                    self.pendingResult?(MediaPickerPlusError.saveFailed())
+                }
+            }
+            self.pendingResult = nil
+            self.mediaOptions = nil
+        }
+    }
+
+    public func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        controller.dismiss(animated: true) {
+            self.pendingResult?(MediaPickerPlusError.cancelled())
+            self.pendingResult = nil
+            self.mediaOptions = nil
+        }
+    }
+
+    // PHPickerViewControllerDelegate methods
+    @available(iOS 14.0, *)
+    public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: true) {
+            if results.isEmpty {
+                self.pendingResult?(MediaPickerPlusError.cancelled())
+                self.pendingResult = nil
+                self.mediaOptions = nil
+                return
+            }
+
+            var filePaths: [String] = []
+            let dispatchGroup = DispatchGroup()
+
+            for result in results {
+                dispatchGroup.enter()
+                
+                if result.itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                    result.itemProvider.loadObject(ofClass: UIImage.self) { (object, error) in
+                        defer { dispatchGroup.leave() }
+                        
+                        if let image = object as? UIImage {
+                            // Process image similar to imagePickerController
+                            let info: [UIImagePickerController.InfoKey: Any] = [
+                                .originalImage: image
+                            ]
+                            if let filePath = self.saveMediaToFile(info: info) {
+                                filePaths.append(filePath)
+                            }
+                        }
+                    }
+                } else if result.itemProvider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
+                    result.itemProvider.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { (url, error) in
+                        defer { dispatchGroup.leave() }
+                        
+                        if let url = url {
+                            // Process video similar to imagePickerController
+                            let info: [UIImagePickerController.InfoKey: Any] = [
+                                .mediaURL: url
+                            ]
+                            if let filePath = self.saveMediaToFile(info: info) {
+                                filePaths.append(filePath)
+                            }
+                        }
+                    }
+                } else {
+                    dispatchGroup.leave()
+                }
+            }
+
+            dispatchGroup.notify(queue: .main) {
+                self.pendingResult?(filePaths)
+                self.pendingResult = nil
+                self.mediaOptions = nil
+            }
+        }
+    }
+
+    private func copyFileToTemp(from url: URL) -> String? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        let timestamp = formatter.string(from: Date())
+        
+        let fileName = url.lastPathComponent
+        let tempDir = FileManager.default.temporaryDirectory
+        let destURL = tempDir.appendingPathComponent("FILE_\(timestamp)_\(fileName)")
+        
+        do {
+            try FileManager.default.copyItem(at: url, to: destURL)
+            return destURL.path
+        } catch {
+            print("Error copying file: \(error)")
+            return nil
         }
     }
 }
