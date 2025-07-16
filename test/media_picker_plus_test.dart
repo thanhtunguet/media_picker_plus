@@ -2,9 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:media_picker_plus/media_picker_plus.dart';
 import 'package:media_picker_plus/media_picker_plus_platform_interface.dart';
 import 'package:media_picker_plus/media_picker_plus_method_channel.dart';
-import 'package:media_picker_plus/media_options.dart';
-import 'package:media_picker_plus/media_source.dart';
-import 'package:media_picker_plus/media_type.dart';
+// ...existing code...
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 class MockMediaPickerPlusPlatform
