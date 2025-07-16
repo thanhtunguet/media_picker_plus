@@ -72,7 +72,7 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
         'options': options.toMap(),
         'allowedExtensions': allowedExtensions,
       });
-      return result?.cast<String>();
+      return result?.cast<String>().toList();
     } on PlatformException catch (e) {
       throw Exception('Error picking multiple files: ${e.message}');
     }
@@ -86,7 +86,7 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
         'type': type.toString().split('.').last,
         'options': options.toMap(),
       });
-      return result?.cast<String>();
+      return result?.cast<String>().toList();
     } on PlatformException catch (e) {
       throw Exception('Error picking multiple media: ${e.message}');
     }

@@ -142,7 +142,7 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
         ),
       );
       setState(() {
-        _multipleMediaPaths = paths ?? [];
+        _multipleMediaPaths = List<String>.from(paths ?? []);
       });
     } catch (e) {
       _showError('Error picking multiple images: $e');
@@ -162,7 +162,7 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
         ),
       );
       setState(() {
-        _multipleMediaPaths = paths ?? [];
+        _multipleMediaPaths = List<String>.from(paths ?? []);
       });
     } catch (e) {
       _showError('Error picking multiple videos: $e');
@@ -195,7 +195,7 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
         allowedExtensions: ['.pdf', '.doc', '.docx', '.txt', '.csv', '.xls', '.xlsx'],
       );
       setState(() {
-        _multipleFilePaths = paths ?? [];
+        _multipleFilePaths = List<String>.from(paths ?? []);
       });
     } catch (e) {
       _showError('Error picking multiple files: $e');
