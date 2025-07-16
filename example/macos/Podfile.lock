@@ -1,0 +1,22 @@
+PODS:
+  - FlutterMacOS (1.0.0)
+  - media_picker_plus (0.0.1):
+    - FlutterMacOS
+
+DEPENDENCIES:
+  - FlutterMacOS (from `Flutter/ephemeral`)
+  - media_picker_plus (from `Flutter/ephemeral/.symlinks/plugins/media_picker_plus/macos`)
+
+EXTERNAL SOURCES:
+  FlutterMacOS:
+    :path: Flutter/ephemeral
+  media_picker_plus:
+    :path: Flutter/ephemeral/.symlinks/plugins/media_picker_plus/macos
+
+SPEC CHECKSUMS:
+  FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
+  media_picker_plus: 1655844199343a45552e3c36daae265db70e5bd1
+
+PODFILE CHECKSUM: c2e95c8c0fe03c5c57e438583cae4cc732296009
+
+COCOAPODS: 1.16.2
