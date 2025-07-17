@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:media_picker_plus/media_picker_plus.dart';
 import 'package:media_picker_plus/media_picker_plus_platform_interface.dart';
 import 'package:media_picker_plus/media_picker_plus_method_channel.dart';
-// ...existing code...
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 class MockMediaPickerPlusPlatform
@@ -213,6 +212,14 @@ void main() {
     test('enum values are correct', () {
       expect(MediaSource.gallery.toString(), 'MediaSource.gallery');
       expect(MediaSource.camera.toString(), 'MediaSource.camera');
+      expect(MediaSource.files.toString(), 'MediaSource.files');
+    });
+
+    test('has all expected values', () {
+      expect(MediaSource.values.length, 3);
+      expect(MediaSource.values, contains(MediaSource.gallery));
+      expect(MediaSource.values, contains(MediaSource.camera));
+      expect(MediaSource.values, contains(MediaSource.files));
     });
   });
 
@@ -220,6 +227,34 @@ void main() {
     test('enum values are correct', () {
       expect(MediaType.image.toString(), 'MediaType.image');
       expect(MediaType.video.toString(), 'MediaType.video');
+      expect(MediaType.file.toString(), 'MediaType.file');
+    });
+
+    test('has all expected values', () {
+      expect(MediaType.values.length, 3);
+      expect(MediaType.values, contains(MediaType.image));
+      expect(MediaType.values, contains(MediaType.video));
+      expect(MediaType.values, contains(MediaType.file));
+    });
+  });
+
+  group('WatermarkPosition', () {
+    test('all position constants are defined', () {
+      expect(WatermarkPosition.topLeft, 'topLeft');
+      expect(WatermarkPosition.topCenter, 'topCenter');
+      expect(WatermarkPosition.topRight, 'topRight');
+      expect(WatermarkPosition.middleLeft, 'middleLeft');
+      expect(WatermarkPosition.middleCenter, 'middleCenter');
+      expect(WatermarkPosition.middleRight, 'middleRight');
+      expect(WatermarkPosition.bottomLeft, 'bottomLeft');
+      expect(WatermarkPosition.bottomCenter, 'bottomCenter');
+      expect(WatermarkPosition.bottomRight, 'bottomRight');
+    });
+
+    test('position values are strings', () {
+      expect(WatermarkPosition.topLeft, isA<String>());
+      expect(WatermarkPosition.bottomRight, isA<String>());
+      expect(WatermarkPosition.middleCenter, isA<String>());
     });
   });
 }

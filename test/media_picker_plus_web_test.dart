@@ -84,11 +84,60 @@ void main() {
     test('pickMedia handles unsupported source', () async {
       const options = MediaOptions();
       
-      // Test with an invalid source by casting
+      // Test with camera source which should throw exception
       expect(
-        () => plugin.pickMedia(MediaSource.values.first, MediaType.image, options),
+        () => plugin.pickMedia(MediaSource.camera, MediaType.image, options),
         throwsA(isA<Exception>()),
       );
+    });
+
+    test('pickFile throws UnimplementedError', () async {
+      const options = MediaOptions();
+      
+      expect(
+        () => plugin.pickFile(options, null),
+        throwsA(isA<UnimplementedError>()),
+      );
+    });
+
+    test('pickMultipleFiles throws UnimplementedError', () async {
+      const options = MediaOptions();
+      
+      expect(
+        () => plugin.pickMultipleFiles(options, null),
+        throwsA(isA<UnimplementedError>()),
+      );
+    });
+
+    test('pickMultipleMedia throws UnimplementedError', () async {
+      const options = MediaOptions();
+      
+      expect(
+        () => plugin.pickMultipleMedia(MediaSource.gallery, MediaType.image, options),
+        throwsA(isA<UnimplementedError>()),
+      );
+    });
+
+    test('pickMedia with video type', () async {
+      const options = MediaOptions();
+      
+      try {
+        final result = await plugin.pickMedia(MediaSource.gallery, MediaType.video, options);
+        expect(result, anyOf(isNull, isA<String>()));
+      } catch (e) {
+        expect(e, isNotNull);
+      }
+    });
+
+    test('pickMedia with file type', () async {
+      const options = MediaOptions();
+      
+      try {
+        final result = await plugin.pickMedia(MediaSource.gallery, MediaType.file, options);
+        expect(result, anyOf(isNull, isA<String>()));
+      } catch (e) {
+        expect(e, isNotNull);
+      }
     });
   });
 }

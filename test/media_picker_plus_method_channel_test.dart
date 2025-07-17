@@ -94,4 +94,100 @@ void main() {
       throwsA(isA<Exception>()),
     );
   });
+
+  test('pickFile returns file path', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      channel,
+      (MethodCall methodCall) async {
+        if (methodCall.method == 'pickFile') {
+          return 'test_file.pdf';
+        }
+        return null;
+      },
+    );
+
+    const options = MediaOptions();
+    final result = await platform.pickFile(options, ['.pdf']);
+    expect(result, 'test_file.pdf');
+  });
+
+  test('pickMultipleFiles returns list of file paths', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      channel,
+      (MethodCall methodCall) async {
+        if (methodCall.method == 'pickMultipleFiles') {
+          return ['file1.pdf', 'file2.docx'];
+        }
+        return null;
+      },
+    );
+
+    const options = MediaOptions();
+    final result = await platform.pickMultipleFiles(options, ['.pdf', '.docx']);
+    expect(result, ['file1.pdf', 'file2.docx']);
+  });
+
+  test('pickMultipleMedia returns list of media paths', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      channel,
+      (MethodCall methodCall) async {
+        if (methodCall.method == 'pickMultipleMedia') {
+          return ['image1.jpg', 'image2.jpg'];
+        }
+        return null;
+      },
+    );
+
+    const options = MediaOptions();
+    final result = await platform.pickMultipleMedia(MediaSource.gallery, MediaType.image, options);
+    expect(result, ['image1.jpg', 'image2.jpg']);
+  });
+
+  test('pickFile handles null result', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      channel,
+      (MethodCall methodCall) async {
+        if (methodCall.method == 'pickFile') {
+          return null;
+        }
+        return null;
+      },
+    );
+
+    const options = MediaOptions();
+    final result = await platform.pickFile(options, null);
+    expect(result, null);
+  });
+
+  test('pickMultipleFiles handles null result', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      channel,
+      (MethodCall methodCall) async {
+        if (methodCall.method == 'pickMultipleFiles') {
+          return null;
+        }
+        return null;
+      },
+    );
+
+    const options = MediaOptions();
+    final result = await platform.pickMultipleFiles(options, null);
+    expect(result, null);
+  });
+
+  test('pickMultipleMedia handles null result', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      channel,
+      (MethodCall methodCall) async {
+        if (methodCall.method == 'pickMultipleMedia') {
+          return null;
+        }
+        return null;
+      },
+    );
+
+    const options = MediaOptions();
+    final result = await platform.pickMultipleMedia(MediaSource.gallery, MediaType.image, options);
+    expect(result, null);
+  });
 }

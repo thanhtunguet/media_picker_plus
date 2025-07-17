@@ -75,7 +75,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-release-apk
-          path: example/android/app/build/outputs/apk/release/app-release.apk
+          path: example/build/app/outputs/apk/release/app-release.apk
           retention-days: 30
 
   # Test on iOS (macOS runner)
