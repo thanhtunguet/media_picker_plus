@@ -66,6 +66,18 @@ jobs:
           cd example
           flutter build apk --debug
 
+      - name: Build Release APK with Gradle
+        run: |
+          cd example/android
+          ./gradlew assembleRelease
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-apk
+          path: example/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
   # Test on iOS (macOS runner)
   test-ios:
     runs-on: macos-latest
@@ -88,6 +100,18 @@ jobs:
         run: |
           cd example
           flutter build ios --no-codesign
+
+      - name: Archive iOS app
+        run: |
+          cd example/build/ios/iphoneos
+          zip -r ../../../ios-app.zip .
+
+      - name: Upload iOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app
+          path: example/ios-app.zip
+          retention-days: 30
 
   # Test on macOS
   test-macos:
@@ -115,6 +139,18 @@ jobs:
           cd example
           flutter build macos
 
+      - name: Archive macOS app
+        run: |
+          cd example/build/macos/Build/Products/Release
+          zip -r ../../../../../../macos-app.zip .
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-app
+          path: example/macos-app.zip
+          retention-days: 30
+
   # Test on Web
   test-web:
     runs-on: ubuntu-latest
@@ -140,6 +176,18 @@ jobs:
         run: |
           cd example
           flutter build web
+
+      - name: Archive web app
+        run: |
+          cd example/build/web
+          zip -r ../../web-app.zip .
+
+      - name: Upload Web Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-app
+          path: example/web-app.zip
+          retention-days: 30
 
   # Integration tests
   integration-test:
