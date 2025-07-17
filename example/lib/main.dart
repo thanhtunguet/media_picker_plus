@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_picker_plus/media_picker_plus.dart';
+
 import 'advanced_example.dart';
+import 'media_preview_widgets.dart';
 
 Future<void> main() async {
   runApp(const MyApp());
@@ -46,8 +48,8 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
       final path = await MediaPickerPlus.pickImage(
         options: const MediaOptions(
           imageQuality: 85,
-          maxWidth: 1920,
-          maxHeight: 1080,
+          maxWidth: 2560,
+          maxHeight: 1440,
           watermark: '📸 Media Picker Plus',
           watermarkFontSize: 32,
           watermarkPosition: WatermarkPosition.bottomRight,
@@ -68,6 +70,8 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
     try {
       final path = await MediaPickerPlus.pickVideo(
         options: const MediaOptions(
+          maxWidth: 2560,
+          maxHeight: 1440,
           watermark: '🎥 Media Picker Plus',
           watermarkFontSize: 28,
           watermarkPosition: WatermarkPosition.topLeft,
@@ -90,8 +94,8 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
       final path = await MediaPickerPlus.capturePhoto(
         options: const MediaOptions(
           imageQuality: 90,
-          maxWidth: 1280,
-          maxHeight: 1280,
+          maxWidth: 2560,
+          maxHeight: 1440,
           watermark: '📷 Captured with Media Picker Plus',
           watermarkFontSize: 24,
           watermarkPosition: WatermarkPosition.bottomCenter,
@@ -112,6 +116,8 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
     try {
       final path = await MediaPickerPlus.recordVideo(
         options: const MediaOptions(
+          maxWidth: 2560,
+          maxHeight: 1440,
           watermark: '🎬 Recorded with Media Picker Plus',
           watermarkFontSize: 26,
           watermarkPosition: WatermarkPosition.topRight,
@@ -135,8 +141,8 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
       final paths = await MediaPickerPlus.pickMultipleImages(
         options: const MediaOptions(
           imageQuality: 80,
-          maxWidth: 1080,
-          maxHeight: 1080,
+          maxWidth: 2560,
+          maxHeight: 1440,
           watermark: '📸 Multiple Images',
           watermarkFontSize: 20,
           watermarkPosition: WatermarkPosition.bottomLeft,
@@ -157,6 +163,8 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
     try {
       final paths = await MediaPickerPlus.pickMultipleVideos(
         options: const MediaOptions(
+          maxWidth: 2560,
+          maxHeight: 1440,
           watermark: '🎥 Multiple Videos',
           watermarkFontSize: 22,
           watermarkPosition: WatermarkPosition.middleCenter,
@@ -313,86 +321,79 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
   Widget _buildMediaPreview() {
     if (_singleMediaPath == null) return const SizedBox.shrink();
 
-    return Card(
-      child: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(8.0),
-            child: Text(
-              'Single Media Preview',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          if (kIsWeb || _singleMediaPath!.startsWith('data:'))
-            // Web implementation - data URL
-            Image.network(
-              _singleMediaPath!,
-              height: 200,
-              errorBuilder: (context, error, stackTrace) =>
-                  const Icon(Icons.error),
-            )
-          else
-            // Mobile/Desktop implementation - file path
-            Image.file(
-              File(_singleMediaPath!),
-              height: 200,
-              errorBuilder: (context, error, stackTrace) =>
-                  const Icon(Icons.error),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              'Path: ${_singleMediaPath!.length > 50 ? '${_singleMediaPath!.substring(0, 50)}...' : _singleMediaPath!}',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: _clearSingleMedia,
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
-    );
+    final isVideo = _singleMediaPath!.toLowerCase().endsWith('.mp4') ||
+        _singleMediaPath!.toLowerCase().endsWith('.mov');
+
+    if (isVideo) {
+      return EnhancedVideoPlayer(
+        videoPath: _singleMediaPath!,
+        title: 'Single Video Preview',
+        onClear: _clearSingleMedia,
+      );
+    } else {
+      return EnhancedImagePreview(
+        imagePath: _singleMediaPath!,
+        title: 'Single Image Preview',
+        onClear: _clearSingleMedia,
+      );
+    }
   }
 
   Widget _buildMultipleMediaPreview() {
     if (_multipleMediaPaths.isEmpty) return const SizedBox.shrink();
 
     return Card(
+      elevation: 4,
       child: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(8.0),
-            child: Text(
-              'Multiple Media Preview',
-              style: TextStyle(fontWeight: FontWeight.bold),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor.withAlpha(26),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.collections, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Multiple Media Preview',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 20),
+                  onPressed: _clearMultipleMedia,
+                  tooltip: 'Clear all',
+                ),
+              ],
             ),
           ),
           SizedBox(
-            height: 120,
+            height: 150,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: _multipleMediaPaths.length,
               itemBuilder: (context, index) {
                 final path = _multipleMediaPaths[index];
-                return Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: kIsWeb || path.startsWith('data:')
-                      ? Image.network(
-                          path,
-                          width: 100,
+                final isVideo = path.toLowerCase().endsWith('.mp4') ||
+                    path.toLowerCase().endsWith('.mov');
+                return Container(
+                  width: 120,
+                  margin: const EdgeInsets.all(8),
+                  child: isVideo
+                      ? EnhancedVideoPlayer(
+                          videoPath: path,
                           height: 100,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.error),
+                          showControls: false,
+                          autoPlay: false,
                         )
-                      : Image.file(
-                          File(path),
-                          width: 100,
+                      : EnhancedImagePreview(
+                          imagePath: path,
                           height: 100,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.error),
+                          showControls: false,
                         ),
                 );
               },
@@ -401,10 +402,6 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Text('${_multipleMediaPaths.length} files selected'),
-          ),
-          ElevatedButton(
-            onPressed: _clearMultipleMedia,
-            child: const Text('Clear'),
           ),
         ],
       ),

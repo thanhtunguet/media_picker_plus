@@ -1,12 +1,22 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:video_player/video_player.dart';
 
+/// Formats bytes into a human-readable string (B, kB, MB, etc.)
+String _formatBytes(int bytes, int decimals) {
+  if (bytes <= 0) return '0 B';
+  const suffixes = ['B', 'kB', 'MB', 'GB', 'TB'];
+  final i = (log(bytes) / log(1024)).floor();
+  return '${(bytes / pow(1024, i)).toStringAsFixed(decimals)} ${suffixes[i]}';
+}
+
 /// Enhanced image preview widget with zoom and fullscreen capabilities
-class EnhancedImagePreview extends StatelessWidget {
+class EnhancedImagePreview extends StatefulWidget {
   final String imagePath;
   final String? title;
   final VoidCallback? onClear;
@@ -23,17 +33,92 @@ class EnhancedImagePreview extends StatelessWidget {
   });
 
   @override
+  State<EnhancedImagePreview> createState() => _EnhancedImagePreviewState();
+}
+
+class _EnhancedImagePreviewState extends State<EnhancedImagePreview> {
+  Size? _imageSize;
+  int? _fileSize;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMediaDetails();
+  }
+
+  @override
+  void didUpdateWidget(covariant EnhancedImagePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.imagePath != oldWidget.imagePath) {
+      _loadMediaDetails();
+    }
+  }
+
+  Future<void> _loadMediaDetails() async {
+    await _getImageSize();
+    await _getFileSize();
+  }
+
+  Future<void> _getImageSize() async {
+    if (kIsWeb || widget.imagePath.startsWith('data:')) {
+      final image = Image.network(widget.imagePath);
+      final completer = Completer<ImageInfo>();
+      image.image
+          .resolve(const ImageConfiguration())
+          .addListener(ImageStreamListener((info, _) {
+        if (!completer.isCompleted) {
+          completer.complete(info);
+        }
+      }));
+      final imageInfo = await completer.future;
+      if (mounted) {
+        setState(() {
+          _imageSize = Size(
+            imageInfo.image.width.toDouble(),
+            imageInfo.image.height.toDouble(),
+          );
+        });
+      }
+    } else {
+      final imageBytes = await File(widget.imagePath).readAsBytes();
+      final decodedImage = await decodeImageFromList(imageBytes);
+      if (mounted) {
+        setState(() {
+          _imageSize = Size(
+            decodedImage.width.toDouble(),
+            decodedImage.height.toDouble(),
+          );
+        });
+      }
+    }
+  }
+
+  Future<void> _getFileSize() async {
+    if (!kIsWeb && !widget.imagePath.startsWith('data:')) {
+      final file = File(widget.imagePath);
+      if (await file.exists()) {
+        final size = await file.length();
+        if (mounted) {
+          setState(() {
+            _fileSize = size;
+          });
+        }
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 4,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (title != null)
+          if (widget.title != null)
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                color: Theme.of(context).primaryColor.withAlpha(26),
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(12)),
               ),
@@ -43,31 +128,35 @@ class EnhancedImagePreview extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      title!,
+                      widget.title!,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
-                  if (showControls && onClear != null)
+                  if (widget.showControls && widget.onClear != null)
                     IconButton(
                       icon: const Icon(Icons.clear, size: 20),
-                      onPressed: onClear,
+                      onPressed: widget.onClear,
                       tooltip: 'Clear image',
                     ),
                 ],
               ),
             ),
           Container(
-            height: height,
+            height: widget.height,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.vertical(
                 bottom: const Radius.circular(12),
-                top: title == null ? const Radius.circular(12) : Radius.zero,
+                top: widget.title == null
+                    ? const Radius.circular(12)
+                    : Radius.zero,
               ),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.vertical(
                 bottom: const Radius.circular(12),
-                top: title == null ? const Radius.circular(12) : Radius.zero,
+                top: widget.title == null
+                    ? const Radius.circular(12)
+                    : Radius.zero,
               ),
               child: Stack(
                 children: [
@@ -76,7 +165,7 @@ class EnhancedImagePreview extends StatelessWidget {
                     child: _buildImageWidget(),
                   ),
                   // Overlay controls
-                  if (showControls)
+                  if (widget.showControls)
                     Positioned(
                       top: 8,
                       right: 8,
@@ -124,7 +213,7 @@ class EnhancedImagePreview extends StatelessWidget {
               ),
             ),
           ),
-          if (showControls)
+          if (widget.showControls)
             Container(
               padding: const EdgeInsets.all(8),
               child: Text(
@@ -140,9 +229,9 @@ class EnhancedImagePreview extends StatelessWidget {
   }
 
   Widget _buildImageWidget() {
-    if (kIsWeb || imagePath.startsWith('data:')) {
+    if (kIsWeb || widget.imagePath.startsWith('data:')) {
       return Image.network(
-        imagePath,
+        widget.imagePath,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => const Center(
           child: Column(
@@ -168,7 +257,7 @@ class EnhancedImagePreview extends StatelessWidget {
       );
     } else {
       return Image.file(
-        File(imagePath),
+        File(widget.imagePath),
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => const Center(
           child: Column(
@@ -204,16 +293,17 @@ class EnhancedImagePreview extends StatelessWidget {
   }
 
   String _getImagePath() {
-    if (imagePath.length > 50) {
-      return '...${imagePath.substring(imagePath.length - 47)}';
+    if (widget.imagePath.length > 50) {
+      return '...${widget.imagePath.substring(widget.imagePath.length - 47)}';
     }
-    return imagePath;
+    return widget.imagePath;
   }
 
   void _showFullscreenImage(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => FullscreenImageViewer(imagePath: imagePath),
+        builder: (context) =>
+            FullscreenImageViewer(imagePath: widget.imagePath),
       ),
     );
   }
@@ -234,15 +324,22 @@ class EnhancedImagePreview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildInfoRow('Path', _getImagePath()),
+            if (_imageSize != null)
+              _buildInfoRow(
+                'Resolution',
+                '${_imageSize!.width.toInt()} x ${_imageSize!.height.toInt()}',
+              ),
+            if (_fileSize != null)
+              _buildInfoRow('Size', _formatBytes(_fileSize!, 2)),
             _buildInfoRow(
                 'Type',
-                imagePath.toLowerCase().contains('.jpg') ||
-                        imagePath.toLowerCase().contains('.jpeg')
+                widget.imagePath.toLowerCase().contains('.jpg') ||
+                        widget.imagePath.toLowerCase().contains('.jpeg')
                     ? 'JPEG'
                     : 'Image'),
             _buildInfoRow(
                 'Source',
-                kIsWeb || imagePath.startsWith('data:')
+                kIsWeb || widget.imagePath.startsWith('data:')
                     ? 'Web/Data URL'
                     : 'Local File'),
             _buildInfoRow('Watermark', 'Applied with timestamp'),
@@ -309,17 +406,33 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
   bool _showControls = true;
   bool _isInitialized = false;
   String? _errorMessage;
+  int? _fileSize;
 
   @override
   void initState() {
     super.initState();
     _initializeVideo();
+    _getFileSize();
   }
 
   @override
   void dispose() {
     _controller?.dispose();
     super.dispose();
+  }
+
+  Future<void> _getFileSize() async {
+    if (!kIsWeb && !widget.videoPath.startsWith('data:')) {
+      final file = File(widget.videoPath);
+      if (await file.exists()) {
+        final size = await file.length();
+        if (mounted) {
+          setState(() {
+            _fileSize = size;
+          });
+        }
+      }
+    }
   }
 
   Future<void> _initializeVideo() async {
@@ -715,6 +828,8 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
             _buildInfoRow('Duration', _formatDuration(duration)),
             _buildInfoRow(
                 'Resolution', '${size.width.toInt()}x${size.height.toInt()}'),
+            if (_fileSize != null)
+              _buildInfoRow('Size', _formatBytes(_fileSize!, 2)),
             _buildInfoRow(
                 'Source',
                 kIsWeb || widget.videoPath.startsWith('data:')

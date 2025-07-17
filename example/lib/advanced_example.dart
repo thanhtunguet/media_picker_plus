@@ -59,20 +59,17 @@ class _AdvancedExampleState extends State<AdvancedExample> {
     setState(() => _isLoading = true);
     try {
       final timestamp = _generateTimestamp();
-      print('DEBUG: Watermark text: PICKED: $timestamp');
-      print('DEBUG: Watermark position: ${WatermarkPosition.bottomRight}');
 
       final path = await MediaPickerPlus.pickImage(
         options: MediaOptions(
           imageQuality: 90,
-          maxWidth: 1920,
-          maxHeight: 1080,
+          maxWidth: 2560,
+          maxHeight: 1440,
           watermark: 'PICKED: $timestamp',
           watermarkFontSize: 48,
           watermarkPosition: WatermarkPosition.bottomRight,
         ),
       );
-      print('DEBUG: Returned path: $path');
 
       setState(() {
         _timestampedImagePath = path;
@@ -116,21 +113,17 @@ class _AdvancedExampleState extends State<AdvancedExample> {
       }
 
       final detailedTimestamp = _generateDetailedTimestamp();
-      print('DEBUG: Capture watermark text: CAPTURED: $detailedTimestamp');
-      print('DEBUG: Capture watermark position: ${WatermarkPosition.bottomCenter}');
-      print('DEBUG: Capture max resolution: 1440x1440');
 
       final path = await MediaPickerPlus.capturePhoto(
         options: MediaOptions(
           imageQuality: 95,
-          maxWidth: 1440,
+          maxWidth: 2560,
           maxHeight: 1440,
           watermark: 'CAPTURED: $detailedTimestamp',
           watermarkFontSize: 56,
           watermarkPosition: WatermarkPosition.bottomCenter,
         ),
       );
-      print('DEBUG: Capture returned path: $path');
 
       setState(() {
         _timestampedImagePath = path;
@@ -180,13 +173,10 @@ class _AdvancedExampleState extends State<AdvancedExample> {
       if (!shouldContinue) return;
 
       final timestamp = _generateDetailedTimestamp();
-      print('DEBUG: Video watermark text: RECORDED: $timestamp');
-      print('DEBUG: Video watermark position: ${WatermarkPosition.topLeft}');
-      print('DEBUG: Video max resolution: 1440x1440');
 
       final path = await MediaPickerPlus.recordVideo(
         options: MediaOptions(
-          maxWidth: 1440,
+          maxWidth: 2560,
           maxHeight: 1440,
           watermark: 'RECORDED: $timestamp',
           watermarkFontSize: 64,
@@ -194,7 +184,6 @@ class _AdvancedExampleState extends State<AdvancedExample> {
           maxDuration: const Duration(minutes: 5),
         ),
       );
-      print('DEBUG: Video returned path: $path');
 
       setState(() {
         _timestampedVideoPath = path;
@@ -245,6 +234,8 @@ class _AdvancedExampleState extends State<AdvancedExample> {
           '${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
       final path = await MediaPickerPlus.pickVideo(
         options: MediaOptions(
+          maxWidth: 2560,
+          maxHeight: 1440,
           watermark: '🎥 Selected: $customFormat',
           watermarkFontSize: 22,
           watermarkPosition: WatermarkPosition.topRight,
@@ -433,17 +424,17 @@ class _AdvancedExampleState extends State<AdvancedExample> {
     String info = 'Media Information:\n\n';
     if (imagePath != null) {
       info += 'Image: ${imagePath.split('/').last}\n';
-      info += 'Max Resolution: 1440x1440 (HD)\n';
+      info += 'Max Resolution: 2560x1440 (1440p)\n';
       info += 'Watermark: Large font size (56px)\n';
       info += 'Full path: $imagePath\n\n';
     }
     if (videoPath != null) {
       info += 'Video: ${videoPath.split('/').last}\n';
-      info += 'Max Resolution: 1440x1440 (HD)\n';
+      info += 'Max Resolution: 2560x1440 (1440p)\n';
       info += 'Watermark: Large font size (64px)\n';
       info += 'Full path: $videoPath\n\n';
     }
-    info += 'Media is resized to HD before watermarking.\n';
+    info += 'Media is resized to 1440p before watermarking.\n';
     info += 'Watermarks should be clearly visible.\n';
     info += 'Check the preview widgets below to verify.';
 
