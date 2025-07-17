@@ -403,10 +403,13 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             print("Starting video recording")
             output.startRecording(to: tempURL, recordingDelegate: delegate)
             
-            // Auto-stop recording after 5 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            // Auto-stop recording based on maxDuration or default to 30 seconds
+            let maxDuration = (self.mediaOptions?["maxDuration"] as? Int) ?? 30
+            print("Video recording will auto-stop after \(maxDuration) seconds")
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + TimeInterval(maxDuration)) {
                 if output.isRecording {
-                    print("Auto-stopping video recording")
+                    print("Auto-stopping video recording after \(maxDuration) seconds")
                     output.stopRecording()
                 }
             }
@@ -439,10 +442,11 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             }
             
             // Apply watermark if specified
-            if let watermarkText = options["watermarkText"] as? String {
+            if let watermarkText = options["watermark"] as? String {
                 let position = (options["watermarkPosition"] as? String) ?? "bottomRight"
-                print("Adding watermark: '\(watermarkText)' at position: \(position)")
-                processedImage = addWatermarkToImage(processedImage, text: watermarkText, position: position)
+                let fontSize = (options["watermarkFontSize"] as? Double) ?? 24.0
+                print("Adding watermark: '\(watermarkText)' at position: \(position) with font size: \(fontSize)")
+                processedImage = addWatermarkToImage(processedImage, text: watermarkText, position: position, fontSize: fontSize)
             }
         }
         
@@ -464,20 +468,107 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     private func processSelectedVideo(url: URL) {
         // Apply watermark if specified
         if let options = mediaOptions,
-           let watermarkText = options["watermarkText"] as? String {
+           let watermarkText = options["watermark"] as? String {
             let position = (options["watermarkPosition"] as? String) ?? "bottomRight"
-            addWatermarkToVideo(url, text: watermarkText, position: position) { [weak self] outputURL in
+            let fontSize = (options["watermarkFontSize"] as? Double) ?? 24.0
+            print("Adding watermark to video: '\(watermarkText)' at position: \(position) with font size: \(fontSize)")
+            addWatermarkToVideo(url, text: watermarkText, position: position, fontSize: fontSize) { [weak self] outputURL in
                 if let outputURL = outputURL {
+                    print("Video watermark completed successfully: \(outputURL.path)")
                     self?.pendingResult?(outputURL.path)
                 } else {
+                    print("Video watermark failed")
                     self?.pendingResult?(MediaPickerPlusError.operationFailed())
                 }
                 self?.pendingResult = nil
             }
         } else {
+            print("No watermark specified for video, returning original")
             pendingResult?(url.path)
             pendingResult = nil
         }
+    }
+    
+    // MARK: - Watermark Utilities
+    
+    private func calculateOptimalFontSize(for dimensions: CGSize, requestedSize: Double, text: String) -> CGFloat {
+        // Calculate font size as percentage of the smaller dimension
+        // This ensures the watermark is proportional to the media size
+        let minDimension = min(dimensions.width, dimensions.height)
+        let maxDimension = max(dimensions.width, dimensions.height)
+        
+        // Base calculation: use requested size as percentage of smaller dimension
+        let baseFontSize = minDimension * (requestedSize / 1000.0)
+        
+        // Apply bounds to ensure readability while preventing overflow
+        let minFontSize: CGFloat = max(12.0, minDimension * 0.015) // Minimum 12pt or 1.5% of smaller dimension
+        let maxFontSize: CGFloat = min(maxDimension * 0.08, minDimension * 0.15) // Max 8% of larger or 15% of smaller
+        
+        let calculatedSize = max(minFontSize, min(maxFontSize, baseFontSize))
+        
+        // Additional check: ensure text fits within 80% of the media width
+        let tempAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: calculatedSize)
+        ]
+        let tempString = NSAttributedString(string: text, attributes: tempAttributes)
+        let textWidth = tempString.size().width
+        let maxAllowedWidth = dimensions.width * 0.8
+        
+        if textWidth > maxAllowedWidth {
+            // Scale down font to fit within width
+            let scaleFactor = maxAllowedWidth / textWidth
+            return max(minFontSize, calculatedSize * scaleFactor)
+        }
+        
+        print("Calculated optimal font size: \(calculatedSize) for dimensions: \(dimensions) (requested: \(requestedSize))")
+        return calculatedSize
+    }
+    
+    private func calculateWatermarkRect(
+        for textSize: CGSize,
+        in containerSize: CGSize,
+        position: String,
+        margin: CGFloat
+    ) -> CGRect {
+        // Ensure margin doesn't exceed available space
+        let safeMargin = min(margin, min(containerSize.width, containerSize.height) * 0.05)
+        
+        // Ensure text size doesn't exceed container bounds
+        let maxWidth = containerSize.width - (2 * safeMargin)
+        let maxHeight = containerSize.height - (2 * safeMargin)
+        let adjustedTextSize = CGSize(
+            width: min(textSize.width, maxWidth),
+            height: min(textSize.height, maxHeight)
+        )
+        
+        var rect: CGRect
+        
+        switch position {
+        case "topLeft":
+            rect = CGRect(x: safeMargin, y: containerSize.height - adjustedTextSize.height - safeMargin, width: adjustedTextSize.width, height: adjustedTextSize.height)
+        case "topCenter":
+            rect = CGRect(x: (containerSize.width - adjustedTextSize.width) / 2, y: containerSize.height - adjustedTextSize.height - safeMargin, width: adjustedTextSize.width, height: adjustedTextSize.height)
+        case "topRight":
+            rect = CGRect(x: containerSize.width - adjustedTextSize.width - safeMargin, y: containerSize.height - adjustedTextSize.height - safeMargin, width: adjustedTextSize.width, height: adjustedTextSize.height)
+        case "middleLeft":
+            rect = CGRect(x: safeMargin, y: (containerSize.height - adjustedTextSize.height) / 2, width: adjustedTextSize.width, height: adjustedTextSize.height)
+        case "middleCenter":
+            rect = CGRect(x: (containerSize.width - adjustedTextSize.width) / 2, y: (containerSize.height - adjustedTextSize.height) / 2, width: adjustedTextSize.width, height: adjustedTextSize.height)
+        case "middleRight":
+            rect = CGRect(x: containerSize.width - adjustedTextSize.width - safeMargin, y: (containerSize.height - adjustedTextSize.height) / 2, width: adjustedTextSize.width, height: adjustedTextSize.height)
+        case "bottomLeft":
+            rect = CGRect(x: safeMargin, y: safeMargin, width: adjustedTextSize.width, height: adjustedTextSize.height)
+        case "bottomCenter":
+            rect = CGRect(x: (containerSize.width - adjustedTextSize.width) / 2, y: safeMargin, width: adjustedTextSize.width, height: adjustedTextSize.height)
+        default: // bottomRight
+            rect = CGRect(x: containerSize.width - adjustedTextSize.width - safeMargin, y: safeMargin, width: adjustedTextSize.width, height: adjustedTextSize.height)
+        }
+        
+        // Final bounds check to ensure rect is within container
+        rect.origin.x = max(0, min(rect.origin.x, containerSize.width - rect.size.width))
+        rect.origin.y = max(0, min(rect.origin.y, containerSize.height - rect.size.height))
+        
+        return rect
     }
     
     // MARK: - Image Utilities
@@ -502,17 +593,20 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         return newImage
     }
     
-    private func addWatermarkToImage(_ image: NSImage, text: String, position: String) -> NSImage {
+    private func addWatermarkToImage(_ image: NSImage, text: String, position: String, fontSize: Double = 24.0) -> NSImage {
         let watermarkedImage = NSImage(size: image.size)
+        
+        // Calculate optimal font size based on image dimensions
+        let optimalFontSize = calculateOptimalFontSize(for: image.size, requestedSize: fontSize, text: text)
         
         watermarkedImage.lockFocus()
         
         // Draw original image
         image.draw(in: NSRect(origin: .zero, size: image.size))
         
-        // Setup text attributes
+        // Setup text attributes with calculated font size
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 24),
+            .font: NSFont.systemFont(ofSize: optimalFontSize),
             .foregroundColor: NSColor.white,
             .strokeColor: NSColor.black,
             .strokeWidth: -2
@@ -521,32 +615,12 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         let attributedString = NSAttributedString(string: text, attributes: attributes)
         let textSize = attributedString.size()
         
-        // Calculate position
+        // Calculate position with bounds checking
         let imageSize = image.size
-        let margin: CGFloat = 20
-        var textRect: NSRect
+        let margin: CGFloat = max(20, imageSize.width * 0.02) // Dynamic margin based on image size
+        let textRect = calculateWatermarkRect(for: textSize, in: imageSize, position: position, margin: margin)
         
-        switch position {
-        case "topLeft":
-            textRect = NSRect(x: margin, y: imageSize.height - textSize.height - margin, width: textSize.width, height: textSize.height)
-        case "topCenter":
-            textRect = NSRect(x: (imageSize.width - textSize.width) / 2, y: imageSize.height - textSize.height - margin, width: textSize.width, height: textSize.height)
-        case "topRight":
-            textRect = NSRect(x: imageSize.width - textSize.width - margin, y: imageSize.height - textSize.height - margin, width: textSize.width, height: textSize.height)
-        case "middleLeft":
-            textRect = NSRect(x: margin, y: (imageSize.height - textSize.height) / 2, width: textSize.width, height: textSize.height)
-        case "middleCenter":
-            textRect = NSRect(x: (imageSize.width - textSize.width) / 2, y: (imageSize.height - textSize.height) / 2, width: textSize.width, height: textSize.height)
-        case "middleRight":
-            textRect = NSRect(x: imageSize.width - textSize.width - margin, y: (imageSize.height - textSize.height) / 2, width: textSize.width, height: textSize.height)
-        case "bottomLeft":
-            textRect = NSRect(x: margin, y: margin, width: textSize.width, height: textSize.height)
-        case "bottomCenter":
-            textRect = NSRect(x: (imageSize.width - textSize.width) / 2, y: margin, width: textSize.width, height: textSize.height)
-        default: // bottomRight
-            textRect = NSRect(x: imageSize.width - textSize.width - margin, y: margin, width: textSize.width, height: textSize.height)
-        }
-        
+        print("Watermark rect: \(textRect) for image size: \(imageSize)")
         attributedString.draw(in: textRect)
         
         watermarkedImage.unlockFocus()
@@ -571,7 +645,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     
     // MARK: - Video Utilities
     
-    private func addWatermarkToVideo(_ inputURL: URL, text: String, position: String, completion: @escaping (URL?) -> Void) {
+    private func addWatermarkToVideo(_ inputURL: URL, text: String, position: String, fontSize: Double = 24.0, completion: @escaping (URL?) -> Void) {
         let asset = AVAsset(url: inputURL)
         let composition = AVMutableComposition()
         
@@ -588,38 +662,34 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             return
         }
         
-        // Create text layer
+        // Position text layer
+        let videoSize = videoTrack.naturalSize
+        
+        // Calculate optimal font size for video
+        let optimalFontSize = calculateOptimalFontSize(for: videoSize, requestedSize: fontSize, text: text)
+        
+        // Create text layer with calculated font size
         let textLayer = CATextLayer()
         textLayer.string = text
-        textLayer.fontSize = 24
+        textLayer.fontSize = optimalFontSize
         textLayer.foregroundColor = NSColor.white.cgColor
         textLayer.alignmentMode = .center
         
-        // Position text layer
-        let videoSize = videoTrack.naturalSize
-        let margin: CGFloat = 20
-        let textSize = CGSize(width: 200, height: 50)
+        // Calculate text size based on actual font size
+        let tempAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: optimalFontSize)
+        ]
+        let tempString = NSAttributedString(string: text, attributes: tempAttributes)
+        let calculatedTextSize = tempString.size()
+        let textSize = CGSize(width: calculatedTextSize.width + 20, height: calculatedTextSize.height + 10) // Add padding
         
-        switch position {
-        case "topLeft":
-            textLayer.frame = CGRect(x: margin, y: videoSize.height - textSize.height - margin, width: textSize.width, height: textSize.height)
-        case "topCenter":
-            textLayer.frame = CGRect(x: (videoSize.width - textSize.width) / 2, y: videoSize.height - textSize.height - margin, width: textSize.width, height: textSize.height)
-        case "topRight":
-            textLayer.frame = CGRect(x: videoSize.width - textSize.width - margin, y: videoSize.height - textSize.height - margin, width: textSize.width, height: textSize.height)
-        case "middleLeft":
-            textLayer.frame = CGRect(x: margin, y: (videoSize.height - textSize.height) / 2, width: textSize.width, height: textSize.height)
-        case "middleCenter":
-            textLayer.frame = CGRect(x: (videoSize.width - textSize.width) / 2, y: (videoSize.height - textSize.height) / 2, width: textSize.width, height: textSize.height)
-        case "middleRight":
-            textLayer.frame = CGRect(x: videoSize.width - textSize.width - margin, y: (videoSize.height - textSize.height) / 2, width: textSize.width, height: textSize.height)
-        case "bottomLeft":
-            textLayer.frame = CGRect(x: margin, y: margin, width: textSize.width, height: textSize.height)
-        case "bottomCenter":
-            textLayer.frame = CGRect(x: (videoSize.width - textSize.width) / 2, y: margin, width: textSize.width, height: textSize.height)
-        default: // bottomRight
-            textLayer.frame = CGRect(x: videoSize.width - textSize.width - margin, y: margin, width: textSize.width, height: textSize.height)
-        }
+        let margin: CGFloat = max(20, videoSize.width * 0.02) // Dynamic margin based on video size
+        
+        // Calculate position with bounds checking
+        let textRect = calculateWatermarkRect(for: textSize, in: videoSize, position: position, margin: margin)
+        textLayer.frame = textRect
+        
+        print("Video watermark rect: \(textRect) for video size: \(videoSize)")
         
         // Create video layer
         let videoLayer = CALayer()
