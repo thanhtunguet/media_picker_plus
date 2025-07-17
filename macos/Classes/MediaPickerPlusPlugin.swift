@@ -445,8 +445,6 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         textLayer.string = text
         textLayer.fontSize = 24
         textLayer.foregroundColor = NSColor.white.cgColor
-        textLayer.strokeColor = NSColor.black.cgColor
-        textLayer.strokeWidth = -2
         textLayer.alignmentMode = .center
         
         // Position text layer

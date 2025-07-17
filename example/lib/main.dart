@@ -192,7 +192,15 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
     setState(() => _isLoading = true);
     try {
       final paths = await MediaPickerPlus.pickMultipleFiles(
-        allowedExtensions: ['.pdf', '.doc', '.docx', '.txt', '.csv', '.xls', '.xlsx'],
+        allowedExtensions: [
+          '.pdf',
+          '.doc',
+          '.docx',
+          '.txt',
+          '.csv',
+          '.xls',
+          '.xlsx'
+        ],
       );
       setState(() {
         _multipleFilePaths = List<String>.from(paths ?? []);
@@ -208,9 +216,9 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
   Future<void> _checkPermissions() async {
     final cameraPermission = await MediaPickerPlus.hasCameraPermission();
     final galleryPermission = await MediaPickerPlus.hasGalleryPermission();
-    
+
     if (!mounted) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -219,9 +227,11 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Camera Permission: ${cameraPermission ? "✅ Granted" : "❌ Denied"}'),
+            Text(
+                'Camera Permission: ${cameraPermission ? "✅ Granted" : "❌ Denied"}'),
             const SizedBox(height: 8),
-            Text('Gallery Permission: ${galleryPermission ? "✅ Granted" : "❌ Denied"}'),
+            Text(
+                'Gallery Permission: ${galleryPermission ? "✅ Granted" : "❌ Denied"}'),
           ],
         ),
         actions: [
@@ -237,9 +247,9 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
   Future<void> _requestPermissions() async {
     final cameraGranted = await MediaPickerPlus.requestCameraPermission();
     final galleryGranted = await MediaPickerPlus.requestGalleryPermission();
-    
+
     if (!mounted) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -248,9 +258,11 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Camera Permission: ${cameraGranted ? "✅ Granted" : "❌ Denied"}'),
+            Text(
+                'Camera Permission: ${cameraGranted ? "✅ Granted" : "❌ Denied"}'),
             const SizedBox(height: 8),
-            Text('Gallery Permission: ${galleryGranted ? "✅ Granted" : "❌ Denied"}'),
+            Text(
+                'Gallery Permission: ${galleryGranted ? "✅ Granted" : "❌ Denied"}'),
           ],
         ),
         actions: [
@@ -299,7 +311,7 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
 
   Widget _buildMediaPreview() {
     if (_singleMediaPath == null) return const SizedBox.shrink();
-    
+
     return Card(
       child: Column(
         children: [
@@ -315,14 +327,16 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
             Image.network(
               _singleMediaPath!,
               height: 200,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.error),
             )
           else
             // Mobile/Desktop implementation - file path
             Image.file(
               File(_singleMediaPath!),
               height: 200,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.error),
             ),
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -342,7 +356,7 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
 
   Widget _buildMultipleMediaPreview() {
     if (_multipleMediaPaths.isEmpty) return const SizedBox.shrink();
-    
+
     return Card(
       child: Column(
         children: [
@@ -368,14 +382,16 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
                           width: 100,
                           height: 100,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.error),
                         )
                       : Image.file(
                           File(path),
                           width: 100,
                           height: 100,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.error),
                         ),
                 );
               },
@@ -396,7 +412,7 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
 
   Widget _buildFilePreview() {
     if (_filePath == null) return const SizedBox.shrink();
-    
+
     return Card(
       child: Column(
         children: [
@@ -433,7 +449,7 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
 
   Widget _buildMultipleFilePreview() {
     if (_multipleFilePaths.isEmpty) return const SizedBox.shrink();
-    
+
     return Card(
       child: Column(
         children: [
@@ -565,9 +581,9 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
                   ),
                   const SizedBox(height: 16),
                   _buildMediaPreview(),
-                  
+
                   const SizedBox(height: 32),
-                  
+
                   // Multiple Media Operations
                   const Text(
                     'Multiple Media Operations',
@@ -595,9 +611,9 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
                   ),
                   const SizedBox(height: 16),
                   _buildMultipleMediaPreview(),
-                  
+
                   const SizedBox(height: 32),
-                  
+
                   // File Operations
                   const Text(
                     'File Operations',
@@ -626,9 +642,9 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
                   const SizedBox(height: 16),
                   _buildFilePreview(),
                   _buildMultipleFilePreview(),
-                  
+
                   const SizedBox(height: 32),
-                  
+
                   // Permission Operations
                   const Text(
                     'Permission Management',
@@ -654,9 +670,9 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 32),
-                  
+
                   // Feature Information
                   Card(
                     child: Padding(
@@ -666,27 +682,36 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
                         children: [
                           const Text(
                             'Features Demonstrated',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
                           const Text('✅ Image and video picking from gallery'),
-                          const Text('✅ Camera photo capture and video recording'),
-                          const Text('✅ Advanced watermarking with positioning'),
+                          const Text(
+                              '✅ Camera photo capture and video recording'),
+                          const Text(
+                              '✅ Advanced watermarking with positioning'),
                           const Text('✅ Image quality control and resizing'),
                           const Text('✅ Multiple media selection'),
                           const Text('✅ File picking with extension filtering'),
                           const Text('✅ Permission management'),
-                          const Text('✅ Cross-platform support (Android, iOS, macOS, Web)'),
+                          const Text(
+                              '✅ Cross-platform support (Android, iOS, macOS, Web)'),
                           const SizedBox(height: 16),
                           const Text(
                             'Platform Support',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
-                          Text('Current Platform: ${kIsWeb ? "Web" : Platform.operatingSystem}'),
-                          const Text('• Android: Full support with advanced features'),
-                          const Text('• iOS: Full support with advanced features'),
-                          const Text('• macOS: Full support with advanced features'),
+                          Text(
+                              'Current Platform: ${kIsWeb ? "Web" : Platform.operatingSystem}'),
+                          const Text(
+                              '• Android: Full support with advanced features'),
+                          const Text(
+                              '• iOS: Full support with advanced features'),
+                          const Text(
+                              '• macOS: Full support with advanced features'),
                           const Text('• Web: Full support with HTML5 APIs'),
                         ],
                       ),
