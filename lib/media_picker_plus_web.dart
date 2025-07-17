@@ -225,8 +225,8 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     ctx.font = '${fontSize}px Arial';
     ctx.textBaseline = 'bottom';
     ctx.globalAlpha = 0.7;
-    ctx.fillStyle = 'white';
-    ctx.strokeStyle = 'black';
+    ctx.fillStyle = 'white' as dynamic;
+    ctx.strokeStyle = 'black' as dynamic;
     ctx.lineWidth = 2;
     final metrics = ctx.measureText(text);
     double x = width - metrics.width - 20;
