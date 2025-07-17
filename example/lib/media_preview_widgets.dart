@@ -22,6 +22,9 @@ class EnhancedImagePreview extends StatefulWidget {
   final VoidCallback? onClear;
   final double height;
   final bool showControls;
+  final int? maxWidth;
+  final int? maxHeight;
+  final bool resizeEnabled;
 
   const EnhancedImagePreview({
     super.key,
@@ -30,6 +33,9 @@ class EnhancedImagePreview extends StatefulWidget {
     this.onClear,
     this.height = 300,
     this.showControls = true,
+    this.maxWidth,
+    this.maxHeight,
+    this.resizeEnabled = true,
   });
 
   @override
@@ -299,6 +305,27 @@ class _EnhancedImagePreviewState extends State<EnhancedImagePreview> {
     return widget.imagePath;
   }
 
+  String _getResizeStatus() {
+    if (_imageSize == null || widget.maxWidth == null || widget.maxHeight == null) {
+      return 'Unknown';
+    }
+    
+    final actualWidth = _imageSize!.width.toInt();
+    final actualHeight = _imageSize!.height.toInt();
+    final maxWidth = widget.maxWidth!;
+    final maxHeight = widget.maxHeight!;
+    
+    if (actualWidth <= maxWidth && actualHeight <= maxHeight) {
+      if (actualWidth == maxWidth || actualHeight == maxHeight) {
+        return 'Resized (fit to bounds)';
+      } else {
+        return 'No resize needed';
+      }
+    } else {
+      return 'Resized (aspect ratio preserved)';
+    }
+  }
+
   void _showFullscreenImage(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -324,13 +351,23 @@ class _EnhancedImagePreviewState extends State<EnhancedImagePreview> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildInfoRow('Path', _getImagePath()),
+            if (widget.resizeEnabled && widget.maxWidth != null && widget.maxHeight != null)
+              _buildInfoRow(
+                'Target Resolution',
+                '${widget.maxWidth} x ${widget.maxHeight} (max)',
+              ),
             if (_imageSize != null)
               _buildInfoRow(
-                'Resolution',
+                'Actual Resolution',
                 '${_imageSize!.width.toInt()} x ${_imageSize!.height.toInt()}',
               ),
+            if (widget.resizeEnabled && _imageSize != null && widget.maxWidth != null && widget.maxHeight != null)
+              _buildInfoRow(
+                'Resize Status',
+                _getResizeStatus(),
+              ),
             if (_fileSize != null)
-              _buildInfoRow('Size', _formatBytes(_fileSize!, 2)),
+              _buildInfoRow('File Size', _formatBytes(_fileSize!, 2)),
             _buildInfoRow(
                 'Type',
                 widget.imagePath.toLowerCase().contains('.jpg') ||
@@ -341,8 +378,8 @@ class _EnhancedImagePreviewState extends State<EnhancedImagePreview> {
                 'Source',
                 kIsWeb || widget.imagePath.startsWith('data:')
                     ? 'Web/Data URL'
-                    : 'Local File'),
-            _buildInfoRow('Watermark', 'Applied with timestamp'),
+                    : 'Processed File'),
+            _buildInfoRow('Processing', widget.resizeEnabled ? 'Resized & Watermarked' : 'Watermarked Only'),
           ],
         ),
         actions: [
@@ -385,6 +422,9 @@ class EnhancedVideoPlayer extends StatefulWidget {
   final double height;
   final bool showControls;
   final bool autoPlay;
+  final int? maxWidth;
+  final int? maxHeight;
+  final bool resizeEnabled;
 
   const EnhancedVideoPlayer({
     super.key,
@@ -394,6 +434,9 @@ class EnhancedVideoPlayer extends StatefulWidget {
     this.height = 300,
     this.showControls = true,
     this.autoPlay = false,
+    this.maxWidth,
+    this.maxHeight,
+    this.resizeEnabled = true,
   });
 
   @override
@@ -795,6 +838,27 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
     return widget.videoPath;
   }
 
+  String _getVideoResizeStatus(Size size) {
+    if (widget.maxWidth == null || widget.maxHeight == null) {
+      return 'Unknown';
+    }
+    
+    final actualWidth = size.width.toInt();
+    final actualHeight = size.height.toInt();
+    final maxWidth = widget.maxWidth!;
+    final maxHeight = widget.maxHeight!;
+    
+    if (actualWidth <= maxWidth && actualHeight <= maxHeight) {
+      if (actualWidth == maxWidth || actualHeight == maxHeight) {
+        return 'Resized (fit to bounds)';
+      } else {
+        return 'No resize needed';
+      }
+    } else {
+      return 'Resized (aspect ratio preserved)';
+    }
+  }
+
   void _showFullscreenVideo(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -826,16 +890,26 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
           children: [
             _buildInfoRow('Path', _getVideoPath()),
             _buildInfoRow('Duration', _formatDuration(duration)),
+            if (widget.resizeEnabled && widget.maxWidth != null && widget.maxHeight != null)
+              _buildInfoRow(
+                'Target Resolution',
+                '${widget.maxWidth} x ${widget.maxHeight} (max)',
+              ),
             _buildInfoRow(
-                'Resolution', '${size.width.toInt()}x${size.height.toInt()}'),
+                'Actual Resolution', '${size.width.toInt()}x${size.height.toInt()}'),
+            if (widget.resizeEnabled && widget.maxWidth != null && widget.maxHeight != null)
+              _buildInfoRow(
+                'Resize Status',
+                _getVideoResizeStatus(size),
+              ),
             if (_fileSize != null)
-              _buildInfoRow('Size', _formatBytes(_fileSize!, 2)),
+              _buildInfoRow('File Size', _formatBytes(_fileSize!, 2)),
             _buildInfoRow(
                 'Source',
                 kIsWeb || widget.videoPath.startsWith('data:')
                     ? 'Web/Data URL'
-                    : 'Local File'),
-            _buildInfoRow('Watermark', 'Applied with timestamp'),
+                    : 'Processed File'),
+            _buildInfoRow('Processing', widget.resizeEnabled ? 'Resized & Watermarked' : 'Watermarked Only'),
           ],
         ),
         actions: [

@@ -1,3 +1,10 @@
-## 0.0.1
+## 0.0.1+1
 
-* TODO: Describe initial release.
+### Added
+
+- Picking image / multiple images / video / multiple videos
+- Capturing photo directly from camera
+- Recording video directly from camera
+- Resizing picked images/videos
+- Add watermark for images
+- Add watermark for videos (iOS / macOS only)

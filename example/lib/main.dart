@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_picker_plus/media_picker_plus.dart';
 
-import 'advanced_example.dart';
 import 'media_preview_widgets.dart';
 
 Future<void> main() async {
@@ -22,38 +21,97 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const MediaPickerExample(),
+      home: const AdvancedMediaPickerExample(),
     );
   }
 }
 
-class MediaPickerExample extends StatefulWidget {
-  const MediaPickerExample({super.key});
+class AdvancedMediaPickerExample extends StatefulWidget {
+  const AdvancedMediaPickerExample({super.key});
 
   @override
-  State<MediaPickerExample> createState() => _MediaPickerExampleState();
+  State<AdvancedMediaPickerExample> createState() =>
+      _AdvancedMediaPickerExampleState();
 }
 
-class _MediaPickerExampleState extends State<MediaPickerExample> {
+class _AdvancedMediaPickerExampleState
+    extends State<AdvancedMediaPickerExample> {
+  // Media Results
   String? _singleMediaPath;
   List<String> _multipleMediaPaths = [];
   String? _filePath;
   List<String> _multipleFilePaths = [];
   bool _isLoading = false;
 
+  // Settings
+  int _imageQuality = 85;
+  int _maxWidth = 2560;
+  int _maxHeight = 1440;
+  double _watermarkFontSize = 32;
+  String _watermarkPosition = WatermarkPosition.bottomRight;
+  int _maxDurationMinutes = 5;
+  String _customWatermark = 'Media Picker Plus';
+  bool _enableImageResize = true;
+
+  // Permission states
+  bool _hasCameraPermission = false;
+  bool _hasGalleryPermission = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAllPermissions();
+  }
+
+  /// Check all required permissions
+  Future<void> _checkAllPermissions() async {
+    try {
+      final cameraPermission = await MediaPickerPlus.hasCameraPermission();
+      final galleryPermission = await MediaPickerPlus.hasGalleryPermission();
+
+      setState(() {
+        _hasCameraPermission = cameraPermission == true;
+        _hasGalleryPermission = galleryPermission == true;
+      });
+    } catch (e) {
+      _showError('Error checking permissions: $e');
+    }
+  }
+
+  /// Generate current MediaOptions based on settings
+  MediaOptions get _currentOptions => MediaOptions(
+        imageQuality: _imageQuality,
+        maxWidth: _enableImageResize ? _maxWidth : null,
+        maxHeight: _enableImageResize ? _maxHeight : null,
+        watermark: _customWatermark,
+        watermarkFontSize: _watermarkFontSize,
+        watermarkPosition: _watermarkPosition,
+        maxDuration: Duration(minutes: _maxDurationMinutes),
+      );
+
+  /// Generate MediaOptions with custom watermark
+  MediaOptions _getOptionsWithWatermark(String watermark) => MediaOptions(
+        imageQuality: _imageQuality,
+        maxWidth: _enableImageResize ? _maxWidth : null,
+        maxHeight: _enableImageResize ? _maxHeight : null,
+        watermark: watermark,
+        watermarkFontSize: _watermarkFontSize,
+        watermarkPosition: _watermarkPosition,
+        maxDuration: Duration(minutes: _maxDurationMinutes),
+      );
+
+  /// Generate timestamp watermark
+  String _generateTimestampWatermark() {
+    final now = DateTime.now();
+    return '$_customWatermark • ${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+  }
+
   // Single Media Operations
   Future<void> _pickImage() async {
     setState(() => _isLoading = true);
     try {
       final path = await MediaPickerPlus.pickImage(
-        options: const MediaOptions(
-          imageQuality: 85,
-          maxWidth: 2560,
-          maxHeight: 1440,
-          watermark: '📸 Media Picker Plus',
-          watermarkFontSize: 32,
-          watermarkPosition: WatermarkPosition.bottomRight,
-        ),
+        options: _currentOptions,
       );
       setState(() {
         _singleMediaPath = path;
@@ -69,14 +127,7 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
     setState(() => _isLoading = true);
     try {
       final path = await MediaPickerPlus.pickVideo(
-        options: const MediaOptions(
-          maxWidth: 2560,
-          maxHeight: 1440,
-          watermark: '🎥 Media Picker Plus',
-          watermarkFontSize: 28,
-          watermarkPosition: WatermarkPosition.topLeft,
-          maxDuration: Duration(minutes: 5),
-        ),
+        options: _currentOptions,
       );
       setState(() {
         _singleMediaPath = path;
@@ -91,15 +142,18 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
   Future<void> _capturePhoto() async {
     setState(() => _isLoading = true);
     try {
+      // Check camera permission first
+      if (!_hasCameraPermission) {
+        final granted = await MediaPickerPlus.requestCameraPermission();
+        if (!granted) {
+          _showError('Camera permission is required');
+          return;
+        }
+        setState(() => _hasCameraPermission = true);
+      }
+
       final path = await MediaPickerPlus.capturePhoto(
-        options: const MediaOptions(
-          imageQuality: 90,
-          maxWidth: 2560,
-          maxHeight: 1440,
-          watermark: '📷 Captured with Media Picker Plus',
-          watermarkFontSize: 24,
-          watermarkPosition: WatermarkPosition.bottomCenter,
-        ),
+        options: _getOptionsWithWatermark(_generateTimestampWatermark()),
       );
       setState(() {
         _singleMediaPath = path;
@@ -114,15 +168,18 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
   Future<void> _recordVideo() async {
     setState(() => _isLoading = true);
     try {
+      // Check camera permission first
+      if (!_hasCameraPermission) {
+        final granted = await MediaPickerPlus.requestCameraPermission();
+        if (!granted) {
+          _showError('Camera permission is required');
+          return;
+        }
+        setState(() => _hasCameraPermission = true);
+      }
+
       final path = await MediaPickerPlus.recordVideo(
-        options: const MediaOptions(
-          maxWidth: 2560,
-          maxHeight: 1440,
-          watermark: '🎬 Recorded with Media Picker Plus',
-          watermarkFontSize: 26,
-          watermarkPosition: WatermarkPosition.topRight,
-          maxDuration: Duration(minutes: 2),
-        ),
+        options: _getOptionsWithWatermark(_generateTimestampWatermark()),
       );
       setState(() {
         _singleMediaPath = path;
@@ -139,14 +196,8 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
     setState(() => _isLoading = true);
     try {
       final paths = await MediaPickerPlus.pickMultipleImages(
-        options: const MediaOptions(
-          imageQuality: 80,
-          maxWidth: 2560,
-          maxHeight: 1440,
-          watermark: '📸 Multiple Images',
-          watermarkFontSize: 20,
-          watermarkPosition: WatermarkPosition.bottomLeft,
-        ),
+        options:
+            _getOptionsWithWatermark('$_customWatermark • Multiple Images'),
       );
       setState(() {
         _multipleMediaPaths = List<String>.from(paths ?? []);
@@ -162,13 +213,8 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
     setState(() => _isLoading = true);
     try {
       final paths = await MediaPickerPlus.pickMultipleVideos(
-        options: const MediaOptions(
-          maxWidth: 2560,
-          maxHeight: 1440,
-          watermark: '🎥 Multiple Videos',
-          watermarkFontSize: 22,
-          watermarkPosition: WatermarkPosition.middleCenter,
-        ),
+        options:
+            _getOptionsWithWatermark('$_customWatermark • Multiple Videos'),
       );
       setState(() {
         _multipleMediaPaths = List<String>.from(paths ?? []);
@@ -185,7 +231,15 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
     setState(() => _isLoading = true);
     try {
       final path = await MediaPickerPlus.pickFile(
-        allowedExtensions: ['.pdf', '.doc', '.docx', '.txt', '.csv'],
+        allowedExtensions: [
+          '.pdf',
+          '.doc',
+          '.docx',
+          '.txt',
+          '.csv',
+          '.xlsx',
+          '.pptx'
+        ],
       );
       setState(() {
         _filePath = path;
@@ -208,7 +262,10 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
           '.txt',
           '.csv',
           '.xls',
-          '.xlsx'
+          '.xlsx',
+          '.pptx',
+          '.zip',
+          '.json'
         ],
       );
       setState(() {
@@ -222,12 +279,38 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
   }
 
   // Permission Operations
-  Future<void> _checkPermissions() async {
-    final cameraPermission = await MediaPickerPlus.hasCameraPermission();
-    final galleryPermission = await MediaPickerPlus.hasGalleryPermission();
+  Future<void> _requestCameraPermission() async {
+    try {
+      final granted = await MediaPickerPlus.requestCameraPermission();
+      setState(() {
+        _hasCameraPermission = granted == true;
+      });
+      _showMessage(
+          granted ? 'Camera permission granted' : 'Camera permission denied');
+    } catch (e) {
+      _showError('Error requesting camera permission: $e');
+    }
+  }
 
-    if (!mounted) return;
+  Future<void> _requestGalleryPermission() async {
+    try {
+      final granted = await MediaPickerPlus.requestGalleryPermission();
+      setState(() {
+        _hasGalleryPermission = granted == true;
+      });
+      _showMessage(
+          granted ? 'Gallery permission granted' : 'Gallery permission denied');
+    } catch (e) {
+      _showError('Error requesting gallery permission: $e');
+    }
+  }
 
+  Future<void> _requestAllPermissions() async {
+    await _requestCameraPermission();
+    await _requestGalleryPermission();
+  }
+
+  void _showPermissionDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -236,49 +319,44 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-                'Camera Permission: ${cameraPermission ? "✅ Granted" : "❌ Denied"}'),
-            const SizedBox(height: 8),
-            Text(
-                'Gallery Permission: ${galleryPermission ? "✅ Granted" : "❌ Denied"}'),
+            _buildPermissionRow('Camera', _hasCameraPermission),
+            _buildPermissionRow('Gallery', _hasGalleryPermission),
+            const SizedBox(height: 16),
+            const Text(
+              'Note: Microphone permission for video recording is handled automatically.',
+              style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+            ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('OK'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _requestAllPermissions();
+            },
+            child: const Text('Request All'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _requestPermissions() async {
-    final cameraGranted = await MediaPickerPlus.requestCameraPermission();
-    final galleryGranted = await MediaPickerPlus.requestGalleryPermission();
-
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Permission Request Result'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-                'Camera Permission: ${cameraGranted ? "✅ Granted" : "❌ Denied"}'),
-            const SizedBox(height: 8),
-            Text(
-                'Gallery Permission: ${galleryGranted ? "✅ Granted" : "❌ Denied"}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+  Widget _buildPermissionRow(String permission, bool granted) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Icon(
+            granted ? Icons.check_circle : Icons.cancel,
+            color: granted ? Colors.green : Colors.red,
+            size: 20,
           ),
+          const SizedBox(width: 8),
+          Text('$permission: ${granted ? "Granted" : "Denied"}'),
         ],
       ),
     );
@@ -290,6 +368,16 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
       ),
     );
   }
@@ -329,12 +417,18 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
         videoPath: _singleMediaPath!,
         title: 'Single Video Preview',
         onClear: _clearSingleMedia,
+        maxWidth: _enableImageResize ? _maxWidth : null,
+        maxHeight: _enableImageResize ? _maxHeight : null,
+        resizeEnabled: _enableImageResize,
       );
     } else {
       return EnhancedImagePreview(
         imagePath: _singleMediaPath!,
         title: 'Single Image Preview',
         onClear: _clearSingleMedia,
+        maxWidth: _enableImageResize ? _maxWidth : null,
+        maxHeight: _enableImageResize ? _maxHeight : null,
+        resizeEnabled: _enableImageResize,
       );
     }
   }
@@ -389,11 +483,17 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
                           height: 100,
                           showControls: false,
                           autoPlay: false,
+                          maxWidth: _enableImageResize ? _maxWidth : null,
+                          maxHeight: _enableImageResize ? _maxHeight : null,
+                          resizeEnabled: _enableImageResize,
                         )
                       : EnhancedImagePreview(
                           imagePath: path,
                           height: 100,
                           showControls: false,
+                          maxWidth: _enableImageResize ? _maxWidth : null,
+                          maxHeight: _enableImageResize ? _maxHeight : null,
+                          resizeEnabled: _enableImageResize,
                         ),
                 );
               },
@@ -491,244 +591,550 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Media Picker Plus Example'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.science),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const AdvancedExample(),
-                ),
-              );
-            },
-            tooltip: 'Advanced Examples',
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Media Picker Plus - Complete Example'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.photo_camera), text: 'Media'),
+              Tab(icon: Icon(Icons.folder), text: 'Files'),
+              Tab(icon: Icon(Icons.settings), text: 'Settings'),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('About Media Picker Plus'),
-                  content: const Text(
-                    'A comprehensive Flutter plugin for:\n\n'
-                    '• Picking images and videos from gallery\n'
-                    '• Capturing photos and recording videos\n'
-                    '• Advanced watermarking for media\n'
-                    '• File picking with extension filtering\n'
-                    '• Multiple selection support\n'
-                    '• Cross-platform: Android, iOS, macOS, Web\n'
-                    '• Permission management\n'
-                    '• Image resizing and quality control',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-            },
+          actions: [
+            IconButton(
+              icon: Icon(
+                Icons.security,
+                color: _hasCameraPermission && _hasGalleryPermission
+                    ? Colors.green
+                    : Colors.red,
+              ),
+              onPressed: _showPermissionDialog,
+              tooltip: 'Permission Status',
+            ),
+            IconButton(
+              icon: const Icon(Icons.info_outline),
+              onPressed: _showAboutDialog,
+              tooltip: 'About',
+            ),
+          ],
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                children: [
+                  _buildMediaTab(),
+                  _buildFilesTab(),
+                  _buildSettingsTab(),
+                ],
+              ),
+      ),
+    );
+  }
+
+  void _showAboutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('About Media Picker Plus'),
+        content: const Text(
+          'A comprehensive Flutter plugin for:\n\n'
+          '• Picking images and videos from gallery\n'
+          '• Capturing photos and recording videos\n'
+          '• Advanced watermarking for media\n'
+          '• File picking with extension filtering\n'
+          '• Multiple selection support\n'
+          '• Cross-platform: Android, iOS, macOS, Web\n'
+          '• Permission management\n'
+          '• Image resizing and quality control',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+    );
+  }
+
+  Widget _buildMediaTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Current Settings Summary
+          Card(
+            color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+            child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Single Media Operations
                   const Text(
-                    'Single Media Operations',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _pickImage,
-                          icon: const Icon(Icons.photo_library),
-                          label: const Text('Pick Image'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _pickVideo,
-                          icon: const Icon(Icons.video_library),
-                          label: const Text('Pick Video'),
-                        ),
-                      ),
-                    ],
+                    'Current Settings',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _capturePhoto,
-                          icon: const Icon(Icons.camera_alt),
-                          label: const Text('Capture Photo'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _recordVideo,
-                          icon: const Icon(Icons.videocam),
-                          label: const Text('Record Video'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMediaPreview(),
+                  Text(
+                      'Quality: $_imageQuality% | Resize: ${_enableImageResize ? "${_maxWidth}x$_maxHeight" : "Original"}'),
+                  Text(
+                      'Watermark: "$_customWatermark" (${_watermarkFontSize}px)'),
+                  Text(
+                      'Position: $_watermarkPosition | Duration: ${_maxDurationMinutes}min'),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
 
-                  const SizedBox(height: 32),
+          // Single Media Operations
+          const Text(
+            'Single Media Operations',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _pickImage,
+                  icon: const Icon(Icons.photo_library),
+                  label: const Text('Pick Image'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _pickVideo,
+                  icon: const Icon(Icons.video_library),
+                  label: const Text('Pick Video'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _capturePhoto,
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Capture Photo'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _recordVideo,
+                  icon: const Icon(Icons.videocam),
+                  label: const Text('Record Video'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildMediaPreview(),
 
-                  // Multiple Media Operations
+          const SizedBox(height: 32),
+
+          // Multiple Media Operations
+          const Text(
+            'Multiple Media Operations',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _pickMultipleImages,
+                  icon: const Icon(Icons.photo_library),
+                  label: const Text('Multiple Images'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _pickMultipleVideos,
+                  icon: const Icon(Icons.video_library),
+                  label: const Text('Multiple Videos'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildMultipleMediaPreview(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilesTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // File Operations
+          const Text(
+            'File Operations',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _pickFile,
+                  icon: const Icon(Icons.folder),
+                  label: const Text('Pick File'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _pickMultipleFiles,
+                  icon: const Icon(Icons.folder_open),
+                  label: const Text('Multiple Files'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildFilePreview(),
+          _buildMultipleFilePreview(),
+
+          const SizedBox(height: 32),
+
+          // Supported File Types
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   const Text(
-                    'Multiple Media Operations',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    'Supported File Types',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
+                  const SizedBox(height: 8),
+                  const Text('Documents: .pdf, .doc, .docx, .txt, .csv'),
+                  const Text('Spreadsheets: .xls, .xlsx'),
+                  const Text('Presentations: .pptx'),
+                  const Text('Archives: .zip'),
+                  const Text('Data: .json'),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _pickMultipleImages,
-                          icon: const Icon(Icons.photo_library),
-                          label: const Text('Multiple Images'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _pickMultipleVideos,
-                          icon: const Icon(Icons.video_library),
-                          label: const Text('Multiple Videos'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMultipleMediaPreview(),
-
-                  const SizedBox(height: 32),
-
-                  // File Operations
                   const Text(
-                    'File Operations',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _pickFile,
-                          icon: const Icon(Icons.folder),
-                          label: const Text('Pick File'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _pickMultipleFiles,
-                          icon: const Icon(Icons.folder_open),
-                          label: const Text('Multiple Files'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildFilePreview(),
-                  _buildMultipleFilePreview(),
-
-                  const SizedBox(height: 32),
-
-                  // Permission Operations
-                  const Text(
-                    'Permission Management',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _checkPermissions,
-                          icon: const Icon(Icons.security),
-                          label: const Text('Check Permissions'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _requestPermissions,
-                          icon: const Icon(Icons.lock_open),
-                          label: const Text('Request Permissions'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Feature Information
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Features Demonstrated',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text('✅ Image and video picking from gallery'),
-                          const Text(
-                              '✅ Camera photo capture and video recording'),
-                          const Text(
-                              '✅ Advanced watermarking with positioning'),
-                          const Text('✅ Image quality control and resizing'),
-                          const Text('✅ Multiple media selection'),
-                          const Text('✅ File picking with extension filtering'),
-                          const Text('✅ Permission management'),
-                          const Text(
-                              '✅ Cross-platform support (Android, iOS, macOS, Web)'),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Platform Support',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                              'Current Platform: ${kIsWeb ? "Web" : Platform.operatingSystem}'),
-                          const Text(
-                              '• Android: Full support with advanced features'),
-                          const Text(
-                              '• iOS: Full support with advanced features'),
-                          const Text(
-                              '• macOS: Full support with advanced features'),
-                          const Text('• Web: Full support with HTML5 APIs'),
-                        ],
-                      ),
-                    ),
+                    'Note: File types can be customized by modifying the allowedExtensions parameter.',
+                    style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
                   ),
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Permission Management
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Permission Management',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildPermissionRow('Camera', _hasCameraPermission),
+                  _buildPermissionRow('Gallery', _hasGalleryPermission),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _checkAllPermissions,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Refresh'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _requestAllPermissions,
+                          icon: const Icon(Icons.lock_open),
+                          label: const Text('Request All'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Media Options Settings
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Media Options Configuration',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Image Resize Toggle
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Enable Image Resizing',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      Switch(
+                        value: _enableImageResize,
+                        onChanged: (value) {
+                          setState(() {
+                            _enableImageResize = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _enableImageResize
+                        ? 'Images will be resized to fit within the specified dimensions while preserving aspect ratio'
+                        : 'Images will be kept at their original size',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Image Quality
+                  Text('Image Quality: $_imageQuality%'),
+                  Slider(
+                    value: _imageQuality.toDouble(),
+                    min: 10,
+                    max: 100,
+                    divisions: 90,
+                    label: '$_imageQuality%',
+                    onChanged: (value) {
+                      setState(() {
+                        _imageQuality = value.toInt();
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Max Width (only show if resize is enabled)
+                  if (_enableImageResize) ...[
+                    Text('Max Width: $_maxWidth px'),
+                    Slider(
+                      value: _maxWidth.toDouble(),
+                      min: 480,
+                      max: 4096,
+                      divisions: 36,
+                      label: '$_maxWidth px',
+                      onChanged: (value) {
+                        setState(() {
+                          _maxWidth = value.toInt();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Max Height
+                    Text('Max Height: $_maxHeight px'),
+                    Slider(
+                      value: _maxHeight.toDouble(),
+                      min: 480,
+                      max: 4096,
+                      divisions: 36,
+                      label: '$_maxHeight px',
+                      onChanged: (value) {
+                        setState(() {
+                          _maxHeight = value.toInt();
+                        });
+                      },
+                    ),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline,
+                              color: Colors.grey[600], size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Image dimensions will not be modified. Original resolution will be preserved. The displayed file info shows the actual processed image dimensions.',
+                              style: TextStyle(
+                                  color: Colors.grey[700], fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+
+                  // Watermark Text
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Watermark Text',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _customWatermark = value;
+                      });
+                    },
+                    controller: TextEditingController(text: _customWatermark),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Watermark Font Size
+                  Text('Watermark Font Size: ${_watermarkFontSize.toInt()}px'),
+                  Slider(
+                    value: _watermarkFontSize,
+                    min: 12,
+                    max: 72,
+                    divisions: 60,
+                    label: '${_watermarkFontSize.toInt()}px',
+                    onChanged: (value) {
+                      setState(() {
+                        _watermarkFontSize = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Watermark Position
+                  const Text('Watermark Position:'),
+                  DropdownButton<String>(
+                    value: _watermarkPosition,
+                    isExpanded: true,
+                    items: const [
+                      DropdownMenuItem(
+                          value: WatermarkPosition.topLeft,
+                          child: Text('Top Left')),
+                      DropdownMenuItem(
+                          value: WatermarkPosition.topCenter,
+                          child: Text('Top Center')),
+                      DropdownMenuItem(
+                          value: WatermarkPosition.topRight,
+                          child: Text('Top Right')),
+                      DropdownMenuItem(
+                          value: WatermarkPosition.middleLeft,
+                          child: Text('Middle Left')),
+                      DropdownMenuItem(
+                          value: WatermarkPosition.middleCenter,
+                          child: Text('Middle Center')),
+                      DropdownMenuItem(
+                          value: WatermarkPosition.middleRight,
+                          child: Text('Middle Right')),
+                      DropdownMenuItem(
+                          value: WatermarkPosition.bottomLeft,
+                          child: Text('Bottom Left')),
+                      DropdownMenuItem(
+                          value: WatermarkPosition.bottomCenter,
+                          child: Text('Bottom Center')),
+                      DropdownMenuItem(
+                          value: WatermarkPosition.bottomRight,
+                          child: Text('Bottom Right')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _watermarkPosition = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Max Duration
+                  Text('Max Video Duration: $_maxDurationMinutes minutes'),
+                  Slider(
+                    value: _maxDurationMinutes.toDouble(),
+                    min: 1,
+                    max: 10,
+                    divisions: 9,
+                    label: '$_maxDurationMinutes min',
+                    onChanged: (value) {
+                      setState(() {
+                        _maxDurationMinutes = value.toInt();
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Feature Information
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Features Demonstrated',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('✅ Image and video picking from gallery'),
+                  const Text('✅ Camera photo capture and video recording'),
+                  const Text('✅ Advanced watermarking with positioning'),
+                  const Text('✅ Image quality control and optional resizing'),
+                  const Text('✅ Configurable resize settings (enable/disable)'),
+                  const Text('✅ Multiple media selection'),
+                  const Text('✅ File picking with extension filtering'),
+                  const Text('✅ Permission management'),
+                  const Text('✅ Real-time settings configuration'),
+                  const Text(
+                      '✅ Cross-platform support (Android, iOS, macOS, Web)'),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Platform Support',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                      'Current Platform: ${kIsWeb ? "Web" : Platform.operatingSystem}'),
+                  const Text('• Android: Full support with advanced features'),
+                  const Text('• iOS: Full support with advanced features'),
+                  const Text('• macOS: Full support with advanced features'),
+                  const Text('• Web: Full support with HTML5 APIs'),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
