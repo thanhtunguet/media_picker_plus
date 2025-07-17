@@ -2,20 +2,27 @@ PODS:
   - FlutterMacOS (1.0.0)
   - media_picker_plus (0.0.1):
     - FlutterMacOS
+  - video_player_avfoundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
 
 DEPENDENCIES:
   - FlutterMacOS (from `Flutter/ephemeral`)
   - media_picker_plus (from `Flutter/ephemeral/.symlinks/plugins/media_picker_plus/macos`)
+  - video_player_avfoundation (from `Flutter/ephemeral/.symlinks/plugins/video_player_avfoundation/darwin`)
 
 EXTERNAL SOURCES:
   FlutterMacOS:
     :path: Flutter/ephemeral
   media_picker_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/media_picker_plus/macos
+  video_player_avfoundation:
+    :path: Flutter/ephemeral/.symlinks/plugins/video_player_avfoundation/darwin
 
 SPEC CHECKSUMS:
   FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
-  media_picker_plus: 1655844199343a45552e3c36daae265db70e5bd1
+  media_picker_plus: 26909f42f333ea0bc5d8c34e0eecf3d2d7208cd8
+  video_player_avfoundation: 2cef49524dd1f16c5300b9cd6efd9611ce03639b
 
 PODFILE CHECKSUM: c2e95c8c0fe03c5c57e438583cae4cc732296009
 

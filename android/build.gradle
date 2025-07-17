@@ -50,16 +50,16 @@ android {
     }
 
     defaultConfig {
-        minSdk = 21
+        minSdk = 24
     }
 
     dependencies {
         testImplementation("org.jetbrains.kotlin:kotlin-test")
         testImplementation("org.mockito:mockito-core:5.14.2")
-        implementation 'com.github.MasayukiSuda:Mp4Composer-android:v0.4.1'
 
         implementation "androidx.appcompat:appcompat:1.7.0"
         implementation "androidx.constraintlayout:constraintlayout:2.2.1"
+        implementation 'io.github.maitrungduc1410:ffmpeg-kit-https:6.0.1'
 
 
         // AndroidX Test - Core, JUnit, and Runner

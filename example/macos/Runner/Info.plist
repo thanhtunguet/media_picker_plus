@@ -32,11 +32,9 @@
 	<!-- Media Picker Plus Permissions -->
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs camera access to capture photos and videos</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs photo library access to pick images and videos</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs microphone access to record videos with audio</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>This app needs photo library access to save captured photos and videos</string>
+	<key>NSCameraUseContinuityCameraDeviceType</key>
+	<true/>
 </dict>
 </plist>

@@ -8,6 +8,9 @@ import UniformTypeIdentifiers
 public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     private var pendingResult: FlutterResult?
     private var mediaOptions: [String: Any]?
+    private var captureSession: AVCaptureSession?
+    private var photoCaptureDelegate: PhotoCaptureDelegate?
+    private var movieCaptureDelegate: MovieCaptureDelegate?
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "info.thanhtunguet.media_picker_plus", binaryMessenger: registrar.messenger)
@@ -31,30 +34,14 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             
             switch source {
             case "gallery":
-                if hasGalleryPermission() {
-                    switch type {
-                    case "image":
-                        pickImageFromGallery()
-                    case "video":
-                        pickVideoFromGallery()
-                    default:
-                        result(MediaPickerPlusError.invalidType())
-                    }
-                } else {
-                    requestGalleryPermission { granted in
-                        if granted {
-                            switch type {
-                            case "image":
-                                self.pickImageFromGallery()
-                            case "video":
-                                self.pickVideoFromGallery()
-                            default:
-                                result(MediaPickerPlusError.invalidType())
-                            }
-                        } else {
-                            result(MediaPickerPlusError.permissionDenied())
-                        }
-                    }
+                // On macOS, no special permissions needed for NSOpenPanel
+                switch type {
+                case "image":
+                    pickImageFromGallery()
+                case "video":
+                    pickVideoFromGallery()
+                default:
+                    result(MediaPickerPlusError.invalidType())
                 }
             case "camera":
                 if hasCameraPermission() {
@@ -129,14 +116,41 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         }
     }
     
+    // MARK: - Device Selection
+    
+    private func getBestAvailableVideoDevice() -> AVCaptureDevice? {
+        // Try to get the best available video device, prioritizing newer device types
+        
+        if #available(macOS 14.0, *) {
+            // First try Continuity Camera if available
+            if let continuityCamera = AVCaptureDevice.default(.continuityCamera, for: .video, position: .unspecified) {
+                return continuityCamera
+            }
+        }
+        
+        // Fall back to built-in camera
+        if let builtInCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) {
+            return builtInCamera
+        }
+        
+        // Final fallback to any available video device
+        return AVCaptureDevice.default(for: .video)
+    }
+    
     // MARK: - Permission Methods
     
     private func hasCameraPermission() -> Bool {
         return AVCaptureDevice.authorizationStatus(for: .video) == .authorized
     }
     
+    private func hasMicrophonePermission() -> Bool {
+        return AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+    }
+    
     private func hasGalleryPermission() -> Bool {
-        return PHPhotoLibrary.authorizationStatus() == .authorized
+        // On macOS, NSOpenPanel doesn't require special permissions
+        // It uses the system's built-in file access permissions
+        return true
     }
     
     private func requestCameraPermission(completion: @escaping (Bool) -> Void) {
@@ -147,11 +161,19 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    private func requestGalleryPermission(completion: @escaping (Bool) -> Void) {
-        PHPhotoLibrary.requestAuthorization { status in
+    private func requestMicrophonePermission(completion: @escaping (Bool) -> Void) {
+        AVCaptureDevice.requestAccess(for: .audio) { granted in
             DispatchQueue.main.async {
-                completion(status == .authorized)
+                completion(granted)
             }
+        }
+    }
+    
+    private func requestGalleryPermission(completion: @escaping (Bool) -> Void) {
+        // On macOS, NSOpenPanel handles file access permissions automatically
+        // through the system's file access dialog. No explicit permission request needed.
+        DispatchQueue.main.async {
+            completion(true)
         }
     }
     
@@ -193,57 +215,168 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         }
     }
     
+    // MARK: - Session Management
+    
+    private func cleanupCaptureSession() {
+        captureSession?.stopRunning()
+        captureSession = nil
+        photoCaptureDelegate = nil
+        movieCaptureDelegate = nil
+    }
+    
     // MARK: - Camera Methods
     
     private func capturePhoto() {
-        // For macOS, we'll use a simple approach with AVCaptureSession
-        // In a real implementation, you might want to show a preview window
-        let captureSession = AVCaptureSession()
+        print("Starting photo capture...")
         
-        guard let device = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: device) else {
+        // Clean up any existing session
+        cleanupCaptureSession()
+        
+        // Create new session
+        captureSession = AVCaptureSession()
+        guard let session = captureSession else { 
+            print("Failed to create capture session")
+            pendingResult?(MediaPickerPlusError.operationFailed())
+            pendingResult = nil
+            return
+        }
+        
+        print("Getting video device...")
+        guard let device = getBestAvailableVideoDevice() else {
+            print("No video device available")
             pendingResult?(MediaPickerPlusError.cameraNotAvailable())
             pendingResult = nil
             return
         }
         
-        captureSession.addInput(input)
+        print("Video device found: \(device.localizedName)")
+        
+        guard let input = try? AVCaptureDeviceInput(device: device) else {
+            print("Failed to create device input")
+            pendingResult?(MediaPickerPlusError.cameraNotAvailable())
+            pendingResult = nil
+            return
+        }
+        
+        print("Adding input to session...")
+        if session.canAddInput(input) {
+            session.addInput(input)
+        } else {
+            print("Cannot add input to session")
+            pendingResult?(MediaPickerPlusError.operationFailed())
+            pendingResult = nil
+            return
+        }
         
         let output = AVCapturePhotoOutput()
-        captureSession.addOutput(output)
+        print("Adding output to session...")
+        if session.canAddOutput(output) {
+            session.addOutput(output)
+        } else {
+            print("Cannot add output to session")
+            pendingResult?(MediaPickerPlusError.operationFailed())
+            pendingResult = nil
+            return
+        }
         
-        let delegate = PhotoCaptureDelegate { [weak self] image in
+        // Retain the delegate as an instance variable
+        photoCaptureDelegate = PhotoCaptureDelegate { [weak self] image in
+            print("PhotoCaptureDelegate called with image: \(image != nil)")
+            self?.cleanupCaptureSession()
             if let image = image {
+                print("Processing captured image...")
                 self?.processImage(image: image)
             } else {
+                print("Photo capture delegate returned nil image")
                 self?.pendingResult?(MediaPickerPlusError.operationFailed())
                 self?.pendingResult = nil
             }
         }
         
-        captureSession.startRunning()
+        print("Starting capture session...")
+        session.startRunning()
         
-        let settings = AVCapturePhotoSettings()
-        output.capturePhoto(with: settings, delegate: delegate)
+        // Add timeout mechanism
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
+            if self.pendingResult != nil {
+                print("Photo capture timeout - stopping session")
+                self.cleanupCaptureSession()
+                self.pendingResult?(MediaPickerPlusError.operationFailed())
+                self.pendingResult = nil
+            }
+        }
+        
+        // Wait longer for Continuity Camera to be ready
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            guard let delegate = self.photoCaptureDelegate else { 
+                print("Photo capture delegate is nil")
+                return 
+            }
+            
+            print("Creating photo settings...")
+            let settings = AVCapturePhotoSettings()
+            print("Capturing photo with settings: \(settings)")
+            output.capturePhoto(with: settings, delegate: delegate)
+        }
     }
     
     private func recordVideo() {
-        // For macOS video recording, we'll use AVCaptureSession with AVCaptureMovieFileOutput
-        let captureSession = AVCaptureSession()
+        // Check microphone permission for video recording with audio
+        if !hasMicrophonePermission() {
+            requestMicrophonePermission { [weak self] granted in
+                if granted {
+                    self?.startVideoRecording()
+                } else {
+                    self?.pendingResult?(MediaPickerPlusError.permissionDenied())
+                    self?.pendingResult = nil
+                }
+            }
+        } else {
+            startVideoRecording()
+        }
+    }
+    
+    private func startVideoRecording() {
+        // Start recording immediately without blocking dialogs
+        performVideoRecording()
+    }
+    
+    private func performVideoRecording() {
+        // Clean up any existing session
+        cleanupCaptureSession()
         
-        guard let device = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: device) else {
+        // Create new session
+        captureSession = AVCaptureSession()
+        guard let session = captureSession else { return }
+        
+        // Setup video input
+        guard let videoDevice = getBestAvailableVideoDevice(),
+              let videoInput = try? AVCaptureDeviceInput(device: videoDevice) else {
             pendingResult?(MediaPickerPlusError.cameraNotAvailable())
             pendingResult = nil
             return
         }
         
-        captureSession.addInput(input)
+        // Setup audio input
+        guard let audioDevice = AVCaptureDevice.default(for: .audio),
+              let audioInput = try? AVCaptureDeviceInput(device: audioDevice) else {
+            pendingResult?(MediaPickerPlusError.cameraNotAvailable())
+            pendingResult = nil
+            return
+        }
+        
+        session.addInput(videoInput)
+        session.addInput(audioInput)
         
         let output = AVCaptureMovieFileOutput()
-        captureSession.addOutput(output)
+        session.addOutput(output)
         
-        let delegate = MovieCaptureDelegate { [weak self] url in
+        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("recorded_video_\(Date().timeIntervalSince1970).mov")
+        
+        // Retain the delegate as an instance variable
+        movieCaptureDelegate = MovieCaptureDelegate { [weak self] url in
+            print("MovieCaptureDelegate called with url: \(url?.absoluteString ?? "nil")")
+            self?.cleanupCaptureSession()
             if let url = url {
                 self?.processSelectedVideo(url: url)
             } else {
@@ -252,15 +385,31 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             }
         }
         
-        captureSession.startRunning()
+        session.startRunning()
         
-        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("temp_video.mov")
-        output.startRecording(to: tempURL, recordingDelegate: delegate)
+        // Add timeout mechanism
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
+            if self.pendingResult != nil {
+                print("Video recording timeout - stopping session")
+                self.cleanupCaptureSession()
+                self.pendingResult?(MediaPickerPlusError.operationFailed())
+                self.pendingResult = nil
+            }
+        }
         
-        // For simplicity, we'll record for 10 seconds
-        // In a real implementation, you'd want to show a UI to control recording
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-            output.stopRecording()
+        // Wait longer for Continuity Camera to be ready, then start recording
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            guard let delegate = self.movieCaptureDelegate else { return }
+            print("Starting video recording")
+            output.startRecording(to: tempURL, recordingDelegate: delegate)
+            
+            // Auto-stop recording after 5 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                if output.isRecording {
+                    print("Auto-stopping video recording")
+                    output.stopRecording()
+                }
+            }
         }
     }
     
@@ -277,32 +426,35 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     }
     
     private func processImage(image: NSImage) {
+        print("Processing captured image with size: \(image.size)")
         var processedImage = image
         
         // Apply resizing if specified
         if let options = mediaOptions {
+            print("Applying media options: \(options)")
             if let maxWidth = options["maxWidth"] as? Double,
                let maxHeight = options["maxHeight"] as? Double {
+                print("Resizing image to max: \(maxWidth)x\(maxHeight)")
                 processedImage = resizeImage(processedImage, maxWidth: maxWidth, maxHeight: maxHeight)
             }
             
             // Apply watermark if specified
             if let watermarkText = options["watermarkText"] as? String {
                 let position = (options["watermarkPosition"] as? String) ?? "bottomRight"
+                print("Adding watermark: '\(watermarkText)' at position: \(position)")
                 processedImage = addWatermarkToImage(processedImage, text: watermarkText, position: position)
             }
         }
         
         // Save to temporary file
-        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("temp_image.jpg")
+        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("temp_image_\(Date().timeIntervalSince1970).jpg")
+        print("Saving processed image to: \(tempURL.path)")
         
         if saveImage(processedImage, to: tempURL) {
-            pendingResult?([
-                "path": tempURL.path,
-                "width": processedImage.size.width,
-                "height": processedImage.size.height
-            ])
+            print("Successfully saved image to: \(tempURL.path)")
+            pendingResult?(tempURL.path)
         } else {
+            print("Failed to save image to temporary location")
             pendingResult?(MediaPickerPlusError.operationFailed())
         }
         
@@ -316,18 +468,14 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             let position = (options["watermarkPosition"] as? String) ?? "bottomRight"
             addWatermarkToVideo(url, text: watermarkText, position: position) { [weak self] outputURL in
                 if let outputURL = outputURL {
-                    self?.pendingResult?([
-                        "path": outputURL.path
-                    ])
+                    self?.pendingResult?(outputURL.path)
                 } else {
                     self?.pendingResult?(MediaPickerPlusError.operationFailed())
                 }
                 self?.pendingResult = nil
             }
         } else {
-            pendingResult?([
-                "path": url.path
-            ])
+            pendingResult?(url.path)
             pendingResult = nil
         }
     }
@@ -585,18 +733,31 @@ class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
     }
     
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        print("PhotoCaptureDelegate: didFinishProcessingPhoto called")
+        
         if let error = error {
-            print("Photo capture error: \(error)")
+            print("Photo capture error: \(error.localizedDescription)")
             completion(nil)
             return
         }
         
-        guard let imageData = photo.fileDataRepresentation(),
-              let image = NSImage(data: imageData) else {
+        print("Photo captured successfully, processing data...")
+        
+        guard let imageData = photo.fileDataRepresentation() else {
+            print("Failed to get file data representation from photo")
             completion(nil)
             return
         }
         
+        print("Got image data of size: \(imageData.count) bytes")
+        
+        guard let image = NSImage(data: imageData) else {
+            print("Failed to create NSImage from image data")
+            completion(nil)
+            return
+        }
+        
+        print("Successfully created NSImage with size: \(image.size)")
         completion(image)
     }
 }

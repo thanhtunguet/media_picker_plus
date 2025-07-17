@@ -19,8 +19,18 @@ import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import com.daasuu.mp4compose.composer.Mp4Composer
-import com.daasuu.mp4compose.filter.GlWatermarkFilter
+import android.media.MediaMetadataRetriever
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.ReturnCode
+import com.arthenica.ffmpegkit.Session
+import com.arthenica.ffmpegkit.LogCallback
+import com.arthenica.ffmpegkit.StatisticsCallback
+import java.io.File
+import java.io.FileOutputStream
+import android.os.Handler
+import android.os.Looper
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -29,12 +39,9 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
-import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.CountDownLatch
 import kotlin.math.min
 
 class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
@@ -115,11 +122,15 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
+        Log.d("MediaPickerPlus", "onMethodCall: ${call.method}")
         when (call.method) {
             "pickMedia" -> {
                 val source = call.argument<String>("source")
                 val type = call.argument<String>("type")
                 mediaOptions = call.argument<HashMap<String, Any>>("options")
+                
+                Log.d("MediaPickerPlus", "pickMedia - source: $source, type: $type")
+                Log.d("MediaPickerPlus", "pickMedia - mediaOptions: $mediaOptions")
 
                 pendingResult = result
 
@@ -535,12 +546,25 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     private fun processVideo(sourcePath: String): String {
-        val options = mediaOptions ?: return sourcePath
-        if (!options.containsKey("watermark")) {
+        Log.d("MediaPickerPlus", "processVideo called with sourcePath: $sourcePath")
+        val options = mediaOptions
+        Log.d("MediaPickerPlus", "mediaOptions: $options")
+        
+        if (options == null) {
+            Log.d("MediaPickerPlus", "No media options found, returning original path")
             return sourcePath
         }
+        
+        if (!options.containsKey("watermark")) {
+            Log.d("MediaPickerPlus", "No watermark option found, returning original path")
+            return sourcePath
+        }
+        
         val watermarkText = options["watermark"] as? String
+        Log.d("MediaPickerPlus", "Watermark text: $watermarkText")
+        
         if (watermarkText.isNullOrEmpty()) {
+            Log.d("MediaPickerPlus", "Watermark text is null or empty, returning original path")
             return sourcePath
         }
         try {
@@ -548,17 +572,30 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             val videoFileName = "VID_PROCESSED_$timeStamp.mp4"
             val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
             val outputVideoFile = File(storageDir, videoFileName)
-            val fontSize = (options["watermarkFontSize"] as? Double)?.toFloat() ?: 24f
+            val fontSize = (options["watermarkFontSize"] as? Double)?.toFloat() ?: 48f  // Increased default size
             val positionObj = options["watermarkPosition"]
             val position = if (positionObj is String) positionObj else "bottomRight"
             val watermarkBitmap = createWatermarkBitmap(watermarkText, fontSize)
-            val success = watermarkVideoWithMp4Composer(
+            Log.d("MediaPickerPlus", "Created watermark bitmap: ${watermarkBitmap.width}x${watermarkBitmap.height}")
+            Log.d("MediaPickerPlus", "Source path: $sourcePath")
+            Log.d("MediaPickerPlus", "Output path: ${outputVideoFile.absolutePath}")
+            
+            val success = watermarkVideoWithNativeProcessing(
                 sourcePath,
                 outputVideoFile.absolutePath,
                 watermarkBitmap,
                 position
             )
-            return if (success) outputVideoFile.absolutePath else sourcePath
+            Log.d("MediaPickerPlus", "Watermarking success: $success")
+            
+            // For debugging: Always return the processed path if processing was attempted
+            if (success) {
+                Log.d("MediaPickerPlus", "Returning processed video path: ${outputVideoFile.absolutePath}")
+                return outputVideoFile.absolutePath
+            } else {
+                Log.d("MediaPickerPlus", "Processing failed, returning original path: $sourcePath")
+                return sourcePath
+            }
         } catch (e: Exception) {
             Log.e("MediaPickerPlus", "Error processing video: ${e.message}", e)
             return sourcePath
@@ -566,9 +603,11 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     private fun createWatermarkBitmap(text: String, fontSize: Float): Bitmap {
+        Log.d("MediaPickerPlus", "Creating watermark bitmap with text: '$text', fontSize: $fontSize")
+        
         val paint = Paint().apply {
             color = Color.WHITE
-            alpha = 200
+            alpha = 255  // Make it fully opaque for testing
             textSize = fontSize
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
@@ -578,74 +617,307 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         val textWidth = bounds.width()
         val textHeight = bounds.height()
         val padding = 20
+        
+        Log.d("MediaPickerPlus", "Text dimensions: ${textWidth}x${textHeight}, padding: $padding")
+        
         val watermarkBitmap = Bitmap.createBitmap(textWidth + padding * 2, textHeight + padding * 2, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(watermarkBitmap)
+        
+        // Add a semi-transparent background to make the watermark more visible
+        val backgroundPaint = Paint().apply {
+            color = Color.BLACK
+            alpha = 128
+        }
+        canvas.drawRect(0f, 0f, watermarkBitmap.width.toFloat(), watermarkBitmap.height.toFloat(), backgroundPaint)
+        
         val strokePaint = Paint(paint).apply {
             style = Paint.Style.STROKE
-            strokeWidth = 2f
+            strokeWidth = 3f  // Make stroke thicker
             color = Color.BLACK
         }
         canvas.drawText(text, padding.toFloat(), textHeight + padding / 2f, strokePaint)
         canvas.drawText(text, padding.toFloat(), textHeight + padding / 2f, paint)
+        
+        Log.d("MediaPickerPlus", "Watermark bitmap created: ${watermarkBitmap.width}x${watermarkBitmap.height}")
         return watermarkBitmap
     }
 
-    private fun watermarkVideoWithMp4Composer(
+    private fun watermarkVideoWithNativeProcessing(
         inputPath: String,
         outputPath: String,
         watermarkBitmap: Bitmap,
         position: String
     ): Boolean {
-        var compositionCompleted = false
-        try {
-            val positionEnum = WatermarkPosition.fromString(position)
-            val filterPosition = when (positionEnum) {
-                WatermarkPosition.TOP_LEFT -> GlWatermarkFilter.Position.LEFT_TOP
-                WatermarkPosition.TOP_CENTER -> GlWatermarkFilter.Position.RIGHT_TOP // Approximation
-                WatermarkPosition.TOP_RIGHT -> GlWatermarkFilter.Position.RIGHT_TOP
-                WatermarkPosition.MIDDLE_LEFT -> GlWatermarkFilter.Position.LEFT_BOTTOM // Approximation
-                WatermarkPosition.CENTER -> GlWatermarkFilter.Position.RIGHT_BOTTOM // Approximation
-                WatermarkPosition.MIDDLE_RIGHT -> GlWatermarkFilter.Position.RIGHT_TOP // Approximation
-                WatermarkPosition.BOTTOM_LEFT -> GlWatermarkFilter.Position.LEFT_BOTTOM
-                WatermarkPosition.BOTTOM_CENTER -> GlWatermarkFilter.Position.RIGHT_BOTTOM // Approximation
-                WatermarkPosition.BOTTOM_RIGHT -> GlWatermarkFilter.Position.RIGHT_BOTTOM
+        return try {
+            Log.d("MediaPickerPlus", "Starting FFmpeg video watermarking")
+            Log.d("MediaPickerPlus", "Input: $inputPath")
+            Log.d("MediaPickerPlus", "Output: $outputPath")
+            
+            // Verify input file exists
+            val inputFile = File(inputPath)
+            if (!inputFile.exists() || !inputFile.canRead()) {
+                Log.e("MediaPickerPlus", "Input file does not exist or cannot be read: $inputPath")
+                return false
             }
-            val watermarkFilter = GlWatermarkFilter(watermarkBitmap, filterPosition)
-            val latch = CountDownLatch(1)
-            Mp4Composer(inputPath, outputPath)
-                .filter(watermarkFilter)
-                .listener(object : Mp4Composer.Listener {
-                    override fun onProgress(progress: Double) {
-                        Log.d("MediaPickerPlus", "Processing video: ${(progress * 100).toInt()}%")
-                    }
-
-                    override fun onCompleted() {
-                        Log.d("MediaPickerPlus", "Video processing completed")
-                        compositionCompleted = true
-                        latch.countDown()
-                    }
-
-                    override fun onCanceled() {
-                        Log.d("MediaPickerPlus", "Video processing canceled")
-                        latch.countDown()
-                    }
-
-                    override fun onFailed(exception: Exception) {
-                        Log.e("MediaPickerPlus", "Video processing failed", exception)
-                        latch.countDown()
-                    }
-
-                    override fun onCurrentWrittenVideoTime(time: Long) {
-                        // This method is required but we don't need to do anything with it
-                    }
-                })
-                .start()
-            latch.await(5, java.util.concurrent.TimeUnit.MINUTES)
-            return compositionCompleted
+            
+            Log.d("MediaPickerPlus", "Input file size: ${inputFile.length()} bytes")
+            
+            // Create output directory if it doesn't exist
+            val outputFile = File(outputPath)
+            outputFile.parentFile?.mkdirs()
+            
+            // Get video properties
+            val retriever = MediaMetadataRetriever()
+            var width = 0
+            var height = 0
+            var duration = 0L
+            var rotation = 0
+            
+            try {
+                retriever.setDataSource(inputPath)
+                width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
+                height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
+                duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
+                rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
+                
+                Log.d("MediaPickerPlus", "Video properties: ${width}x${height}, duration: ${duration}ms, rotation: $rotation")
+                
+                if (width == 0 || height == 0) {
+                    Log.e("MediaPickerPlus", "Invalid video dimensions")
+                    return false
+                }
+            } finally {
+                retriever.release()
+            }
+            
+            // Process video using FFmpeg
+            return processVideoWithFFmpeg(inputPath, outputPath, watermarkBitmap, position, width, height, duration, rotation)
+            
         } catch (e: Exception) {
-            Log.e("MediaPickerPlus", "Error in Mp4Composer: ${e.message}", e)
-            return false
+            Log.e("MediaPickerPlus", "Error in FFmpeg video processing: ${e.message}", e)
+            false
         }
+    }
+    
+    private fun processVideoWithFFmpeg(
+        inputPath: String,
+        outputPath: String,
+        watermarkBitmap: Bitmap,
+        position: String,
+        videoWidth: Int,
+        videoHeight: Int,
+        duration: Long,
+        rotation: Int
+    ): Boolean {
+        return try {
+            Log.d("MediaPickerPlus", "Processing video with FFmpeg")
+            
+            // Save watermark bitmap to temporary file
+            val watermarkFile = File(context.cacheDir, "watermark_${System.currentTimeMillis()}.png")
+            val watermarkOutputStream = FileOutputStream(watermarkFile)
+            watermarkBitmap.compress(Bitmap.CompressFormat.PNG, 100, watermarkOutputStream)
+            watermarkOutputStream.close()
+            
+            Log.d("MediaPickerPlus", "Watermark saved to: ${watermarkFile.absolutePath}")
+            
+            // Get options from mediaOptions
+            val maxWidth = (mediaOptions?.get("maxWidth") as? Int) ?: videoWidth
+            val maxHeight = (mediaOptions?.get("maxHeight") as? Int) ?: videoHeight
+            
+            Log.d("MediaPickerPlus", "Max dimensions: ${maxWidth}x${maxHeight}")
+            
+            // Calculate target dimensions (with aspect ratio preservation)
+            val (targetWidth, targetHeight) = calculateTargetDimensions(videoWidth, videoHeight, maxWidth, maxHeight)
+            
+            Log.d("MediaPickerPlus", "Target dimensions: ${targetWidth}x${targetHeight}")
+            
+            // Calculate watermark position
+            val positionEnum = WatermarkPosition.fromString(position)
+            val (watermarkX, watermarkY) = calculateWatermarkPosition(
+                positionEnum, 
+                targetWidth, 
+                targetHeight, 
+                watermarkBitmap.width, 
+                watermarkBitmap.height
+            )
+            
+            Log.d("MediaPickerPlus", "Watermark position: ($watermarkX, $watermarkY)")
+            
+            // Build FFmpeg command
+            val command = buildFFmpegCommand(
+                inputPath, 
+                outputPath, 
+                watermarkFile.absolutePath, 
+                watermarkX, 
+                watermarkY, 
+                targetWidth, 
+                targetHeight, 
+                rotation
+            )
+            
+            Log.d("MediaPickerPlus", "FFmpeg command: $command")
+            
+            // Execute FFmpeg command
+            val latch = CountDownLatch(1)
+            var success = false
+            var errorMessage = ""
+            
+            val session = FFmpegKit.executeAsync(command,
+                { session ->
+                    val returnCode = session.returnCode
+                    if (ReturnCode.isSuccess(returnCode)) {
+                        Log.d("MediaPickerPlus", "FFmpeg processing completed successfully")
+                        success = true
+                    } else {
+                        Log.e("MediaPickerPlus", "FFmpeg failed with return code: $returnCode")
+                        errorMessage = "FFmpeg processing failed with code: $returnCode"
+                    }
+                    latch.countDown()
+                },
+                { log ->
+                    Log.d("MediaPickerPlus", "FFmpeg log: ${log.message}")
+                },
+                { statistics ->
+                    val progress = if (duration > 0) {
+                        (statistics.time.toFloat() / duration.toFloat() * 100).toInt()
+                    } else {
+                        0
+                    }
+                    Log.d("MediaPickerPlus", "FFmpeg progress: $progress% (${statistics.time}ms / ${duration}ms)")
+                }
+            )
+            
+            // Wait for completion with timeout
+            val completed = latch.await(10, TimeUnit.MINUTES)
+            
+            // Clean up temporary watermark file
+            watermarkFile.delete()
+            
+            if (!completed) {
+                Log.e("MediaPickerPlus", "FFmpeg operation timed out")
+                session.cancel()
+                return false
+            }
+            
+            if (!success) {
+                Log.e("MediaPickerPlus", "FFmpeg operation failed: $errorMessage")
+                return false
+            }
+            
+            // Verify output file was created
+            val outputFile = File(outputPath)
+            if (!outputFile.exists() || outputFile.length() == 0L) {
+                Log.e("MediaPickerPlus", "Output file was not created or is empty")
+                return false
+            }
+            
+            Log.d("MediaPickerPlus", "FFmpeg processing completed successfully. Output file size: ${outputFile.length()} bytes")
+            return true
+            
+        } catch (e: Exception) {
+            Log.e("MediaPickerPlus", "Error in FFmpeg video processing: ${e.message}", e)
+            false
+        }
+    }
+    
+    private fun calculateTargetDimensions(originalWidth: Int, originalHeight: Int, maxWidth: Int, maxHeight: Int): Pair<Int, Int> {
+        if (originalWidth <= maxWidth && originalHeight <= maxHeight) {
+            return Pair(originalWidth, originalHeight)
+        }
+        
+        val aspectRatio = originalWidth.toFloat() / originalHeight.toFloat()
+        
+        var targetWidth: Int
+        var targetHeight: Int
+        
+        if (originalWidth > originalHeight) {
+            // Landscape
+            targetWidth = minOf(maxWidth, originalWidth)
+            targetHeight = (targetWidth / aspectRatio).toInt()
+            
+            if (targetHeight > maxHeight) {
+                targetHeight = maxHeight
+                targetWidth = (targetHeight * aspectRatio).toInt()
+            }
+        } else {
+            // Portrait
+            targetHeight = minOf(maxHeight, originalHeight)
+            targetWidth = (targetHeight * aspectRatio).toInt()
+            
+            if (targetWidth > maxWidth) {
+                targetWidth = maxWidth
+                targetHeight = (targetWidth / aspectRatio).toInt()
+            }
+        }
+        
+        return Pair(targetWidth, targetHeight)
+    }
+    
+    private fun calculateWatermarkPosition(
+        position: WatermarkPosition,
+        videoWidth: Int,
+        videoHeight: Int,
+        watermarkWidth: Int,
+        watermarkHeight: Int
+    ): Pair<Int, Int> {
+        val padding = 20
+        
+        return when (position) {
+            WatermarkPosition.TOP_LEFT -> Pair(padding, padding)
+            WatermarkPosition.TOP_CENTER -> Pair((videoWidth - watermarkWidth) / 2, padding)
+            WatermarkPosition.TOP_RIGHT -> Pair(videoWidth - watermarkWidth - padding, padding)
+            WatermarkPosition.MIDDLE_LEFT -> Pair(padding, (videoHeight - watermarkHeight) / 2)
+            WatermarkPosition.CENTER -> Pair((videoWidth - watermarkWidth) / 2, (videoHeight - watermarkHeight) / 2)
+            WatermarkPosition.MIDDLE_RIGHT -> Pair(videoWidth - watermarkWidth - padding, (videoHeight - watermarkHeight) / 2)
+            WatermarkPosition.BOTTOM_LEFT -> Pair(padding, videoHeight - watermarkHeight - padding)
+            WatermarkPosition.BOTTOM_CENTER -> Pair((videoWidth - watermarkWidth) / 2, videoHeight - watermarkHeight - padding)
+            WatermarkPosition.BOTTOM_RIGHT -> Pair(videoWidth - watermarkWidth - padding, videoHeight - watermarkHeight - padding)
+        }
+    }
+    
+    private fun buildFFmpegCommand(
+        inputPath: String,
+        outputPath: String,
+        watermarkPath: String,
+        watermarkX: Int,
+        watermarkY: Int,
+        targetWidth: Int,
+        targetHeight: Int,
+        rotation: Int
+    ): String {
+        val inputVideo = "\"$inputPath\""
+        val watermarkImage = "\"$watermarkPath\""
+        val output = "\"$outputPath\""
+        
+        // Build video scaling filter
+        val scaleFilter = "scale=$targetWidth:$targetHeight"
+        
+        // Build rotation filter if needed
+        val rotationFilter = when (rotation) {
+            90 -> "transpose=1"
+            180 -> "transpose=1,transpose=1"
+            270 -> "transpose=2"
+            else -> null
+        }
+        
+        // Build overlay filter
+        val overlayFilter = "overlay=$watermarkX:$watermarkY"
+        
+        // Combine filters
+        val videoFilters = mutableListOf<String>()
+        videoFilters.add(scaleFilter)
+        if (rotationFilter != null) {
+            videoFilters.add(rotationFilter)
+        }
+        
+        val filterComplex = if (videoFilters.isEmpty()) {
+            "[0:v][1:v]$overlayFilter"
+        } else {
+            "[0:v]${videoFilters.joinToString(",")}[scaled];[scaled][1:v]$overlayFilter"
+        }
+        
+        // Build complete FFmpeg command
+        return "-i $inputVideo -i $watermarkImage -filter_complex \"$filterComplex\" -c:a copy -c:v libx264 -preset fast -crf 23 -y $output"
     }
 
     private fun pickFile(allowedExtensions: List<String>?) {
