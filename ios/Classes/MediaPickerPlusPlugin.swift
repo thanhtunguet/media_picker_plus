@@ -314,8 +314,8 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             // Process image size while preserving aspect ratio if specified
             var finalImage = image
             if let options = mediaOptions {
-                if let maxWidth = options["width"] as? Int, maxWidth > 0,
-                    let maxHeight = options["height"] as? Int, maxHeight > 0
+                if let maxWidth = options["maxWidth"] as? Int, maxWidth > 0,
+                    let maxHeight = options["maxHeight"] as? Int, maxHeight > 0
                 {
 
                     let originalSize = image.size

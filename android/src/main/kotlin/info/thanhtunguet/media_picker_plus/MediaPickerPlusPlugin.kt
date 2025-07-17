@@ -238,9 +238,9 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
                     // Set quality and resolution if specified
                     mediaOptions?.let { options ->
-                        if (options.containsKey("width") && options.containsKey("height")) {
-                            val width = options["width"] as Int?
-                            val height = options["height"] as Int?
+                        if (options.containsKey("maxWidth") && options.containsKey("maxHeight")) {
+                            val width = options["maxWidth"] as Int?
+                            val height = options["maxHeight"] as Int?
                             if (width != null && height != null) {
                                 intent.putExtra(MediaStore.EXTRA_SIZE_LIMIT, width * height)
                             }
@@ -287,9 +287,9 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                             }
                         }
 
-                        if (options.containsKey("width") && options.containsKey("height")) {
-                            val width = options["width"] as Int?
-                            val height = options["height"] as Int?
+                        if (options.containsKey("maxWidth") && options.containsKey("maxHeight")) {
+                            val width = options["maxWidth"] as Int?
+                            val height = options["maxHeight"] as Int?
                             if (width != null && height != null) {
                                 intent.putExtra(MediaStore.EXTRA_SIZE_LIMIT, width * height)
                             }
@@ -452,9 +452,9 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             var bitmap = android.graphics.BitmapFactory.decodeFile(sourcePath)
 
             // Process image size if required
-            if (options.containsKey("width") && options.containsKey("height")) {
-                val maxWidth = options["width"] as? Int ?: 0
-                val maxHeight = options["height"] as? Int ?: 0
+            if (options.containsKey("maxWidth") && options.containsKey("maxHeight")) {
+                val maxWidth = options["maxWidth"] as? Int ?: 0
+                val maxHeight = options["maxHeight"] as? Int ?: 0
 
                 if (maxWidth > 0 && maxHeight > 0) {
                     val width = bitmap.width

@@ -1,7 +1,7 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_picker_plus/media_picker_plus.dart';
+
+import 'media_preview_widgets.dart';
 
 /// Advanced example demonstrating timestamp watermarking and microphone permissions
 class AdvancedExample extends StatefulWidget {
@@ -15,7 +15,7 @@ class _AdvancedExampleState extends State<AdvancedExample> {
   String? _timestampedImagePath;
   String? _timestampedVideoPath;
   bool _isLoading = false;
-  
+
   // Permission states
   bool _hasCameraPermission = false;
   bool _hasGalleryPermission = false;
@@ -30,16 +30,28 @@ class _AdvancedExampleState extends State<AdvancedExample> {
   String _generateTimestamp() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} '
-           '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
   }
 
   /// Generate a detailed timestamp with timezone
   String _generateDetailedTimestamp() {
     final now = DateTime.now();
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return '${months[now.month - 1]} ${now.day}, ${now.year} • '
-           '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
   }
 
   /// Pick image with timestamp watermark
@@ -47,16 +59,21 @@ class _AdvancedExampleState extends State<AdvancedExample> {
     setState(() => _isLoading = true);
     try {
       final timestamp = _generateTimestamp();
+      print('DEBUG: Watermark text: PICKED: $timestamp');
+      print('DEBUG: Watermark position: ${WatermarkPosition.bottomRight}');
+
       final path = await MediaPickerPlus.pickImage(
         options: MediaOptions(
           imageQuality: 90,
           maxWidth: 1920,
           maxHeight: 1080,
-          watermark: '📸 $timestamp',
-          watermarkFontSize: 24,
+          watermark: 'PICKED: $timestamp',
+          watermarkFontSize: 48,
           watermarkPosition: WatermarkPosition.bottomRight,
         ),
       );
+      print('DEBUG: Returned path: $path');
+
       setState(() {
         _timestampedImagePath = path;
       });
@@ -72,31 +89,54 @@ class _AdvancedExampleState extends State<AdvancedExample> {
 
   /// Capture photo with detailed timestamp watermark
   Future<void> _capturePhotoWithTimestamp() async {
-    // Check camera permission first
-    if (!_hasCameraPermission) {
-      await _requestCameraPermission();
-      if (!_hasCameraPermission) {
-        _showError('Camera permission is required to capture photos');
+    setState(() => _isLoading = true);
+
+    try {
+      // Check camera permission with robust error handling
+      bool hasCameraAccess = false;
+      try {
+        hasCameraAccess = await MediaPickerPlus.hasCameraPermission();
+      } catch (e) {
+        _showError('Error checking camera permission: $e');
         return;
       }
-    }
 
-    setState(() => _isLoading = true);
-    try {
+      if (!hasCameraAccess) {
+        try {
+          hasCameraAccess = await MediaPickerPlus.requestCameraPermission();
+        } catch (e) {
+          _showError('Error requesting camera permission: $e');
+          return;
+        }
+
+        if (!hasCameraAccess) {
+          _showError('Camera permission is required to capture photos');
+          return;
+        }
+      }
+
       final detailedTimestamp = _generateDetailedTimestamp();
+      print('DEBUG: Capture watermark text: CAPTURED: $detailedTimestamp');
+      print('DEBUG: Capture watermark position: ${WatermarkPosition.bottomCenter}');
+      print('DEBUG: Capture max resolution: 1440x1440');
+
       final path = await MediaPickerPlus.capturePhoto(
         options: MediaOptions(
           imageQuality: 95,
-          maxWidth: 2048,
-          maxHeight: 2048,
-          watermark: '📷 Captured: $detailedTimestamp',
-          watermarkFontSize: 28,
+          maxWidth: 1440,
+          maxHeight: 1440,
+          watermark: 'CAPTURED: $detailedTimestamp',
+          watermarkFontSize: 56,
           watermarkPosition: WatermarkPosition.bottomCenter,
         ),
       );
+      print('DEBUG: Capture returned path: $path');
+
       setState(() {
         _timestampedImagePath = path;
+        _hasCameraPermission = hasCameraAccess;
       });
+
       if (path != null) {
         _showSuccessMessage('Photo captured with timestamp watermark');
       }
@@ -109,33 +149,58 @@ class _AdvancedExampleState extends State<AdvancedExample> {
 
   /// Record video with timestamp and permission check
   Future<void> _recordVideoWithTimestamp() async {
-    // Check required permissions
-    if (!_hasCameraPermission) {
-      await _requestCameraPermission();
-      if (!_hasCameraPermission) {
-        _showError('Camera permission is required to record video');
+    setState(() => _isLoading = true);
+
+    try {
+      // Check required permissions with robust error handling
+      bool hasCameraAccess = false;
+      try {
+        hasCameraAccess = await MediaPickerPlus.hasCameraPermission();
+      } catch (e) {
+        _showError('Error checking camera permission: $e');
         return;
       }
-    }
 
-    // Show microphone permission info dialog
-    final shouldContinue = await _showMicrophonePermissionDialog();
-    if (!shouldContinue) return;
+      if (!hasCameraAccess) {
+        try {
+          hasCameraAccess = await MediaPickerPlus.requestCameraPermission();
+        } catch (e) {
+          _showError('Error requesting camera permission: $e');
+          return;
+        }
 
-    setState(() => _isLoading = true);
-    try {
+        if (!hasCameraAccess) {
+          _showError('Camera permission is required to record video');
+          return;
+        }
+      }
+
+      // Show microphone permission info dialog
+      final shouldContinue = await _showMicrophonePermissionDialog();
+      if (!shouldContinue) return;
+
       final timestamp = _generateDetailedTimestamp();
+      print('DEBUG: Video watermark text: RECORDED: $timestamp');
+      print('DEBUG: Video watermark position: ${WatermarkPosition.topLeft}');
+      print('DEBUG: Video max resolution: 1440x1440');
+
       final path = await MediaPickerPlus.recordVideo(
         options: MediaOptions(
-          watermark: '🎬 Recorded: $timestamp',
-          watermarkFontSize: 26,
+          maxWidth: 1440,
+          maxHeight: 1440,
+          watermark: 'RECORDED: $timestamp',
+          watermarkFontSize: 64,
           watermarkPosition: WatermarkPosition.topLeft,
           maxDuration: const Duration(minutes: 5),
         ),
       );
+      print('DEBUG: Video returned path: $path');
+
       setState(() {
         _timestampedVideoPath = path;
+        _hasCameraPermission = hasCameraAccess;
       });
+
       if (path != null) {
         _showSuccessMessage('Video recorded with timestamp watermark');
       }
@@ -151,12 +216,33 @@ class _AdvancedExampleState extends State<AdvancedExample> {
     setState(() => _isLoading = true);
     try {
       final now = DateTime.now();
-      final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-      final months = ['January', 'February', 'March', 'April', 'May', 'June',
-                     'July', 'August', 'September', 'October', 'November', 'December'];
-      final customFormat = '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day} • '
-                          '${now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour)}:'
-                          '${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
+      final weekdays = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday'
+      ];
+      final months = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December'
+      ];
+      final customFormat =
+          '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day} • '
+          '${now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour)}:'
+          '${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}';
       final path = await MediaPickerPlus.pickVideo(
         options: MediaOptions(
           watermark: '🎥 Selected: $customFormat',
@@ -185,8 +271,8 @@ class _AdvancedExampleState extends State<AdvancedExample> {
       final galleryPermission = await MediaPickerPlus.hasGalleryPermission();
 
       setState(() {
-        _hasCameraPermission = cameraPermission;
-        _hasGalleryPermission = galleryPermission;
+        _hasCameraPermission = cameraPermission == true;
+        _hasGalleryPermission = galleryPermission == true;
       });
     } catch (e) {
       _showError('Error checking permissions: $e');
@@ -198,7 +284,7 @@ class _AdvancedExampleState extends State<AdvancedExample> {
     try {
       final granted = await MediaPickerPlus.requestCameraPermission();
       setState(() {
-        _hasCameraPermission = granted;
+        _hasCameraPermission = granted == true;
       });
     } catch (e) {
       _showError('Error requesting camera permission: $e');
@@ -210,13 +296,12 @@ class _AdvancedExampleState extends State<AdvancedExample> {
     try {
       final granted = await MediaPickerPlus.requestGalleryPermission();
       setState(() {
-        _hasGalleryPermission = granted;
+        _hasGalleryPermission = granted == true;
       });
     } catch (e) {
       _showError('Error requesting gallery permission: $e');
     }
   }
-
 
   /// Show microphone permission dialog
   Future<bool> _showMicrophonePermissionDialog() async {
@@ -305,8 +390,9 @@ class _AdvancedExampleState extends State<AdvancedExample> {
   Future<void> _requestAllPermissions() async {
     await _requestCameraPermission();
     await _requestGalleryPermission();
-    
-    _showSuccessMessage('Available permission requests completed. Check status for results.');
+
+    _showSuccessMessage(
+        'Available permission requests completed. Check status for results.');
   }
 
   void _showError(String message) {
@@ -325,6 +411,55 @@ class _AdvancedExampleState extends State<AdvancedExample> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'INFO',
+          textColor: Colors.white,
+          onPressed: () {
+            if (_timestampedImagePath != null ||
+                _timestampedVideoPath != null) {
+              _showMediaInfo();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showMediaInfo() {
+    final imagePath = _timestampedImagePath;
+    final videoPath = _timestampedVideoPath;
+
+    String info = 'Media Information:\n\n';
+    if (imagePath != null) {
+      info += 'Image: ${imagePath.split('/').last}\n';
+      info += 'Max Resolution: 1440x1440 (HD)\n';
+      info += 'Watermark: Large font size (56px)\n';
+      info += 'Full path: $imagePath\n\n';
+    }
+    if (videoPath != null) {
+      info += 'Video: ${videoPath.split('/').last}\n';
+      info += 'Max Resolution: 1440x1440 (HD)\n';
+      info += 'Watermark: Large font size (64px)\n';
+      info += 'Full path: $videoPath\n\n';
+    }
+    info += 'Media is resized to HD before watermarking.\n';
+    info += 'Watermarks should be clearly visible.\n';
+    info += 'Check the preview widgets below to verify.';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Media Information'),
+        content: SingleChildScrollView(
+          child: Text(info),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
@@ -334,65 +469,82 @@ class _AdvancedExampleState extends State<AdvancedExample> {
       return const SizedBox.shrink();
     }
 
-    return Card(
-      child: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              'Timestamped Media Preview',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-          ),
-          if (_timestampedImagePath != null) ...[
-            const Text('Image with Timestamp Watermark:'),
-            const SizedBox(height: 8),
-            if (kIsWeb || _timestampedImagePath!.startsWith('data:'))
-              Image.network(
-                _timestampedImagePath!,
-                height: 200,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.error),
-              )
-            else
-              Image.file(
-                File(_timestampedImagePath!),
-                height: 200,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.error),
-              ),
-            const SizedBox(height: 16),
-          ],
-          if (_timestampedVideoPath != null) ...[
-            const Text('Video with Timestamp Watermark:'),
-            const SizedBox(height: 8),
-            const Icon(Icons.play_circle_filled, size: 64),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                'Video: ${_timestampedVideoPath!.split('/').last}',
-                style: const TextStyle(fontSize: 12),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Header
+        Row(
+          children: [
+            const Icon(Icons.preview, size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: const Text(
+                'Media Preview',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
+            const Spacer(),
+            if (_timestampedImagePath != null || _timestampedVideoPath != null)
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _timestampedImagePath = null;
+                    _timestampedVideoPath = null;
+                  });
+                },
+                icon: const Icon(Icons.clear_all),
+                label: const Text('Clear All'),
+              ),
           ],
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              if (_timestampedImagePath != null)
-                ElevatedButton(
-                  onPressed: () => setState(() => _timestampedImagePath = null),
-                  child: const Text('Clear Image'),
-                ),
-              if (_timestampedVideoPath != null)
-                ElevatedButton(
-                  onPressed: () => setState(() => _timestampedVideoPath = null),
-                  child: const Text('Clear Video'),
-                ),
-            ],
+        ),
+
+        // Image Preview
+        if (_timestampedImagePath != null) ...[
+          EnhancedImagePreview(
+            imagePath: _timestampedImagePath!,
+            title: '📸 Timestamped Image Preview',
+            height: 320,
+            onClear: () => setState(() => _timestampedImagePath = null),
           ),
           const SizedBox(height: 16),
         ],
-      ),
+
+        // Video Preview
+        if (_timestampedVideoPath != null) ...[
+          EnhancedVideoPlayer(
+            videoPath: _timestampedVideoPath!,
+            title: '🎬 Timestamped Video Preview',
+            height: 320,
+            autoPlay: false,
+            onClear: () => setState(() => _timestampedVideoPath = null),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Feature highlights
+        if (_timestampedImagePath != null || _timestampedVideoPath != null)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '✨ Enhanced Preview Features',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('🔍 Zoom and pan support for images'),
+                  const Text('🎮 Full video player controls'),
+                  const Text('📱 Fullscreen viewing mode'),
+                  const Text('ℹ️ Detailed media information'),
+                  const Text('💧 Watermark visualization'),
+                  const Text('🎯 Cross-platform compatibility'),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -406,7 +558,7 @@ class _AdvancedExampleState extends State<AdvancedExample> {
             icon: Icon(
               Icons.security,
               color: _hasCameraPermission && _hasGalleryPermission
-                  ? Colors.green 
+                  ? Colors.green
                   : Colors.red,
             ),
             onPressed: _showPermissionStatus,
@@ -429,7 +581,8 @@ class _AdvancedExampleState extends State<AdvancedExample> {
                         children: [
                           const Text(
                             '🕒 Timestamp Watermarking',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
                           const Text(
@@ -492,7 +645,8 @@ class _AdvancedExampleState extends State<AdvancedExample> {
                         children: [
                           const Text(
                             '🔒 Advanced Permission Management',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
                           const Text(
@@ -500,15 +654,20 @@ class _AdvancedExampleState extends State<AdvancedExample> {
                             style: TextStyle(color: Colors.grey),
                           ),
                           const SizedBox(height: 16),
-                          _buildPermissionStatusRow('Camera', _hasCameraPermission),
-                          _buildPermissionStatusRow('Gallery', _hasGalleryPermission),
+                          _buildPermissionStatusRow(
+                              'Camera', _hasCameraPermission),
+                          _buildPermissionStatusRow(
+                              'Gallery', _hasGalleryPermission),
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 4.0),
                             child: Row(
                               children: [
                                 Icon(Icons.info, color: Colors.blue, size: 20),
                                 SizedBox(width: 8),
-                                Text('Microphone: Auto-requested for video recording'),
+                                Expanded(
+                                  child: Text(
+                                      'Microphone: Auto-requested for video recording'),
+                                ),
                               ],
                             ),
                           ),
@@ -519,7 +678,7 @@ class _AdvancedExampleState extends State<AdvancedExample> {
                                 child: ElevatedButton.icon(
                                   onPressed: _checkAllPermissions,
                                   icon: const Icon(Icons.refresh),
-                                  label: const Text('Refresh Status'),
+                                  label: const Text('Refresh'),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -553,28 +712,39 @@ class _AdvancedExampleState extends State<AdvancedExample> {
                         children: [
                           const Text(
                             '✨ Advanced Features Demonstrated',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 12),
                           const Text('🕒 Automatic timestamp watermarking'),
-                          const Text('📱 Custom timestamp formats (multiple styles)'),
+                          const Text(
+                              '📱 Custom timestamp formats (multiple styles)'),
                           const Text('🎤 Smart microphone permission handling'),
                           const Text('🔒 Intelligent permission management'),
-                          const Text('⚡ Automatic permission flow for video recording'),
+                          const Text(
+                              '⚡ Automatic permission flow for video recording'),
                           const Text('🎨 Dynamic watermark positioning'),
-                          const Text('📋 Real-time permission status monitoring'),
+                          const Text(
+                              '📋 Real-time permission status monitoring'),
                           const SizedBox(height: 16),
                           const Text(
                             '💡 Tips:',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
-                          const Text('• Timestamps are generated in real-time with multiple format options'),
-                          const Text('• Microphone permissions are handled transparently by the system'),
-                          const Text('• Permission status shows with intuitive color-coded indicators'),
-                          const Text('• Custom timestamp formats: ISO, detailed, and conversational styles'),
-                          const Text('• Smart permission flows prevent interrupting user experience'),
-                          const Text('• Automatic fallback handling for denied permissions'),
+                          const Text(
+                              '• Timestamps are generated in real-time with multiple format options'),
+                          const Text(
+                              '• Microphone permissions are handled transparently by the system'),
+                          const Text(
+                              '• Permission status shows with intuitive color-coded indicators'),
+                          const Text(
+                              '• Custom timestamp formats: ISO, detailed, and conversational styles'),
+                          const Text(
+                              '• Smart permission flows prevent interrupting user experience'),
+                          const Text(
+                              '• Automatic fallback handling for denied permissions'),
                         ],
                       ),
                     ),

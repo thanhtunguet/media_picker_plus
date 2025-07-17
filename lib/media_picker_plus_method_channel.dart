@@ -37,26 +37,42 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
 
   @override
   Future<bool> hasCameraPermission() async {
-    return await methodChannel.invokeMethod<bool>('hasCameraPermission') ??
-        false;
+    try {
+      final result = await methodChannel.invokeMethod('hasCameraPermission');
+      return _convertToBool(result);
+    } catch (e) {
+      return false;
+    }
   }
 
   @override
   Future<bool> requestCameraPermission() async {
-    return await methodChannel.invokeMethod<bool>('requestCameraPermission') ??
-        false;
+    try {
+      final result = await methodChannel.invokeMethod('requestCameraPermission');
+      return _convertToBool(result);
+    } catch (e) {
+      return false;
+    }
   }
 
   @override
   Future<bool> hasGalleryPermission() async {
-    return await methodChannel.invokeMethod<bool>('hasGalleryPermission') ??
-        false;
+    try {
+      final result = await methodChannel.invokeMethod('hasGalleryPermission');
+      return _convertToBool(result);
+    } catch (e) {
+      return false;
+    }
   }
 
   @override
   Future<bool> requestGalleryPermission() async {
-    return await methodChannel.invokeMethod<bool>('requestGalleryPermission') ??
-        false;
+    try {
+      final result = await methodChannel.invokeMethod('requestGalleryPermission');
+      return _convertToBool(result);
+    } catch (e) {
+      return false;
+    }
   }
 
   @override
@@ -102,5 +118,19 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     } on PlatformException catch (e) {
       throw Exception('Error picking multiple media: ${e.message}');
     }
+  }
+
+  /// Helper method to safely convert various types to boolean
+  /// This handles cases where native platforms might return different types
+  bool _convertToBool(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is String) {
+      return value.toLowerCase() == 'true' || value == '1';
+    }
+    if (value is int) {
+      return value != 0;
+    }
+    return false;
   }
 }

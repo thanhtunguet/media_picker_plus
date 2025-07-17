@@ -30,6 +30,12 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  
+  # Video player for media preview (using more stable version)
+  video_player: ^2.7.2
+  
+  # Photo view for image zoom and pan
+  photo_view: ^0.14.0
 
 dev_dependencies:
   integration_test:
