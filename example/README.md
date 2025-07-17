@@ -35,6 +35,8 @@ A comprehensive example app demonstrating all features of the Media Picker Plus 
   - 9 different watermark positions
   - Customizable font sizes
   - Text watermarks with emoji support
+  - **🕒 Timestamp watermarking** with multiple formats
+  - Real-time timestamp generation
 
 - **Image Processing**
   - Quality control (0-100%)
@@ -45,6 +47,13 @@ A comprehensive example app demonstrating all features of the Media Picker Plus 
   - Duration limits for recording
   - Video watermarking
   - Quality optimization
+  - **🎤 Smart microphone permission handling**
+
+- **🔒 Intelligent Permission Management**
+  - Automatic microphone permission for video recording
+  - Smart permission flow to prevent user experience interruptions
+  - Visual permission status indicators
+  - Fallback handling for denied permissions
 
 ## 🚀 Running the Example
 
@@ -143,6 +152,16 @@ A comprehensive example app demonstrating all features of the Media Picker Plus 
 
 ## 🎮 How to Use the Example
 
+The example app includes two main sections:
+
+### 📱 **Main Screen** - Basic Operations
+Access basic media and file operations with standard watermarking.
+
+### 🧪 **Advanced Examples** - Timestamp & Permissions
+Tap the lab flask icon (🧪) in the app bar to access advanced features:
+- **🕒 Timestamp Watermarking**: Automatic timestamp generation in multiple formats
+- **🔒 Smart Permission Management**: Intelligent microphone permission handling
+
 ### 1. Single Media Operations
 
 **Pick Image with Watermark**:
@@ -151,16 +170,31 @@ A comprehensive example app demonstrating all features of the Media Picker Plus 
 - Image will be processed with watermark and resizing
 - Preview shows the processed image
 
+**Pick Image with Timestamp** (Advanced):
+- Use "Pick Image" in Advanced Examples
+- Image automatically gets timestamped watermark
+- Timestamp format: `📸 2024-07-17 14:30:25`
+
 **Capture Photo**:
 - Tap "Capture Photo" button
 - Grant camera permission if prompted
 - Take a photo using the camera
 - Photo will be processed with watermark
 
+**Capture Photo with Detailed Timestamp** (Advanced):
+- Use "Capture Photo" in Advanced Examples
+- Photo gets detailed timestamp: `📷 Captured: Jul 17, 2024 • 14:30:25`
+
 **Pick/Record Video**:
 - Tap "Pick Video" or "Record Video"
 - Select/record a video
 - Video will be processed with watermark overlay
+
+**Record Video with Smart Permissions** (Advanced):
+- Use "Record Video" in Advanced Examples
+- App automatically handles microphone permission
+- Shows permission info dialog before recording
+- Timestamp format: `🎬 Recorded: Jul 17, 2024 • 14:30:25`
 
 ### 2. Multiple Media Operations
 
@@ -220,6 +254,108 @@ Future<void> pickImage() async {
   } catch (e) {
     print('Error: $e');
   }
+}
+```
+
+### 🕒 Timestamp Watermarking
+```dart
+/// Generate timestamp: 2024-07-17 14:30:25
+String _generateTimestamp() {
+  final now = DateTime.now();
+  return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} '
+         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+}
+
+/// Pick image with real-time timestamp
+Future<void> pickImageWithTimestamp() async {
+  try {
+    final timestamp = _generateTimestamp();
+    final path = await MediaPickerPlus.pickImage(
+      options: MediaOptions(
+        imageQuality: 90,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        watermark: '📸 $timestamp',
+        watermarkFontSize: 24,
+        watermarkPosition: WatermarkPosition.bottomRight,
+      ),
+    );
+    if (path != null) {
+      print('Timestamped image: $path');
+    }
+  } catch (e) {
+    print('Error: $e');
+  }
+}
+
+/// Generate detailed timestamp: Jul 17, 2024 • 14:30:25
+String _generateDetailedTimestamp() {
+  final now = DateTime.now();
+  final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return '${months[now.month - 1]} ${now.day}, ${now.year} • '
+         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+}
+```
+
+### 🎤 Smart Video Recording with Permission Handling
+```dart
+Future<void> recordVideoWithSmartPermissions() async {
+  // Check camera permission first
+  if (!await MediaPickerPlus.hasCameraPermission()) {
+    final granted = await MediaPickerPlus.requestCameraPermission();
+    if (!granted) {
+      _showError('Camera permission is required');
+      return;
+    }
+  }
+
+  // Show microphone permission info dialog
+  final shouldContinue = await _showMicrophonePermissionDialog();
+  if (!shouldContinue) return;
+
+  try {
+    final timestamp = _generateDetailedTimestamp();
+    final path = await MediaPickerPlus.recordVideo(
+      options: MediaOptions(
+        watermark: '🎬 Recorded: $timestamp',
+        watermarkFontSize: 26,
+        watermarkPosition: WatermarkPosition.topLeft,
+        maxDuration: Duration(minutes: 5),
+      ),
+    );
+    if (path != null) {
+      print('Video recorded with timestamp: $path');
+    }
+  } catch (e) {
+    print('Error: $e');
+  }
+}
+
+/// Show informative microphone permission dialog
+Future<bool> _showMicrophonePermissionDialog() async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Microphone Permission Info'),
+      content: Text(
+        'For video recording with audio, the app will automatically request '
+        'microphone permission when needed. On some platforms, audio recording '
+        'may require additional permissions to be granted manually in device settings.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text('Continue Recording'),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
 }
 ```
 

@@ -142,7 +142,7 @@ jobs:
       - name: Archive macOS app
         run: |
           cd example/build/macos/Build/Products/Release
-          zip -r ../../../../../../macos-app.zip .
+          zip -r ../../../../../macos-app.zip .
 
       - name: Upload macOS Artifact
         uses: actions/upload-artifact@v4

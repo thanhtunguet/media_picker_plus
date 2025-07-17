@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_picker_plus/media_picker_plus.dart';
+import 'advanced_example.dart';
 
 Future<void> main() async {
   runApp(const MyApp());
@@ -497,6 +498,17 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
       appBar: AppBar(
         title: const Text('Media Picker Plus Example'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.science),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AdvancedExample(),
+                ),
+              );
+            },
+            tooltip: 'Advanced Examples',
+          ),
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () {
