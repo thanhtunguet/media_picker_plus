@@ -34,5 +34,5 @@ flutter:
         pluginClass: MediaPickerPlusPlugin
         fileName: MediaPickerPlusPlugin.swift
       web:
-        pluginClass: MediaPickerPlusPlugin
-        fileName: MediaPickerPlusPlugin.dart
+        pluginClass: MediaPickerPlusWeb
+        fileName: media_picker_plus_web.dart

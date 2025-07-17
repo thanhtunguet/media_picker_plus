@@ -16,28 +16,32 @@ class MediaPickerPlus {
   static Future<String?> pickImage({
     MediaOptions options = const MediaOptions(),
   }) async {
-    return MediaPickerPlusPlatform.instance.pickMedia(MediaSource.gallery, MediaType.image, options);
+    return MediaPickerPlusPlatform.instance
+        .pickMedia(MediaSource.gallery, MediaType.image, options);
   }
 
   /// Pick a video from gallery
   static Future<String?> pickVideo({
     MediaOptions options = const MediaOptions(),
   }) async {
-    return MediaPickerPlusPlatform.instance.pickMedia(MediaSource.gallery, MediaType.video, options);
+    return MediaPickerPlusPlatform.instance
+        .pickMedia(MediaSource.gallery, MediaType.video, options);
   }
 
   /// Capture a photo using camera
   static Future<String?> capturePhoto({
     MediaOptions options = const MediaOptions(),
   }) async {
-    return MediaPickerPlusPlatform.instance.pickMedia(MediaSource.camera, MediaType.image, options);
+    return MediaPickerPlusPlatform.instance
+        .pickMedia(MediaSource.camera, MediaType.image, options);
   }
 
   /// Record a video using camera
   static Future<String?> recordVideo({
     MediaOptions options = const MediaOptions(),
   }) async {
-    return MediaPickerPlusPlatform.instance.pickMedia(MediaSource.camera, MediaType.video, options);
+    return MediaPickerPlusPlatform.instance
+        .pickMedia(MediaSource.camera, MediaType.video, options);
   }
 
   /// Check if camera permission is granted
@@ -65,7 +69,8 @@ class MediaPickerPlus {
     MediaOptions options = const MediaOptions(),
     List<String>? allowedExtensions,
   }) async {
-    return MediaPickerPlusPlatform.instance.pickFile(options, allowedExtensions);
+    return MediaPickerPlusPlatform.instance
+        .pickFile(options, allowedExtensions);
   }
 
   /// Pick multiple files from file system
@@ -73,20 +78,23 @@ class MediaPickerPlus {
     MediaOptions options = const MediaOptions(),
     List<String>? allowedExtensions,
   }) async {
-    return MediaPickerPlusPlatform.instance.pickMultipleFiles(options, allowedExtensions);
+    return MediaPickerPlusPlatform.instance
+        .pickMultipleFiles(options, allowedExtensions);
   }
 
   /// Pick multiple images from gallery
   static Future<List<String>?> pickMultipleImages({
     MediaOptions options = const MediaOptions(),
   }) async {
-    return MediaPickerPlusPlatform.instance.pickMultipleMedia(MediaSource.gallery, MediaType.image, options);
+    return MediaPickerPlusPlatform.instance
+        .pickMultipleMedia(MediaSource.gallery, MediaType.image, options);
   }
 
   /// Pick multiple videos from gallery
   static Future<List<String>?> pickMultipleVideos({
     MediaOptions options = const MediaOptions(),
   }) async {
-    return MediaPickerPlusPlatform.instance.pickMultipleMedia(MediaSource.gallery, MediaType.video, options);
+    return MediaPickerPlusPlatform.instance
+        .pickMultipleMedia(MediaSource.gallery, MediaType.video, options);
   }
 }

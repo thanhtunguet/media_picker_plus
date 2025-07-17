@@ -1,13 +1,10 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="info.thanhtunguet.media_picker_plus">
-
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-
     <application>
         <provider
             android:name="androidx.core.content.FileProvider"
