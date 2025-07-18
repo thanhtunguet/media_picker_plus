@@ -252,72 +252,128 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     
     private func getBestAvailableVideoDevice() -> AVCaptureDevice? {
         // Try to get the best available video device, prioritizing newer device types
+        // Handle different macOS versions gracefully
         
         if #available(macOS 14.0, *) {
-            // First try Continuity Camera if available
+            // First try Continuity Camera if available (macOS 14.0+)
             if let continuityCamera = AVCaptureDevice.default(.continuityCamera, for: .video, position: .unspecified) {
                 return continuityCamera
             }
         }
         
-        // Fall back to built-in camera
-        if let builtInCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) {
-            return builtInCamera
+        // Try built-in camera for supported macOS versions
+        if #available(macOS 11.0, *) {
+            if let builtInCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) {
+                return builtInCamera
+            }
         }
         
-        // Final fallback to any available video device
+        // Final fallback to any available video device (works on all macOS versions)
         return AVCaptureDevice.default(for: .video)
     }
     
     // MARK: - Permission Methods
     
     private func hasCameraPermission() -> Bool {
-        return AVCaptureDevice.authorizationStatus(for: .video) == .authorized
+        // Camera permission check for all supported macOS versions
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        return status == .authorized
     }
     
     private func hasMicrophonePermission() -> Bool {
-        return AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+        // Microphone permission check for all supported macOS versions
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        return status == .authorized
     }
     
     private func hasGalleryPermission() -> Bool {
-        // On macOS, NSOpenPanel doesn't require special permissions
-        // It uses the system's built-in file access permissions
-        return true
+        // On macOS, different permission requirements based on version and access type
+        if #available(macOS 11.0, *) {
+            // macOS 11.0+ requires Photos library permission for programmatic access
+            // But NSOpenPanel with user interaction doesn't require explicit permission
+            // We'll check Photos permission if available, otherwise assume granted for file picker
+            let photoLibraryStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+            return photoLibraryStatus == .authorized || photoLibraryStatus == .limited
+        } else {
+            // macOS 10.x and earlier versions
+            return true
+        }
     }
     
     private func requestCameraPermission(completion: @escaping (Bool) -> Void) {
-        AVCaptureDevice.requestAccess(for: .video) { granted in
-            DispatchQueue.main.async {
-                completion(granted)
+        // Camera permission handling for all supported macOS versions
+        if #available(macOS 11.0, *) {
+            // macOS 11.0+ has more granular permission handling
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    completion(granted)
+                }
+            }
+        } else {
+            // For older macOS versions, still request permission but may not be strictly enforced
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    completion(granted)
+                }
             }
         }
     }
     
     private func requestMicrophonePermission(completion: @escaping (Bool) -> Void) {
-        AVCaptureDevice.requestAccess(for: .audio) { granted in
-            DispatchQueue.main.async {
-                completion(granted)
+        // Microphone permission handling for all supported macOS versions
+        if #available(macOS 11.0, *) {
+            // macOS 11.0+ has more granular permission handling
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                DispatchQueue.main.async {
+                    completion(granted)
+                }
+            }
+        } else {
+            // For older macOS versions, still request permission but may not be strictly enforced
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                DispatchQueue.main.async {
+                    completion(granted)
+                }
             }
         }
     }
     
     private func requestGalleryPermission(completion: @escaping (Bool) -> Void) {
-        // On macOS, NSOpenPanel handles file access permissions automatically
-        // through the system's file access dialog. No explicit permission request needed.
-        DispatchQueue.main.async {
-            completion(true)
+        // On macOS, handle permission requests based on version and access type
+        if #available(macOS 11.0, *) {
+            // For macOS 11.0+, request Photos library access for programmatic access
+            // Note: NSOpenPanel with user interaction doesn't need explicit permission
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+                DispatchQueue.main.async {
+                    completion(status == .authorized || status == .limited)
+                }
+            }
+        } else {
+            // For older macOS versions, no explicit permission needed
+            DispatchQueue.main.async {
+                completion(true)
+            }
         }
     }
     
     // MARK: - Gallery Methods
     
     private func pickImageFromGallery() {
+        // Use NSOpenPanel for file system access - this works across all macOS versions
+        // and provides proper sandboxing without requiring explicit permissions
         let openPanel = NSOpenPanel()
         openPanel.title = "Select Image"
         openPanel.canChooseFiles = true
         openPanel.canChooseDirectories = false
         openPanel.allowsMultipleSelection = false
-        openPanel.allowedContentTypes = [.image]
+        
+        // Set allowed content types based on macOS version
+        if #available(macOS 11.0, *) {
+            openPanel.allowedContentTypes = [.image]
+        } else {
+            // For older macOS versions, use file extensions
+            openPanel.allowedFileTypes = ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "heic"]
+        }
         
         openPanel.begin { response in
             if response == .OK, let url = openPanel.url {
@@ -330,12 +386,21 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     }
     
     private func pickVideoFromGallery() {
+        // Use NSOpenPanel for file system access - this works across all macOS versions
+        // and provides proper sandboxing without requiring explicit permissions
         let openPanel = NSOpenPanel()
         openPanel.title = "Select Video"
         openPanel.canChooseFiles = true
         openPanel.canChooseDirectories = false
         openPanel.allowsMultipleSelection = false
-        openPanel.allowedContentTypes = [.movie]
+        
+        // Set allowed content types based on macOS version
+        if #available(macOS 11.0, *) {
+            openPanel.allowedContentTypes = [.movie]
+        } else {
+            // For older macOS versions, use file extensions
+            openPanel.allowedFileTypes = ["mp4", "mov", "avi", "mkv", "m4v", "wmv"]
+        }
         
         openPanel.begin { response in
             if response == .OK, let url = openPanel.url {
@@ -896,13 +961,21 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         openPanel.canChooseDirectories = false
         openPanel.allowsMultipleSelection = false
         
-        // Set allowed file types
+        // Set allowed file types based on macOS version
         if let extensions = allowedExtensions {
-            let utTypes = extensions.compactMap { ext in
-                let cleanExt = ext.hasPrefix(".") ? String(ext.dropFirst()) : ext
-                return UTType(filenameExtension: cleanExt)
+            if #available(macOS 11.0, *) {
+                let utTypes = extensions.compactMap { ext in
+                    let cleanExt = ext.hasPrefix(".") ? String(ext.dropFirst()) : ext
+                    return UTType(filenameExtension: cleanExt)
+                }
+                openPanel.allowedContentTypes = utTypes
+            } else {
+                // For older macOS versions, use file extensions directly
+                let cleanExtensions = extensions.map { ext in
+                    ext.hasPrefix(".") ? String(ext.dropFirst()) : ext
+                }
+                openPanel.allowedFileTypes = cleanExtensions
             }
-            openPanel.allowedContentTypes = utTypes
         }
         
         openPanel.begin { response in
@@ -921,13 +994,21 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         openPanel.canChooseDirectories = false
         openPanel.allowsMultipleSelection = true
         
-        // Set allowed file types
+        // Set allowed file types based on macOS version
         if let extensions = allowedExtensions {
-            let utTypes = extensions.compactMap { ext in
-                let cleanExt = ext.hasPrefix(".") ? String(ext.dropFirst()) : ext
-                return UTType(filenameExtension: cleanExt)
+            if #available(macOS 11.0, *) {
+                let utTypes = extensions.compactMap { ext in
+                    let cleanExt = ext.hasPrefix(".") ? String(ext.dropFirst()) : ext
+                    return UTType(filenameExtension: cleanExt)
+                }
+                openPanel.allowedContentTypes = utTypes
+            } else {
+                // For older macOS versions, use file extensions directly
+                let cleanExtensions = extensions.map { ext in
+                    ext.hasPrefix(".") ? String(ext.dropFirst()) : ext
+                }
+                openPanel.allowedFileTypes = cleanExtensions
             }
-            openPanel.allowedContentTypes = utTypes
         }
         
         openPanel.begin { response in

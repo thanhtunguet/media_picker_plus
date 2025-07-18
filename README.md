@@ -85,12 +85,35 @@ flutter pub add media_picker_plus
 
 1. **Add permissions to `android/app/src/main/AndroidManifest.xml`**:
 
+The plugin requires different permissions based on the features you use and the Android API levels you support:
+
 ```xml
+<!-- Required for camera capture -->
 <uses-permission android:name="android.permission.CAMERA" />
+
+<!-- Required for video recording -->
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+<!-- Storage permissions for Android 6.0 - 12 (API 23-32) -->
 <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
+<!-- Granular media permissions for Android 13+ (API 33+) -->
 <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
+<!-- Optional: Feature declarations for better Play Store filtering -->
+<uses-feature android:name="android.hardware.camera" android:required="false" />
+<uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+<uses-feature android:name="android.hardware.microphone" android:required="false" />
 ```
+
+**Permission Usage Guidelines:**
+- Only add permissions for features you actually use
+- `CAMERA` permission is required for photo/video capture
+- `RECORD_AUDIO` permission is required for video recording with audio
+- Storage permissions are required for gallery access
+- For Android 13+ (API 33+), use granular media permissions instead of `READ_EXTERNAL_STORAGE`
 
 2. **Configure FileProvider in `android/app/src/main/AndroidManifest.xml`**:
 
@@ -116,6 +139,11 @@ flutter pub add media_picker_plus
     <external-files-path name="my_images" path="Pictures" />
 </paths>
 ```
+
+**API Level Compatibility:**
+- **Android 5.0-5.1 (API 21-22)**: Permissions are granted at install time
+- **Android 6.0-12 (API 23-32)**: Runtime permissions required, uses `READ_EXTERNAL_STORAGE`
+- **Android 13+ (API 33+)**: Uses granular media permissions, supports modern Photo Picker API
 
 ### iOS Configuration
 

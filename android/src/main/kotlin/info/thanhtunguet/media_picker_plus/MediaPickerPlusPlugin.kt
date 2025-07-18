@@ -19,6 +19,9 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -67,6 +70,9 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private val REQUEST_CAMERA_PERMISSION = 2001
     private val REQUEST_GALLERY_PERMISSION = 2002
     private val REQUEST_MICROPHONE_PERMISSION = 2003
+    
+    // Modern Photo Picker (Android 13+)
+    private val REQUEST_PHOTO_PICKER = 3001
 
     // Watermark positions enum
     enum class WatermarkPosition {
@@ -234,8 +240,20 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         try {
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
             val fileName = if (isImage) "IMG_${timeStamp}" else "VID_${timeStamp}"
-            val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
             val extension = if (isImage) ".jpg" else ".mp4"
+            
+            // Use app-specific storage for better compatibility across API levels
+            val storageDir = when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+                    // Android 10+ (API 29+): Use app-specific directory to avoid scoped storage issues
+                    context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+                }
+                else -> {
+                    // Android 9 and below: Use external files directory
+                    context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+                }
+            }
+            
             val file = File.createTempFile(fileName, extension, storageDir)
             currentMediaPath = file.absolutePath
             return file
@@ -294,86 +312,159 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private fun pickImageFromGallery() {
         val activity = activity ?: return
 
-        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-        activity.startActivityForResult(intent, REQUEST_PICK_IMAGE)
+        // Use modern Photo Picker API for Android 13+ when available
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && isPhotoPickerAvailable()) {
+            val intent = Intent(MediaStore.ACTION_PICK_IMAGES)
+            intent.putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, 1)
+            activity.startActivityForResult(intent, REQUEST_PHOTO_PICKER)
+        } else {
+            // Fallback to traditional gallery picker
+            val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+            activity.startActivityForResult(intent, REQUEST_PICK_IMAGE)
+        }
     }
 
     private fun pickVideoFromGallery() {
         val activity = activity ?: return
 
-        val intent = Intent(Intent.ACTION_PICK, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
-        activity.startActivityForResult(intent, REQUEST_PICK_VIDEO)
+        // Use modern Photo Picker API for Android 13+ when available
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && isPhotoPickerAvailable()) {
+            val intent = Intent(MediaStore.ACTION_PICK_IMAGES)
+            intent.putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, 1)
+            // Note: As of Android 13, the photo picker doesn't support video selection
+            // We'll use the traditional method for videos
+            val videoIntent = Intent(Intent.ACTION_PICK, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+            activity.startActivityForResult(videoIntent, REQUEST_PICK_VIDEO)
+        } else {
+            // Fallback to traditional gallery picker
+            val intent = Intent(Intent.ACTION_PICK, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+            activity.startActivityForResult(intent, REQUEST_PICK_VIDEO)
+        }
     }
 
     private fun hasCameraPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.CAMERA
-        ) == PackageManager.PERMISSION_GRANTED
+        return when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                // Android 6.0+ (API 23+): Runtime permission required
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.CAMERA
+                ) == PackageManager.PERMISSION_GRANTED
+            }
+            else -> {
+                // Android 5.1 and below (API 22 and below): Permissions granted at install time
+                true
+            }
+        }
     }
 
     private fun requestCameraPermission() {
         activity?.let {
-            ActivityCompat.requestPermissions(
-                it,
-                arrayOf(Manifest.permission.CAMERA),
-                REQUEST_CAMERA_PERMISSION
-            )
+            when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                    // Android 6.0+ (API 23+): Request runtime permission
+                    ActivityCompat.requestPermissions(
+                        it,
+                        arrayOf(Manifest.permission.CAMERA),
+                        REQUEST_CAMERA_PERMISSION
+                    )
+                }
+                else -> {
+                    // Android 5.1 and below (API 22 and below): No runtime permissions needed
+                    pendingResult?.success(true)
+                }
+            }
         }
     }
 
     private fun hasMicrophonePermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.RECORD_AUDIO
-        ) == PackageManager.PERMISSION_GRANTED
+        return when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                // Android 6.0+ (API 23+): Runtime permission required
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+            }
+            else -> {
+                // Android 5.1 and below (API 22 and below): Permissions granted at install time
+                true
+            }
+        }
     }
 
     private fun requestMicrophonePermission() {
         activity?.let {
-            ActivityCompat.requestPermissions(
-                it,
-                arrayOf(Manifest.permission.RECORD_AUDIO),
-                REQUEST_MICROPHONE_PERMISSION
-            )
+            when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                    // Android 6.0+ (API 23+): Request runtime permission
+                    ActivityCompat.requestPermissions(
+                        it,
+                        arrayOf(Manifest.permission.RECORD_AUDIO),
+                        REQUEST_MICROPHONE_PERMISSION
+                    )
+                }
+                else -> {
+                    // Android 5.1 and below (API 22 and below): No runtime permissions needed
+                    pendingResult?.success(true)
+                }
+            }
         }
     }
 
     private fun hasGalleryPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_MEDIA_IMAGES
-            ) == PackageManager.PERMISSION_GRANTED &&
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.READ_MEDIA_VIDEO
-                    ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
+        return when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                // Android 13+ (API 33+): Use granular media permissions
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.READ_MEDIA_IMAGES
+                ) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.READ_MEDIA_VIDEO
+                ) == PackageManager.PERMISSION_GRANTED
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                // Android 6.0+ (API 23+): Use READ_EXTERNAL_STORAGE
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
+            }
+            else -> {
+                // Android 5.1 and below (API 22 and below): Permissions granted at install time
+                true
+            }
         }
     }
 
     private fun requestGalleryPermission() {
         activity?.let {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ActivityCompat.requestPermissions(
-                    it,
-                    arrayOf(
-                        Manifest.permission.READ_MEDIA_IMAGES,
-                        Manifest.permission.READ_MEDIA_VIDEO
-                    ),
-                    REQUEST_GALLERY_PERMISSION
-                )
-            } else {
-                ActivityCompat.requestPermissions(
-                    it,
-                    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
-                    REQUEST_GALLERY_PERMISSION
-                )
+            when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                    // Android 13+ (API 33+): Request granular media permissions
+                    ActivityCompat.requestPermissions(
+                        it,
+                        arrayOf(
+                            Manifest.permission.READ_MEDIA_IMAGES,
+                            Manifest.permission.READ_MEDIA_VIDEO
+                        ),
+                        REQUEST_GALLERY_PERMISSION
+                    )
+                }
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                    // Android 6.0+ (API 23+): Request READ_EXTERNAL_STORAGE
+                    ActivityCompat.requestPermissions(
+                        it,
+                        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
+                        REQUEST_GALLERY_PERMISSION
+                    )
+                }
+                else -> {
+                    // Android 5.1 and below (API 22 and below): No runtime permissions needed
+                    pendingResult?.success(true)
+                }
             }
         }
     }
@@ -1156,6 +1247,21 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             else -> null
         }
     }
+    
+    private fun isPhotoPickerAvailable(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Check if the photo picker is available on this device
+            // Some devices might not have it even on Android 13+
+            try {
+                val intent = Intent(MediaStore.ACTION_PICK_IMAGES)
+                activity?.packageManager?.queryIntentActivities(intent, 0)?.isNotEmpty() == true
+            } catch (e: Exception) {
+                false
+            }
+        } else {
+            false
+        }
+    }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
         if (resultCode == Activity.RESULT_OK) {
@@ -1288,6 +1394,26 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                         pendingResult?.success(filePaths)
                     } else {
                         pendingResult?.error("NO_FILE", "No media files were selected", null)
+                    }
+                    pendingResult = null
+                    return true
+                }
+                REQUEST_PHOTO_PICKER -> {
+                    // Handle modern Photo Picker result
+                    data?.data?.let { uri ->
+                        val filePath = getFilePathFromUri(uri)
+                        filePath?.let { path ->
+                            val processedPath = processImage(path)
+                            pendingResult?.success(processedPath)
+                        } ?: run {
+                            pendingResult?.error(
+                                "NO_FILE",
+                                "Could not get file path from URI",
+                                null
+                            )
+                        }
+                    } ?: run {
+                        pendingResult?.error("NO_FILE", "No file was selected", null)
                     }
                     pendingResult = null
                     return true

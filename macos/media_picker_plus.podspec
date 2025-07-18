@@ -28,6 +28,9 @@ A new Flutter plugin project.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '5.0'
   
-  # Add required frameworks
-  s.frameworks = 'AVFoundation', 'Photos'
+  # Add required frameworks for all supported macOS versions
+  s.frameworks = 'AVFoundation', 'Photos', 'Cocoa', 'UniformTypeIdentifiers'
+  
+  # Weak link UniformTypeIdentifiers for backwards compatibility
+  s.weak_frameworks = 'UniformTypeIdentifiers'
 end
