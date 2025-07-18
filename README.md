@@ -1,11 +1,22 @@
 # Media Picker Plus
 
-[![pub package](https://img.shields.io/badge/pub-0.0.1-blue.svg)](https://pub.dev/packages/media_picker_plus)
+[![pub package](https://img.shields.io/pub/v/media_picker_plus.svg)](https://pub.dev/packages/media_picker_plus)
 [![Platform](https://img.shields.io/badge/platform-android%20%7C%20ios%20%7C%20macos%20%7C%20web-lightgrey.svg)](https://github.com/thanhtunguet/media_picker_plus)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![codecov](https://codecov.io/gh/thanhtunguet/media_picker_plus/graph/badge.svg?token=NIIWTKBBS2)](https://codecov.io/gh/thanhtunguet/media_picker_plus)
 
+
 A comprehensive Flutter plugin for media selection with advanced processing capabilities. Pick images, videos, and files from gallery or camera with built-in watermarking, resizing, and quality control features.
+
+
+## 💡 Who is this for?
+
+This plugin is ideal for developers building:
+
+- Social media apps (like Instagram, TikTok clones)
+- Chat/messaging apps with media features
+- Document scanners or photo editing apps
+- Any app requiring rich media capture and processing
 
 ## 🚀 Features
 
@@ -22,14 +33,21 @@ A comprehensive Flutter plugin for media selection with advanced processing capa
 - **Cross-Platform**: Full support for Android, iOS, macOS, and Web
 - **FFmpeg Integration**: Advanced video processing capabilities
 
-## 📱 Platform Support
+## ✅ Platform Support
 
-| Platform    | Status     | Features                                     |
-|-------------|------------|----------------------------------------------|
-| **Android** | ✅ Complete | All features including advanced watermarking |
-| **iOS**     | ✅ Complete | All features including advanced watermarking |
-| **macOS**   | ✅ Complete | All features including advanced watermarking |
-| **Web**     | ✅ Complete | HTML5 APIs with client-side processing       |
+| Feature         | Android | iOS | Web | macOS |
+|-----------------|:-------:|:---:|:---:|:-----:|
+| Pick image      |    ✅    |  ✅  |  ✅  |   ✅   |
+| Capture image   |    ✅    |  ✅  |  ✅  |   ✅   |
+| Crop image      |    ✅    |  ✅  |  ✅  |   ✅   |
+| Resize image    |    ✅    |  ✅  |  ✅  |   ✅   |
+| Watermark image |    ✅    |  ✅  |  ✅  |   ✅   |
+| Pick video      |    ✅    |  ✅  |  ✅  |   ✅   |
+| Capture video   |    ✅    |  ✅  |  ✅  |   ✅   |
+| Watermark video |    ❌    |  ✅  |  ✅  |   ✅   |
+
+> Note: Video watermarking on Android is currently under development. Contributions are welcome!
+
 
 ## 📋 Requirements
 
@@ -40,29 +58,25 @@ A comprehensive Flutter plugin for media selection with advanced processing capa
 ### Platform Requirements
 
 #### Android
+- **Supported Versions**: Android 5.1 - Android 14+ (API 22 - API 34+)
 - **Minimum SDK**: API 21 (Android 5.0)
-- **Target SDK**: API 33+
-- **Required Permissions**:
-  - `android.permission.CAMERA`
-  - `android.permission.READ_EXTERNAL_STORAGE` (API ≤ 32)
-  - `android.permission.READ_MEDIA_IMAGES` (API ≥ 33)
-  - `android.permission.READ_MEDIA_VIDEO` (API ≥ 33)
+- **Compile SDK**: API 34+ (recommended)
+- **Target SDK**: API 34+ (recommended)
 
 #### iOS
+- **Supported Versions**: iOS 11.0 - iOS 17+
 - **Minimum Version**: iOS 11.0
-- **Required Permissions**:
-  - `NSCameraUsageDescription`
-  - `NSPhotoLibraryUsageDescription`
-  - `NSMicrophoneUsageDescription`
+- **Xcode**: 12.0+
 
 #### macOS
+- **Supported Versions**: macOS 11.0 - macOS 14+
 - **Minimum Version**: macOS 11.0
-- **Required Permissions**:
-  - Camera and Photo Library access
+- **Xcode**: 12.0+
 
 #### Web
 - **Requirements**: Modern browsers with HTML5 support
 - **Features**: WebRTC for camera, File API for uploads
+- **Browser Support**: Chrome 63+, Firefox 65+, Safari 11.1+, Edge 79+
 
 ## 🔧 Installation
 
@@ -140,22 +154,53 @@ The plugin requires different permissions based on the features you use and the 
 </paths>
 ```
 
-**API Level Compatibility:**
-- **Android 5.0-5.1 (API 21-22)**: Permissions are granted at install time
-- **Android 6.0-12 (API 23-32)**: Runtime permissions required, uses `READ_EXTERNAL_STORAGE`
-- **Android 13+ (API 33+)**: Uses granular media permissions, supports modern Photo Picker API
+**Detailed API Level Compatibility:**
+
+| Android Version | API Level | Permission Model         | Required Permissions                                                                  |
+|-----------------|-----------|--------------------------|---------------------------------------------------------------------------------------|
+| Android 5.0-5.1 | 21-22     | Install-time             | All permissions granted at install                                                    |
+| Android 6.0-8.1 | 23-27     | Runtime                  | `READ_EXTERNAL_STORAGE`, `CAMERA`, `RECORD_AUDIO`                                     |
+| Android 9       | 28        | Runtime                  | `READ_EXTERNAL_STORAGE`, `CAMERA`, `RECORD_AUDIO`                                     |
+| Android 10      | 29        | Runtime + Scoped Storage | `READ_EXTERNAL_STORAGE`, `CAMERA`, `RECORD_AUDIO`                                     |
+| Android 11      | 30        | Runtime + Scoped Storage | `READ_EXTERNAL_STORAGE`, `CAMERA`, `RECORD_AUDIO`                                     |
+| Android 12      | 31-32     | Runtime + Scoped Storage | `READ_EXTERNAL_STORAGE`, `CAMERA`, `RECORD_AUDIO`                                     |
+| Android 13+     | 33+       | Runtime + Granular Media | `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO`, `READ_MEDIA_AUDIO`, `CAMERA`, `RECORD_AUDIO` |
+
+**Key Changes by Version:**
+- **API 23+**: Runtime permissions introduced
+- **API 29+**: Scoped storage, app-specific directories preferred
+- **API 33+**: Granular media permissions, modern Photo Picker API
+- **API 34+**: Enhanced Photo Picker features
+
+**Feature Availability:**
+- **Modern Photo Picker**: Android 13+ (API 33+) - automatically used when available
+- **Legacy Gallery Picker**: All versions - fallback for older Android versions
+- **Camera Capture**: All versions
+- **Video Recording**: All versions
+- **File Picking**: All versions
 
 ### iOS Configuration
+
+**Supported iOS Versions: 11.0 - 17+**
 
 1. **Add permissions to `ios/Runner/Info.plist`**:
 
 ```xml
+<!-- Required for camera capture (all iOS versions) -->
 <key>NSCameraUsageDescription</key>
 <string>This app needs camera access to take photos and videos.</string>
+
+<!-- Required for photo library access (all iOS versions) -->
 <key>NSPhotoLibraryUsageDescription</key>
 <string>This app needs photo library access to select images and videos.</string>
+
+<!-- Required for video recording with audio (all iOS versions) -->
 <key>NSMicrophoneUsageDescription</key>
-<string>This app needs microphone access to record videos.</string>
+<string>This app needs microphone access to record videos with audio.</string>
+
+<!-- Optional: Required for adding photos to library (if you implement save functionality) -->
+<key>NSPhotoLibraryAddUsageDescription</key>
+<string>This app needs permission to save photos to your photo library.</string>
 ```
 
 2. **Set minimum iOS version in `ios/Podfile`**:
@@ -164,26 +209,185 @@ The plugin requires different permissions based on the features you use and the 
 platform :ios, '11.0'
 ```
 
+3. **Configure deployment target in `ios/Runner.xcodeproj`**:
+   - Open `ios/Runner.xcodeproj` in Xcode
+   - Select "Runner" target
+   - Set "iOS Deployment Target" to "11.0" or higher
+
+**iOS Version Compatibility:**
+
+| iOS Version   | Features Available                                     | Notes                          |
+|---------------|--------------------------------------------------------|--------------------------------|
+| iOS 11.0-12.x | Basic camera, photo library access                     | Core functionality             |
+| iOS 13.0+     | Enhanced camera features, improved permission handling | Better user experience         |
+| iOS 14.0+     | Limited photo library access, improved privacy         | PHPickerViewController support |
+| iOS 15.0+     | Enhanced photo picker, camera improvements             | Optimized performance          |
+| iOS 16.0+     | Camera improvements, better privacy controls           | Latest features                |
+| iOS 17.0+     | Advanced camera features, enhanced privacy             | Cutting-edge support           |
+
+**Permission Behavior by iOS Version:**
+- **iOS 11.0-13.x**: Traditional permission model
+- **iOS 14.0+**: Limited photo library access by default
+- **iOS 14.0+**: PHPickerViewController available (automatically used when beneficial)
+- **iOS 15.0+**: Enhanced privacy controls
+- **iOS 16.0+**: Improved camera authorization states
+
 ### macOS Configuration
+
+**Supported macOS Versions: 11.0 - 14+**
 
 1. **Add permissions to `macos/Runner/Info.plist`**:
 
 ```xml
+<!-- Required for camera capture (all macOS versions) -->
 <key>NSCameraUsageDescription</key>
 <string>This app needs camera access to take photos and videos.</string>
+
+<!-- Required for microphone access during video recording (all macOS versions) -->
+<key>NSMicrophoneUsageDescription</key>
+<string>This app needs microphone access to record videos with audio.</string>
+
+<!-- Required for photo library access (macOS 11.0+) -->
 <key>NSPhotoLibraryUsageDescription</key>
 <string>This app needs photo library access to select images and videos.</string>
+
+<!-- Optional: Required for file system access beyond user-selected files -->
+<key>NSDesktopFolderUsageDescription</key>
+<string>This app needs access to the Desktop folder to save media files.</string>
+<key>NSDocumentsFolderUsageDescription</key>
+<string>This app needs access to the Documents folder to save media files.</string>
+<key>NSDownloadsFolderUsageDescription</key>
+<string>This app needs access to the Downloads folder to save media files.</string>
 ```
 
 2. **Set minimum macOS version in `macos/Podfile`**:
 
 ```ruby
-platform :osx, '10.14'
+platform :osx, '11.0'
 ```
+
+3. **Configure deployment target in `macos/Runner.xcodeproj`**:
+   - Open `macos/Runner.xcodeproj` in Xcode
+   - Select "Runner" target
+   - Set "macOS Deployment Target" to "11.0" or higher
+
+4. **Enable necessary capabilities in `macos/Runner/Runner.entitlements`**:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Required for camera access -->
+    <key>com.apple.security.device.camera</key>
+    <true/>
+    
+    <!-- Required for microphone access -->
+    <key>com.apple.security.device.microphone</key>
+    <true/>
+    
+    <!-- Required for file system access -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+    
+    <!-- Optional: Required for broader file system access -->
+    <key>com.apple.security.files.downloads.read-write</key>
+    <true/>
+</dict>
+</plist>
+```
+
+**macOS Version Compatibility:**
+
+| macOS Version       | Features Available                            | Notes                     |
+|---------------------|-----------------------------------------------|---------------------------|
+| macOS 11.0 Big Sur  | Core functionality, basic permissions         | Minimum supported version |
+| macOS 12.0 Monterey | Enhanced camera support, improved file access | Better performance        |
+| macOS 13.0 Ventura  | Advanced camera features, refined permissions | Enhanced user experience  |
+| macOS 14.0 Sonoma   | Continuity Camera support, latest features    | Cutting-edge support      |
+
+**Permission Behavior by macOS Version:**
+- **macOS 11.0+**: Modern permission system, app sandboxing
+- **macOS 12.0+**: Enhanced camera and microphone permission handling
+- **macOS 13.0+**: Improved file system access controls
+- **macOS 14.0+**: Continuity Camera support, enhanced privacy controls
+
+**File Access Methods:**
+- **User-Selected Files**: No special permissions required (NSOpenPanel)
+- **App-Specific Directories**: Automatic access to app sandbox directories
+- **System Directories**: Requires explicit entitlements and user permission
+- **Photo Library**: Requires NSPhotoLibraryUsageDescription for programmatic access
 
 ### Web Configuration
 
-No additional configuration required. The plugin uses HTML5 APIs for camera and file access.
+**Supported Browsers and Versions:**
+
+| Browser     | Minimum Version | Camera Support | File API Support | Notes             |
+|-------------|-----------------|----------------|------------------|-------------------|
+| **Chrome**  | 63+             | ✅ Full         | ✅ Full           | Best performance  |
+| **Firefox** | 65+             | ✅ Full         | ✅ Full           | Excellent support |
+| **Safari**  | 11.1+           | ✅ Full         | ✅ Full           | iOS Safari 11.1+  |
+| **Edge**    | 79+             | ✅ Full         | ✅ Full           | Chromium-based    |
+| **Opera**   | 50+             | ✅ Full         | ✅ Full           | Good support      |
+
+**No additional configuration required for basic functionality.**
+
+**Optional Configuration for Enhanced Features:**
+
+1. **Enable HTTPS for camera access** (required for camera in production):
+   - Camera access requires HTTPS in production
+   - Use `flutter run --web-port 8080 --web-hostname localhost` for local testing
+
+2. **Configure Content Security Policy (CSP)** if using strict CSP:
+
+```html
+<!-- Add to web/index.html <head> section -->
+<meta http-equiv="Content-Security-Policy" 
+      content="default-src 'self'; 
+               media-src 'self' blob:; 
+               img-src 'self' data: blob:; 
+               script-src 'self' 'unsafe-inline';">
+```
+
+3. **Web App Manifest** for PWA features (optional):
+
+```json
+{
+  "name": "Media Picker Plus App",
+  "short_name": "MediaPicker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "permissions": [
+    "camera",
+    "microphone"
+  ]
+}
+```
+
+**Browser Feature Support:**
+
+| Feature            | Chrome | Firefox | Safari | Edge | Notes                        |
+|--------------------|--------|---------|--------|------|------------------------------|
+| Camera Capture     | ✅      | ✅       | ✅      | ✅    | Requires HTTPS in production |
+| Video Recording    | ✅      | ✅       | ✅      | ✅    | MediaRecorder API            |
+| File Upload        | ✅      | ✅       | ✅      | ✅    | HTML5 File API               |
+| Multiple Selection | ✅      | ✅       | ✅      | ✅    | Native browser support       |
+| Image Processing   | ✅      | ✅       | ✅      | ✅    | Canvas API                   |
+| Watermarking       | ✅      | ✅       | ✅      | ✅    | Client-side processing       |
+| Cropping           | ✅      | ✅       | ✅      | ✅    | Canvas-based                 |
+
+**Web Limitations:**
+- File system access is limited to user-selected files
+- Camera access requires user interaction
+- Some advanced video processing features may be limited
+- Performance depends on browser and device capabilities
+
+**Development vs Production:**
+- **Development**: HTTP localhost allowed for camera access
+- **Production**: HTTPS required for camera and microphone access
+- **Mobile browsers**: May have different permission behaviors
 
 ## 🎯 Usage
 

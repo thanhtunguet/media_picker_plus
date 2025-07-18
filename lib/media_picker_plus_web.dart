@@ -4,7 +4,8 @@
 // ignore: avoid_web_libraries_in_flutter
 
 import 'dart:async';
-import 'dart:js_util' as js_util;
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:web/web.dart' as web;
@@ -14,6 +15,9 @@ import 'media_picker_plus_platform_interface.dart';
 import 'media_source.dart';
 import 'media_type.dart';
 import 'crop_options.dart';
+
+@JS()
+external JSObject get globalThis;
 
 // ignore_for_file: invalid_assignment
 /// Web implementation of MediaPickerPlusPlatform.
@@ -158,12 +162,14 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     final watermarkText = options.watermark!;
     final position = options.watermarkPosition ?? 'bottomRight';
     // Call JS function exposed in ffmpeg_watermark.js
-    final promise = js_util.callMethod(
-      js_util.globalThis,
-      'addWatermarkToVideo',
-      [file, watermarkText, position],
+    final JSFunction addWatermarkToVideo = globalThis.getProperty('addWatermarkToVideo'.toJS) as JSFunction;
+    final promise = addWatermarkToVideo.callAsFunction(
+      null,
+      file.jsify(),
+      watermarkText.toJS,
+      position.toJS,
     );
-    final url = await js_util.promiseToFuture<String>(promise);
+    final url = await (promise as JSPromise).toDart as String;
     return url;
   }
 
