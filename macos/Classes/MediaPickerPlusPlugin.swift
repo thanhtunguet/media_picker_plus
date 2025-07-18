@@ -5,6 +5,129 @@ import Foundation
 import Photos
 import UniformTypeIdentifiers
 
+// MARK: - Error Handling
+
+public enum MediaPickerPlusErrorCode: String {
+    case invalidArgs = "invalid_args"
+    case invalidType = "invalid_type"
+    case invalidSource = "invalid_source"
+    case permissionDenied = "permission_denied"
+    case saveFailed = "save_failed"
+    case cancelled = "operation_cancelled"
+    case unsupportedOS = "unsupported_os"
+    case invalidImage = "invalid_image"
+    case processingFailed = "processing_failed"
+}
+
+public struct MediaPickerPlusError {
+    static func invalidArgs() -> FlutterError {
+        return FlutterError(code: MediaPickerPlusErrorCode.invalidArgs.rawValue, 
+                          message: "Invalid arguments", details: nil)
+    }
+
+    static func invalidType() -> FlutterError {
+        return FlutterError(code: MediaPickerPlusErrorCode.invalidType.rawValue, 
+                          message: "Invalid media type", details: nil)
+    }
+
+    static func invalidSource() -> FlutterError {
+        return FlutterError(code: MediaPickerPlusErrorCode.invalidSource.rawValue, 
+                          message: "Invalid media source", details: nil)
+    }
+
+    static func permissionDenied() -> FlutterError {
+        return FlutterError(code: MediaPickerPlusErrorCode.permissionDenied.rawValue, 
+                          message: "Permission denied", details: nil)
+    }
+
+    static func saveFailed() -> FlutterError {
+        return FlutterError(code: MediaPickerPlusErrorCode.saveFailed.rawValue, 
+                          message: "Failed to save media", details: nil)
+    }
+
+    static func cancelled() -> FlutterError {
+        return FlutterError(code: MediaPickerPlusErrorCode.cancelled.rawValue, 
+                          message: "User cancelled", details: nil)
+    }
+
+    static func unsupportedOS() -> FlutterError {
+        return FlutterError(code: MediaPickerPlusErrorCode.unsupportedOS.rawValue, 
+                          message: "Feature not supported on this OS version", details: nil)
+    }
+
+    static func invalidImage() -> FlutterError {
+        return FlutterError(code: MediaPickerPlusErrorCode.invalidImage.rawValue, 
+                          message: "Invalid image file", details: nil)
+    }
+
+    static func processingFailed() -> FlutterError {
+        return FlutterError(code: MediaPickerPlusErrorCode.processingFailed.rawValue, 
+                          message: "Image processing failed", details: nil)
+    }
+}
+
+// MARK: - Watermark Position
+
+/// Represents the position of a watermark in an image
+public enum WatermarkPosition {
+    /// Watermark positioned at the top left corner
+    case topLeft
+
+    /// Watermark positioned at the top center
+    case topCenter
+
+    /// Watermark positioned at the top right corner
+    case topRight
+
+    /// Watermark positioned at the middle left
+    case middleLeft
+
+    /// Watermark positioned at the center of the image
+    case center
+
+    /// Watermark positioned at the middle right
+    case middleRight
+
+    /// Watermark positioned at the bottom left corner
+    case bottomLeft
+
+    /// Watermark positioned at the bottom center
+    case bottomCenter
+
+    /// Watermark positioned at the bottom right corner
+    case bottomRight
+
+    /// Converts a string representation to a WatermarkPosition enum value
+    /// - Parameter string: The string representation of the watermark position
+    /// - Returns: The corresponding WatermarkPosition, or .center if the string doesn't match any case
+    public static func fromString(_ string: String) -> WatermarkPosition {
+        let lowercasedString = string.lowercased()
+
+        switch lowercasedString {
+        case "topleft", "top_left", "top-left":
+            return .topLeft
+        case "topcenter", "top_center", "top-center":
+            return .topCenter
+        case "topright", "top_right", "top-right":
+            return .topRight
+        case "middleleft", "middle_left", "middle-left":
+            return .middleLeft
+        case "center":
+            return .center
+        case "middleright", "middle_right", "middle-right":
+            return .middleRight
+        case "bottomleft", "bottom_left", "bottom-left":
+            return .bottomLeft
+        case "bottomcenter", "bottom_center", "bottom-center":
+            return .bottomCenter
+        case "bottomright", "bottom_right", "bottom-right":
+            return .bottomRight
+        default:
+            return .center
+        }
+    }
+}
+
 public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     private var pendingResult: FlutterResult?
     private var mediaOptions: [String: Any]?
@@ -200,7 +323,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             if response == .OK, let url = openPanel.url {
                 self.processSelectedImage(url: url)
             } else {
-                self.pendingResult?(MediaPickerPlusError.operationCancelled())
+                self.pendingResult?(MediaPickerPlusError.cancelled())
                 self.pendingResult = nil
             }
         }
@@ -218,7 +341,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             if response == .OK, let url = openPanel.url {
                 self.processSelectedVideo(url: url)
             } else {
-                self.pendingResult?(MediaPickerPlusError.operationCancelled())
+                self.pendingResult?(MediaPickerPlusError.cancelled())
                 self.pendingResult = nil
             }
         }
@@ -245,7 +368,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         captureSession = AVCaptureSession()
         guard let session = captureSession else { 
             print("Failed to create capture session")
-            pendingResult?(MediaPickerPlusError.operationFailed())
+            pendingResult?(MediaPickerPlusError.saveFailed())
             pendingResult = nil
             return
         }
@@ -253,7 +376,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         print("Getting video device...")
         guard let device = getBestAvailableVideoDevice() else {
             print("No video device available")
-            pendingResult?(MediaPickerPlusError.cameraNotAvailable())
+            pendingResult?(MediaPickerPlusError.saveFailed())
             pendingResult = nil
             return
         }
@@ -262,7 +385,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         
         guard let input = try? AVCaptureDeviceInput(device: device) else {
             print("Failed to create device input")
-            pendingResult?(MediaPickerPlusError.cameraNotAvailable())
+            pendingResult?(MediaPickerPlusError.saveFailed())
             pendingResult = nil
             return
         }
@@ -272,7 +395,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             session.addInput(input)
         } else {
             print("Cannot add input to session")
-            pendingResult?(MediaPickerPlusError.operationFailed())
+            pendingResult?(MediaPickerPlusError.saveFailed())
             pendingResult = nil
             return
         }
@@ -283,7 +406,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             session.addOutput(output)
         } else {
             print("Cannot add output to session")
-            pendingResult?(MediaPickerPlusError.operationFailed())
+            pendingResult?(MediaPickerPlusError.saveFailed())
             pendingResult = nil
             return
         }
@@ -297,7 +420,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
                 self?.processImage(image: image)
             } else {
                 print("Photo capture delegate returned nil image")
-                self?.pendingResult?(MediaPickerPlusError.operationFailed())
+                self?.pendingResult?(MediaPickerPlusError.saveFailed())
                 self?.pendingResult = nil
             }
         }
@@ -310,7 +433,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             if self.pendingResult != nil {
                 print("Photo capture timeout - stopping session")
                 self.cleanupCaptureSession()
-                self.pendingResult?(MediaPickerPlusError.operationFailed())
+                self.pendingResult?(MediaPickerPlusError.saveFailed())
                 self.pendingResult = nil
             }
         }
@@ -361,7 +484,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         // Setup video input
         guard let videoDevice = getBestAvailableVideoDevice(),
               let videoInput = try? AVCaptureDeviceInput(device: videoDevice) else {
-            pendingResult?(MediaPickerPlusError.cameraNotAvailable())
+            pendingResult?(MediaPickerPlusError.saveFailed())
             pendingResult = nil
             return
         }
@@ -369,7 +492,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         // Setup audio input
         guard let audioDevice = AVCaptureDevice.default(for: .audio),
               let audioInput = try? AVCaptureDeviceInput(device: audioDevice) else {
-            pendingResult?(MediaPickerPlusError.cameraNotAvailable())
+            pendingResult?(MediaPickerPlusError.saveFailed())
             pendingResult = nil
             return
         }
@@ -389,7 +512,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             if let url = url {
                 self?.processSelectedVideo(url: url)
             } else {
-                self?.pendingResult?(MediaPickerPlusError.operationFailed())
+                self?.pendingResult?(MediaPickerPlusError.saveFailed())
                 self?.pendingResult = nil
             }
         }
@@ -401,7 +524,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             if self.pendingResult != nil {
                 print("Video recording timeout - stopping session")
                 self.cleanupCaptureSession()
-                self.pendingResult?(MediaPickerPlusError.operationFailed())
+                self.pendingResult?(MediaPickerPlusError.saveFailed())
                 self.pendingResult = nil
             }
         }
@@ -429,7 +552,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     
     private func processSelectedImage(url: URL) {
         guard let image = NSImage(contentsOf: url) else {
-            pendingResult?(MediaPickerPlusError.operationFailed())
+            pendingResult?(MediaPickerPlusError.saveFailed())
             pendingResult = nil
             return
         }
@@ -476,7 +599,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             pendingResult?(tempURL.path)
         } else {
             print("Failed to save image to temporary location")
-            pendingResult?(MediaPickerPlusError.operationFailed())
+            pendingResult?(MediaPickerPlusError.saveFailed())
         }
         
         pendingResult = nil
@@ -503,7 +626,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
                     self?.pendingResult?(outputURL.path)
                 } else {
                     print("Video processing failed")
-                    self?.pendingResult?(MediaPickerPlusError.operationFailed())
+                    self?.pendingResult?(MediaPickerPlusError.saveFailed())
                 }
                 self?.pendingResult = nil
             }
@@ -816,96 +939,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             }
         }
     }
-}
-
-// MARK: - Delegate Classes
-
-class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
-    private let completion: (NSImage?) -> Void
     
-    init(completion: @escaping (NSImage?) -> Void) {
-        self.completion = completion
-    }
-    
-    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
-        print("PhotoCaptureDelegate: didFinishProcessingPhoto called")
-        
-        if let error = error {
-            print("Photo capture error: \(error.localizedDescription)")
-            completion(nil)
-            return
-        }
-        
-        print("Photo captured successfully, processing data...")
-        
-        guard let imageData = photo.fileDataRepresentation() else {
-            print("Failed to get file data representation from photo")
-            completion(nil)
-            return
-        }
-        
-        print("Got image data of size: \(imageData.count) bytes")
-        
-        guard let image = NSImage(data: imageData) else {
-            print("Failed to create NSImage from image data")
-            completion(nil)
-            return
-        }
-        
-        print("Successfully created NSImage with size: \(image.size)")
-        completion(image)
-    }
-}
-
-class MovieCaptureDelegate: NSObject, AVCaptureFileOutputRecordingDelegate {
-    private let completion: (URL?) -> Void
-    
-    init(completion: @escaping (URL?) -> Void) {
-        self.completion = completion
-    }
-    
-    func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
-        if let error = error {
-            print("Video recording error: \(error)")
-            completion(nil)
-            return
-        }
-        
-        completion(outputFileURL)
-    }
-}
-
-// MARK: - Error Handling
-
-struct MediaPickerPlusError {
-    static func invalidArgs() -> FlutterError {
-        return FlutterError(code: "INVALID_ARGS", message: "Invalid arguments provided", details: nil)
-    }
-    
-    static func invalidType() -> FlutterError {
-        return FlutterError(code: "INVALID_TYPE", message: "Invalid media type", details: nil)
-    }
-    
-    static func invalidSource() -> FlutterError {
-        return FlutterError(code: "INVALID_SOURCE", message: "Invalid media source", details: nil)
-    }
-    
-    static func permissionDenied() -> FlutterError {
-        return FlutterError(code: "PERMISSION_DENIED", message: "Permission denied", details: nil)
-    }
-    
-    static func operationCancelled() -> FlutterError {
-        return FlutterError(code: "OPERATION_CANCELLED", message: "Operation cancelled by user", details: nil)
-    }
-    
-    static func operationFailed() -> FlutterError {
-        return FlutterError(code: "OPERATION_FAILED", message: "Operation failed", details: nil)
-    }
-    
-    static func cameraNotAvailable() -> FlutterError {
-        return FlutterError(code: "CAMERA_NOT_AVAILABLE", message: "Camera not available", details: nil)
-    }
-
     // MARK: - Cropping Methods
     
     private func applyCropToImage(_ image: NSImage, cropOptions: [String: Any]) -> NSImage {
@@ -1155,9 +1189,13 @@ struct MediaPickerPlusError {
         let filename = "processed_\(Int(Date().timeIntervalSince1970)).jpg"
         let fileURL = documentsDirectory.appendingPathComponent(filename)
         
-        guard let cgImage = processedImage.cgImage(forProposedRect: nil, context: nil, hints: nil),
-              let bitmapRep = NSBitmapImageRep(cgImage: cgImage),
-              let data = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: quality]) else {
+        guard let cgImage = processedImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            result(MediaPickerPlusError.processingFailed())
+            return
+        }
+        
+        let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
+        guard let data = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: quality]) else {
             result(MediaPickerPlusError.processingFailed())
             return
         }
@@ -1170,3 +1208,62 @@ struct MediaPickerPlusError {
         }
     }
 }
+
+// MARK: - Delegate Classes
+
+class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
+    private let completion: (NSImage?) -> Void
+    
+    init(completion: @escaping (NSImage?) -> Void) {
+        self.completion = completion
+    }
+    
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        print("PhotoCaptureDelegate: didFinishProcessingPhoto called")
+        
+        if let error = error {
+            print("Photo capture error: \(error.localizedDescription)")
+            completion(nil)
+            return
+        }
+        
+        print("Photo captured successfully, processing data...")
+        
+        guard let imageData = photo.fileDataRepresentation() else {
+            print("Failed to get file data representation from photo")
+            completion(nil)
+            return
+        }
+        
+        print("Got image data of size: \(imageData.count) bytes")
+        
+        guard let image = NSImage(data: imageData) else {
+            print("Failed to create NSImage from image data")
+            completion(nil)
+            return
+        }
+        
+        print("Successfully created NSImage with size: \(image.size)")
+        completion(image)
+    }
+}
+
+class MovieCaptureDelegate: NSObject, AVCaptureFileOutputRecordingDelegate {
+    private let completion: (URL?) -> Void
+    
+    init(completion: @escaping (URL?) -> Void) {
+        self.completion = completion
+    }
+    
+    func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
+        if let error = error {
+            print("Video recording error: \(error)")
+            completion(nil)
+            return
+        }
+        
+        completion(outputFileURL)
+    }
+}
+
+
