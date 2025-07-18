@@ -1,3 +1,13 @@
+## 0.1.0+2
+
+### Added
+
+- Cropping feature
+
+### Fixed
+
+- Remove included permission declarations to avoid unnecessary permission requirements when publishing to Play Store
+
 ## 0.0.1+1
 
 ### Added
