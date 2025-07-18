@@ -13,6 +13,7 @@ import 'media_options.dart';
 import 'media_picker_plus_platform_interface.dart';
 import 'media_source.dart';
 import 'media_type.dart';
+import 'crop_options.dart';
 
 // ignore_for_file: invalid_assignment
 /// Web implementation of MediaPickerPlusPlatform.
@@ -196,7 +197,16 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
                   canvas.height = height;
                   final ctx =
                       canvas.getContext('2d') as web.CanvasRenderingContext2D;
-                  ctx.drawImage(img, 0, 0, width.toDouble(), height.toDouble());
+                  
+                  // Apply cropping if specified
+                  if (options.cropOptions?.enableCrop == true) {
+                    final croppedDimensions = _applyCropToImage(img, ctx, canvas, options.cropOptions!);
+                    width = croppedDimensions['width'] as int;
+                    height = croppedDimensions['height'] as int;
+                  } else {
+                    ctx.drawImage(img, 0, 0, width.toDouble(), height.toDouble());
+                  }
+                  
                   // Watermark
                   if (options.watermark != null &&
                       options.watermark!.isNotEmpty) {
@@ -253,6 +263,69 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     ctx.strokeText(text, x, y);
     ctx.fillText(text, x, y);
     ctx.globalAlpha = 1.0;
+  }
+
+  Map<String, int> _applyCropToImage(web.HTMLImageElement img, web.CanvasRenderingContext2D ctx, 
+                                    web.HTMLCanvasElement canvas, CropOptions cropOptions) {
+    final originalWidth = img.naturalWidth;
+    final originalHeight = img.naturalHeight;
+    
+    if (cropOptions.cropRect != null) {
+      // Use specified crop rectangle
+      final rect = cropOptions.cropRect!;
+      final cropX = (rect.x * originalWidth).round();
+      final cropY = (rect.y * originalHeight).round();
+      final cropWidth = (rect.width * originalWidth).round();
+      final cropHeight = (rect.height * originalHeight).round();
+      
+      // Ensure crop bounds are within image bounds
+      final clampedX = cropX.clamp(0, originalWidth);
+      final clampedY = cropY.clamp(0, originalHeight);
+      final clampedWidth = (cropWidth).clamp(0, originalWidth - clampedX);
+      final clampedHeight = (cropHeight).clamp(0, originalHeight - clampedY);
+      
+      canvas.width = clampedWidth;
+      canvas.height = clampedHeight;
+      
+      ctx.drawImage(img, 
+                   clampedX.toDouble(), clampedY.toDouble(), clampedWidth.toDouble(), clampedHeight.toDouble(),
+                   0, 0, clampedWidth.toDouble(), clampedHeight.toDouble());
+      
+      return {'width': clampedWidth, 'height': clampedHeight};
+    } else if (cropOptions.aspectRatio != null) {
+      // Apply aspect ratio cropping
+      final targetAspectRatio = cropOptions.aspectRatio!;
+      final originalAspectRatio = originalWidth / originalHeight;
+      
+      int cropX, cropY, cropWidth, cropHeight;
+      
+      if (originalAspectRatio > targetAspectRatio) {
+        // Original is wider, crop width
+        cropHeight = originalHeight;
+        cropWidth = (originalHeight * targetAspectRatio).round();
+        cropX = ((originalWidth - cropWidth) / 2).round();
+        cropY = 0;
+      } else {
+        // Original is taller, crop height
+        cropWidth = originalWidth;
+        cropHeight = (originalWidth / targetAspectRatio).round();
+        cropX = 0;
+        cropY = ((originalHeight - cropHeight) / 2).round();
+      }
+      
+      canvas.width = cropWidth;
+      canvas.height = cropHeight;
+      
+      ctx.drawImage(img, 
+                   cropX.toDouble(), cropY.toDouble(), cropWidth.toDouble(), cropHeight.toDouble(),
+                   0, 0, cropWidth.toDouble(), cropHeight.toDouble());
+      
+      return {'width': cropWidth, 'height': cropHeight};
+    } else {
+      // No cropping, just draw normally
+      ctx.drawImage(img, 0, 0, originalWidth.toDouble(), originalHeight.toDouble());
+      return {'width': originalWidth, 'height': originalHeight};
+    }
   }
 
   @override
@@ -381,5 +454,58 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     input.click();
     input.remove();
     return completer.future;
+  }
+
+  @override
+  Future<String?> processImage(String imagePath, MediaOptions options) async {
+    try {
+      // For web, the imagePath is typically a data URL
+      if (!imagePath.startsWith('data:image')) {
+        return imagePath; // Return as-is if not a data URL
+      }
+
+      // Create an image element to process the data URL
+      final img = web.HTMLImageElement();
+      final completer = Completer<String?>();
+      
+      img.onLoad.listen((_) async {
+        try {
+          final canvas = web.HTMLCanvasElement();
+          final ctx = canvas.getContext('2d') as web.CanvasRenderingContext2D;
+          
+          // Apply crop options if provided
+          if (options.cropOptions?.enableCrop == true && options.cropOptions?.cropRect != null) {
+            final cropDimensions = _applyCropToImage(img, ctx, canvas, options.cropOptions!);
+            canvas.width = cropDimensions['width']!;
+            canvas.height = cropDimensions['height']!;
+          } else {
+            // No cropping, use original dimensions
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            ctx.drawImage(img, 0, 0);
+          }
+          
+          // Apply watermark if provided
+          if (options.watermark != null && options.watermark!.isNotEmpty) {
+            _drawWatermark(ctx, canvas.width, canvas.height, options);
+          }
+          
+          // Convert to data URL with quality settings
+          final dataUrl = canvas.toDataURL('image/jpeg');
+          completer.complete(dataUrl);
+        } catch (e) {
+          completer.complete(imagePath); // Return original on error
+        }
+      });
+      
+      img.onError.listen((_) {
+        completer.complete(imagePath); // Return original on error
+      });
+      
+      img.src = imagePath;
+      return await completer.future;
+    } catch (e) {
+      return imagePath; // Return original on error
+    }
   }
 }

@@ -42,6 +42,11 @@ class MockMediaPickerPlusPlatform
   Future<List<String>?> pickMultipleMedia(MediaSource source, MediaType type, MediaOptions options) {
     return Future.value(['test_media1.jpg', 'test_media2.jpg']);
   }
+
+  @override
+  Future<String?> processImage(String imagePath, MediaOptions options) {
+    return Future.value('processed_$imagePath');
+  }
 }
 
 void main() {

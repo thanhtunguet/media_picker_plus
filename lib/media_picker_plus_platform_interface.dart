@@ -68,4 +68,8 @@ abstract class MediaPickerPlusPlatform extends PlatformInterface {
       MediaSource source, MediaType type, MediaOptions options) {
     throw UnimplementedError('pickMultipleMedia() has not been implemented.');
   }
+
+  Future<String?> processImage(String imagePath, MediaOptions options) {
+    throw UnimplementedError('processImage() has not been implemented.');
+  }
 }

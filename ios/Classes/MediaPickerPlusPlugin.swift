@@ -148,6 +148,15 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             mediaOptions = args["options"] as? [String: Any]
             pendingResult = result
             pickMultipleMedia(source: source, type: type)
+        case "processImage":
+            guard let args = call.arguments as? [String: Any],
+                  let imagePath = args["imagePath"] as? String else {
+                result(MediaPickerPlusError.invalidArgs())
+                return
+            }
+            
+            let options = args["options"] as? [String: Any] ?? [:]
+            processImage(imagePath: imagePath, options: options, result: result)
 
         default:
             result(FlutterMethodNotImplemented)
@@ -340,6 +349,12 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                 }
             }
 
+            // Apply cropping if specified
+            if let options = mediaOptions, let cropOptions = options["cropOptions"] as? [String: Any],
+               let enableCrop = cropOptions["enableCrop"] as? Bool, enableCrop {
+                finalImage = applyCropToImage(finalImage, cropOptions: cropOptions)
+            }
+
             // Add watermark if specified
             if let options = mediaOptions, let watermarkText = options["watermark"] as? String {
                 finalImage = addWatermark(
@@ -367,24 +382,31 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             if let tempDir = createTempDirectory() {
                 let destinationURL = tempDir.appendingPathComponent("VID_\(timestamp).mp4")
 
-                // Add watermark to video if specified
-                if let options = mediaOptions, let watermarkText = options["watermark"] as? String {
-                    let fontSize = options["watermarkFontSize"] as? CGFloat ?? 24
-                    let position = options["watermarkPosition"] as? String ?? "bottomRight"
+                // Process video with cropping and/or watermark if specified
+                if let options = mediaOptions {
+                    let watermarkText = options["watermark"] as? String
+                    let cropOptions = options["cropOptions"] as? [String: Any]
+                    let enableCrop = cropOptions?["enableCrop"] as? Bool ?? false
+                    
+                    if watermarkText != nil || enableCrop {
+                        let fontSize = options["watermarkFontSize"] as? CGFloat ?? 24
+                        let position = options["watermarkPosition"] as? String ?? "bottomRight"
 
-                    // First copy the video to the destination
-                    do {
-                        try FileManager.default.copyItem(at: videoURL, to: destinationURL)
+                        // First copy the video to the destination
+                        do {
+                            try FileManager.default.copyItem(at: videoURL, to: destinationURL)
 
-                        // Then add watermark and return the processed video path
-                        return addWatermarkToVideo(
-                            videoPath: destinationURL.path,
-                            text: watermarkText,
-                            fontSize: fontSize,
-                            position: position)
-                    } catch {
-                        print("Error copying video: \(error)")
-                        return nil
+                            // Then process video with cropping and/or watermark
+                            return processVideoWithCropAndWatermark(
+                                videoPath: destinationURL.path,
+                                watermarkText: watermarkText,
+                                fontSize: fontSize,
+                                position: position,
+                                cropOptions: enableCrop ? cropOptions : nil)
+                        } catch {
+                            print("Error copying video: \(error)")
+                            return nil
+                        }
                     }
                 } else {
                     // Just copy the video file without watermark
@@ -483,6 +505,108 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         UIGraphicsEndImageContext()
 
         return watermarkedImage ?? image
+    }
+
+    private func processVideoWithCropAndWatermark(
+        videoPath: String, 
+        watermarkText: String?, 
+        fontSize: CGFloat, 
+        position: String,
+        cropOptions: [String: Any]?
+    ) -> String? {
+        let asset = AVAsset(url: URL(fileURLWithPath: videoPath))
+        let composition = AVMutableComposition()
+
+        // Create video track
+        guard let videoTrack = asset.tracks(withMediaType: .video).first,
+            let compositionVideoTrack = composition.addMutableTrack(
+                withMediaType: .video,
+                preferredTrackID: kCMPersistentTrackID_Invalid)
+        else {
+            return videoPath  // Return original if can't process
+        }
+
+        // Create audio track if present
+        var compositionAudioTrack: AVMutableCompositionTrack?
+        if let audioTrack = asset.tracks(withMediaType: .audio).first {
+            compositionAudioTrack = composition.addMutableTrack(
+                withMediaType: .audio,
+                preferredTrackID: kCMPersistentTrackID_Invalid)
+        }
+
+        // Time range for the entire video
+        let timeRange = CMTimeRange(start: .zero, duration: asset.duration)
+
+        do {
+            // Add video track
+            try compositionVideoTrack.insertTimeRange(timeRange, of: videoTrack, at: .zero)
+
+            // Add audio track if present
+            if let audioTrack = asset.tracks(withMediaType: .audio).first,
+                let compositionAudioTrack = compositionAudioTrack
+            {
+                try compositionAudioTrack.insertTimeRange(timeRange, of: audioTrack, at: .zero)
+            }
+
+            // Apply cropping if specified
+            var videoComposition: AVMutableVideoComposition?
+            var finalVideoSize: CGSize
+            
+            if let cropOptions = cropOptions {
+                let (cropComposition, cropSize) = applyCropToVideo(
+                    composition: composition, 
+                    videoTrack: videoTrack, 
+                    cropOptions: cropOptions
+                )
+                videoComposition = cropComposition
+                finalVideoSize = cropSize
+            } else {
+                // Get original video size
+                let transform = videoTrack.preferredTransform
+                let isPortrait = abs(transform.b) == 1 && abs(transform.c) == 1
+                finalVideoSize = isPortrait
+                    ? CGSize(width: videoTrack.naturalSize.height, height: videoTrack.naturalSize.width)
+                    : videoTrack.naturalSize
+            }
+
+            // Add watermark if specified
+            if let watermarkText = watermarkText, !watermarkText.isEmpty {
+                if videoComposition == nil {
+                    videoComposition = AVMutableVideoComposition()
+                    videoComposition?.renderSize = finalVideoSize
+                    videoComposition?.frameDuration = CMTimeMake(value: 1, timescale: 30)
+                    
+                    let instruction = AVMutableVideoCompositionInstruction()
+                    instruction.timeRange = timeRange
+                    
+                    let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
+                    layerInstruction.setTransform(videoTrack.preferredTransform, at: .zero)
+                    
+                    instruction.layerInstructions = [layerInstruction]
+                    videoComposition?.instructions = [instruction]
+                }
+                
+                // Add watermark layers
+                videoComposition = addWatermarkToVideoComposition(
+                    videoComposition: videoComposition!,
+                    text: watermarkText,
+                    fontSize: fontSize,
+                    position: position,
+                    videoSize: finalVideoSize
+                )
+            }
+
+            // Export the processed video
+            return exportProcessedVideo(
+                composition: composition,
+                videoComposition: videoComposition,
+                originalPath: videoPath
+            )
+
+        } catch {
+            print("Error processing video: \(error)")
+            return videoPath  // Return original path if there was an error
+        }
     }
 
     private func addWatermarkToVideo(
@@ -974,6 +1098,318 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         } catch {
             print("Error copying file: \(error)")
             return nil
+        }
+    }
+
+    private func applyCropToImage(_ image: UIImage, cropOptions: [String: Any]) -> UIImage {
+        if let cropRect = cropOptions["cropRect"] as? [String: Any] {
+            // Use specified crop rectangle
+            let x = cropRect["x"] as? Double ?? 0
+            let y = cropRect["y"] as? Double ?? 0
+            let width = cropRect["width"] as? Double ?? Double(image.size.width)
+            let height = cropRect["height"] as? Double ?? Double(image.size.height)
+            
+            let rect = CGRect(x: x, y: y, width: width, height: height)
+            return cropImage(image, to: rect)
+        } else if let aspectRatio = cropOptions["aspectRatio"] as? Double {
+            // Apply aspect ratio cropping
+            return applyCropWithAspectRatio(image, aspectRatio: CGFloat(aspectRatio))
+        }
+        
+        return image
+    }
+
+    private func cropImage(_ image: UIImage, to rect: CGRect) -> UIImage {
+        // Ensure crop bounds are within image bounds
+        let imageSize = image.size
+        let clampedRect = CGRect(
+            x: max(0, min(rect.origin.x, imageSize.width)),
+            y: max(0, min(rect.origin.y, imageSize.height)),
+            width: min(rect.size.width, imageSize.width - max(0, rect.origin.x)),
+            height: min(rect.size.height, imageSize.height - max(0, rect.origin.y))
+        )
+        
+        guard clampedRect.width > 0 && clampedRect.height > 0 else {
+            return image
+        }
+        
+        guard let cgImage = image.cgImage?.cropping(to: clampedRect) else {
+            return image
+        }
+        
+        return UIImage(cgImage: cgImage, scale: image.scale, orientation: image.imageOrientation)
+    }
+
+    private func applyCropWithAspectRatio(_ image: UIImage, aspectRatio: CGFloat) -> UIImage {
+        let originalSize = image.size
+        let originalAspectRatio = originalSize.width / originalSize.height
+
+        let newSize: CGSize
+        let cropRect: CGRect
+
+        if originalAspectRatio > aspectRatio {
+            // Original is wider, crop width
+            let newWidth = originalSize.height * aspectRatio
+            let x = (originalSize.width - newWidth) / 2
+            cropRect = CGRect(x: x, y: 0, width: newWidth, height: originalSize.height)
+        } else {
+            // Original is taller, crop height
+            let newHeight = originalSize.width / aspectRatio
+            let y = (originalSize.height - newHeight) / 2
+            cropRect = CGRect(x: 0, y: y, width: originalSize.width, height: newHeight)
+        }
+
+        return cropImage(image, to: cropRect)
+    }
+
+    private func applyCropToVideo(
+        composition: AVMutableComposition,
+        videoTrack: AVAssetTrack,
+        cropOptions: [String: Any]
+    ) -> (AVMutableVideoComposition?, CGSize) {
+        let videoSize = videoTrack.naturalSize
+        var cropRect: CGRect?
+        
+        if let cropRectData = cropOptions["cropRect"] as? [String: Any] {
+            let x = cropRectData["x"] as? Double ?? 0
+            let y = cropRectData["y"] as? Double ?? 0
+            let width = cropRectData["width"] as? Double ?? Double(videoSize.width)
+            let height = cropRectData["height"] as? Double ?? Double(videoSize.height)
+            
+            cropRect = CGRect(x: x, y: y, width: width, height: height)
+        } else if let aspectRatio = cropOptions["aspectRatio"] as? Double {
+            let videoAspectRatio = videoSize.width / videoSize.height
+            let targetAspectRatio = CGFloat(aspectRatio)
+            
+            if videoAspectRatio > targetAspectRatio {
+                // Video is wider, crop width
+                let newWidth = videoSize.height * targetAspectRatio
+                let x = (videoSize.width - newWidth) / 2
+                cropRect = CGRect(x: x, y: 0, width: newWidth, height: videoSize.height)
+            } else {
+                // Video is taller, crop height
+                let newHeight = videoSize.width / targetAspectRatio
+                let y = (videoSize.height - newHeight) / 2
+                cropRect = CGRect(x: 0, y: y, width: videoSize.width, height: newHeight)
+            }
+        }
+        
+        guard let finalCropRect = cropRect else {
+            return (nil, videoSize)
+        }
+        
+        // Create video composition with crop
+        let videoComposition = AVMutableVideoComposition()
+        videoComposition.renderSize = finalCropRect.size
+        videoComposition.frameDuration = CMTimeMake(value: 1, timescale: 30)
+        
+        let instruction = AVMutableVideoCompositionInstruction()
+        instruction.timeRange = CMTimeRange(start: .zero, duration: composition.duration)
+        
+        if let compositionVideoTrack = composition.tracks(withMediaType: .video).first {
+            let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
+            
+            // Apply crop transform
+            let transform = CGAffineTransform(translationX: -finalCropRect.origin.x, y: -finalCropRect.origin.y)
+            layerInstruction.setTransform(transform, at: .zero)
+            
+            instruction.layerInstructions = [layerInstruction]
+        }
+        
+        videoComposition.instructions = [instruction]
+        
+        return (videoComposition, finalCropRect.size)
+    }
+
+    private func addWatermarkToVideoComposition(
+        videoComposition: AVMutableVideoComposition,
+        text: String,
+        fontSize: CGFloat,
+        position: String,
+        videoSize: CGSize
+    ) -> AVMutableVideoComposition {
+        // Create watermark text attributes
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.boldSystemFont(ofSize: fontSize),
+            .foregroundColor: UIColor.white.withAlphaComponent(0.8),
+            .strokeColor: UIColor.black,
+            .strokeWidth: -2.0,
+            .paragraphStyle: paragraphStyle,
+        ]
+
+        // Calculate text size
+        let textSize = (text as NSString).size(withAttributes: attributes)
+
+        // Calculate position
+        var textPosition: CGPoint
+        let padding: CGFloat = 20.0
+
+        // Convert string position to WatermarkPosition enum
+        let watermarkPosition: WatermarkPosition
+        if position == "auto" {
+            // Use longer edge
+            if videoSize.width > videoSize.height {
+                // Landscape, place on the right side
+                watermarkPosition = .bottomRight
+            } else {
+                // Portrait, place on the bottom
+                watermarkPosition = .bottomCenter
+            }
+        } else {
+            watermarkPosition = WatermarkPosition.fromString(position)
+        }
+
+        // Determine point based on WatermarkPosition
+        switch watermarkPosition {
+        case .topLeft:
+            textPosition = CGPoint(x: padding, y: padding)
+        case .topCenter:
+            textPosition = CGPoint(x: (videoSize.width - textSize.width) / 2, y: padding)
+        case .topRight:
+            textPosition = CGPoint(x: videoSize.width - textSize.width - padding, y: padding)
+        case .middleLeft:
+            textPosition = CGPoint(x: padding, y: (videoSize.height - textSize.height) / 2)
+        case .center:
+            textPosition = CGPoint(
+                x: (videoSize.width - textSize.width) / 2,
+                y: (videoSize.height - textSize.height) / 2)
+        case .middleRight:
+            textPosition = CGPoint(
+                x: videoSize.width - textSize.width - padding,
+                y: (videoSize.height - textSize.height) / 2)
+        case .bottomLeft:
+            textPosition = CGPoint(x: padding, y: videoSize.height - textSize.height - padding)
+        case .bottomCenter:
+            textPosition = CGPoint(
+                x: (videoSize.width - textSize.width) / 2,
+                y: videoSize.height - textSize.height - padding)
+        case .bottomRight:
+            textPosition = CGPoint(
+                x: videoSize.width - textSize.width - padding,
+                y: videoSize.height - textSize.height - padding)
+        }
+
+        // Create text layer
+        let textLayer = CATextLayer()
+        textLayer.string = text
+        textLayer.font = CTFontCreateWithName(
+            UIFont.boldSystemFont(ofSize: fontSize).fontName as CFString, fontSize, nil)
+        textLayer.fontSize = fontSize
+        textLayer.foregroundColor = UIColor.white.cgColor
+        textLayer.alignmentMode = .center
+        textLayer.backgroundColor = UIColor.clear.cgColor
+        textLayer.frame = CGRect(origin: textPosition, size: textSize)
+
+        // Create parent layer
+        let parentLayer = CALayer()
+        let videoLayer = CALayer()
+        parentLayer.frame = CGRect(origin: .zero, size: videoSize)
+        videoLayer.frame = CGRect(origin: .zero, size: videoSize)
+
+        // Add text and video layers to parent layer
+        parentLayer.addSublayer(videoLayer)
+        parentLayer.addSublayer(textLayer)
+
+        // Set custom compositor
+        videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(
+            postProcessingAsVideoLayer: videoLayer,
+            in: parentLayer)
+
+        return videoComposition
+    }
+
+    private func exportProcessedVideo(
+        composition: AVMutableComposition,
+        videoComposition: AVMutableVideoComposition?,
+        originalPath: String
+    ) -> String? {
+        // Create export session
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        let timestamp = formatter.string(from: Date())
+
+        // Create a new destination for the processed video
+        let documentsDirectory = FileManager.default.temporaryDirectory
+        let processedVideoPath = documentsDirectory.appendingPathComponent(
+            "VID_PROCESSED_\(timestamp).mp4"
+        ).path
+        let exportURL = URL(fileURLWithPath: processedVideoPath)
+
+        // Create and configure exporter
+        guard
+            let exporter = AVAssetExportSession(
+                asset: composition, presetName: AVAssetExportPresetHighestQuality)
+        else {
+            return originalPath  // Return original if can't create exporter
+        }
+
+        exporter.outputURL = exportURL
+        exporter.outputFileType = .mp4
+        exporter.videoComposition = videoComposition
+
+        // Export video synchronously
+        let exportSemaphore = DispatchSemaphore(value: 0)
+
+        exporter.exportAsynchronously {
+            exportSemaphore.signal()
+        }
+
+        // Wait for export to complete
+        _ = exportSemaphore.wait(timeout: .distantFuture)
+
+        if exporter.status == .completed {
+            // Delete the original file since we've created a new one
+            try? FileManager.default.removeItem(atPath: originalPath)
+            return processedVideoPath
+        } else {
+            print("Video export failed with error: \(String(describing: exporter.error))")
+            return originalPath  // Return original if export fails
+        }
+    }
+    
+    private func processImage(imagePath: String, options: [String: Any], result: @escaping FlutterResult) {
+        guard let image = UIImage(contentsOfFile: imagePath) else {
+            result(MediaPickerPlusError.invalidImage())
+            return
+        }
+        
+        var processedImage = image
+        
+        // Apply cropping if specified
+        if let cropOptions = options["cropOptions"] as? [String: Any] {
+            let enableCrop = cropOptions["enableCrop"] as? Bool ?? false
+            if enableCrop {
+                processedImage = applyCropToImage(processedImage, cropOptions: cropOptions)
+            }
+        }
+        
+        // Apply watermark if specified
+        if let watermark = options["watermark"] as? String, !watermark.isEmpty {
+            let watermarkFontSize = options["watermarkFontSize"] as? Double ?? 30.0
+            let watermarkPosition = options["watermarkPosition"] as? String ?? "bottomRight"
+            processedImage = addWatermark(to: processedImage, text: watermark, 
+                                          fontSize: CGFloat(watermarkFontSize), position: watermarkPosition)
+        }
+        
+        // Apply quality and save
+        let quality = (options["imageQuality"] as? Int ?? 80) / 100
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let filename = "processed_\(Int(Date().timeIntervalSince1970)).jpg"
+        let fileURL = documentsDirectory.appendingPathComponent(filename)
+        
+        guard let data = processedImage.jpegData(compressionQuality: CGFloat(quality)) else {
+            result(MediaPickerPlusError.processingFailed())
+            return
+        }
+        
+        do {
+            try data.write(to: fileURL)
+            result(fileURL.path)
+        } catch {
+            result(MediaPickerPlusError.processingFailed())
         }
     }
 }

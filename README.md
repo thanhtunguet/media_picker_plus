@@ -13,6 +13,8 @@ A comprehensive Flutter plugin for media selection with advanced processing capa
 - **Multiple Selection**: Pick multiple images, videos, or files at once
 - **Advanced Processing**: 
   - Image resizing with aspect ratio preservation
+  - Media cropping with aspect ratio control and freeform options
+  - Interactive cropping UI for manual crop selection
   - Quality control for images and videos
   - Watermarking with customizable position and font size
 - **Permission Management**: Smart permission handling for camera and gallery access
@@ -53,7 +55,7 @@ A comprehensive Flutter plugin for media selection with advanced processing capa
   - `NSMicrophoneUsageDescription`
 
 #### macOS
-- **Minimum Version**: macOS 10.14
+- **Minimum Version**: macOS 11.0
 - **Required Permissions**:
   - Camera and Photo Library access
 
@@ -168,6 +170,7 @@ import 'package:media_picker_plus/media_picker_plus.dart';
 
 ```dart
 final String? imagePath = await MediaPickerPlus.pickImage(
+  context: context, // Optional: enables interactive cropping UI when freeform cropping
   options: const MediaOptions(
     imageQuality: 85,
     maxWidth: 1920,
@@ -188,6 +191,7 @@ if (imagePath != null) {
 
 ```dart
 final String? photoPath = await MediaPickerPlus.capturePhoto(
+  context: context, // Optional: enables interactive cropping UI when freeform cropping
   options: const MediaOptions(
     imageQuality: 90,
     maxWidth: 2560,
@@ -243,6 +247,161 @@ final String? recordedPath = await MediaPickerPlus.recordVideo(
 );
 ```
 
+### Cropping Operations
+
+The plugin supports advanced cropping functionality for both images and videos with various aspect ratio presets and freeform cropping. When using freeform cropping with a `BuildContext`, an interactive cropping UI allows manual selection of the crop area.
+
+#### Basic Cropping
+
+```dart
+// Square cropping (1:1)
+final String? imagePath = await MediaPickerPlus.pickImage(
+  options: const MediaOptions(
+    cropOptions: CropOptions.square, // Predefined square crop
+    imageQuality: 85,
+    watermark: 'Cropped Image',
+  ),
+);
+```
+
+#### Aspect Ratio Cropping
+
+```dart
+// Portrait crop (3:4)
+final String? portraitImage = await MediaPickerPlus.pickImage(
+  options: const MediaOptions(
+    cropOptions: CropOptions.portrait,
+    imageQuality: 90,
+  ),
+);
+
+// Landscape crop (4:3)
+final String? landscapeImage = await MediaPickerPlus.pickImage(
+  options: const MediaOptions(
+    cropOptions: CropOptions.landscape,
+    imageQuality: 90,
+  ),
+);
+
+// Widescreen crop (16:9)
+final String? widescreenVideo = await MediaPickerPlus.pickVideo(
+  options: const MediaOptions(
+    cropOptions: CropOptions.widescreen,
+    watermark: 'Widescreen Video',
+  ),
+);
+```
+
+#### Custom Aspect Ratio
+
+```dart
+// Custom aspect ratio (e.g., 5:4)
+final String? customCropImage = await MediaPickerPlus.pickImage(
+  options: const MediaOptions(
+    cropOptions: CropOptions(
+      enableCrop: true,
+      aspectRatio: 5.0 / 4.0,
+      lockAspectRatio: true,
+      showGrid: true,
+    ),
+  ),
+);
+```
+
+#### Freeform Cropping with Interactive UI
+
+```dart
+// Freeform cropping with interactive UI (requires BuildContext)
+final String? freeformImage = await MediaPickerPlus.pickImage(
+  context: context, // Required for interactive cropping UI
+  options: const MediaOptions(
+    cropOptions: CropOptions(
+      enableCrop: true,
+      freeform: true,
+      showGrid: true,
+      lockAspectRatio: false,
+    ),
+  ),
+);
+```
+
+**Note:** When `freeform: true` is used with a `BuildContext`, an interactive cropping UI will appear allowing users to manually adjust the crop area with:
+- Draggable corner handles for resizing
+- Touch-to-move the entire crop area
+- Real-time aspect ratio controls
+- Visual grid overlay for better alignment
+- Zoom and pan support for precise cropping
+
+#### Specific Crop Rectangle
+
+```dart
+// Crop specific area (normalized coordinates 0.0 - 1.0)
+final String? specificCropImage = await MediaPickerPlus.pickImage(
+  options: const MediaOptions(
+    cropOptions: CropOptions(
+      enableCrop: true,
+      cropRect: CropRect(
+        x: 0.1,      // 10% from left
+        y: 0.1,      // 10% from top
+        width: 0.8,  // 80% of original width
+        height: 0.8, // 80% of original height
+      ),
+    ),
+  ),
+);
+```
+
+#### Video Cropping
+
+```dart
+// Crop recorded video to square format
+final String? croppedVideo = await MediaPickerPlus.recordVideo(
+  options: const MediaOptions(
+    cropOptions: CropOptions.square,
+    maxDuration: Duration(minutes: 1),
+    watermark: 'Square Video',
+    watermarkPosition: WatermarkPosition.topLeft,
+  ),
+);
+```
+
+## 🎛️ Interactive Cropping UI
+
+When using freeform cropping with a `BuildContext`, the plugin displays a full-screen interactive cropping interface with the following features:
+
+### Features
+- **Manual Selection**: Drag corner handles to resize the crop area
+- **Move Crop Area**: Touch and drag to move the entire crop area
+- **Aspect Ratio Controls**: Quick buttons for common ratios (1:1, 4:3, 3:4, 16:9)
+- **Visual Grid Overlay**: Rule of thirds grid for better composition
+- **Zoom & Pan**: InteractiveViewer for precise crop selection
+- **Real-time Preview**: See crop dimensions and percentage coverage
+- **Responsive Design**: Adapts to different screen sizes and orientations
+
+### Usage
+```dart
+// Interactive cropping requires a BuildContext
+final String? croppedImage = await MediaPickerPlus.pickImage(
+  context: context, // This enables the interactive UI
+  options: const MediaOptions(
+    cropOptions: CropOptions(
+      enableCrop: true,
+      freeform: true, // This triggers the interactive UI
+      showGrid: true,
+      lockAspectRatio: false,
+    ),
+  ),
+);
+```
+
+### UI Components
+- **App Bar**: Cancel/confirm buttons with reset option
+- **Crop Controls**: Aspect ratio selection chips
+- **Crop Area**: Interactive image with overlay and handles
+- **Bottom Actions**: Cancel and confirm buttons for easy access
+
+The interactive UI is displayed as a full-screen modal that guides users through the cropping process with intuitive touch controls and visual feedback.
+
 ### File Operations
 
 #### Pick Single File
@@ -291,7 +450,42 @@ const MediaOptions({
   double? watermarkFontSize = 30,  // Watermark font size
   String? watermarkPosition = WatermarkPosition.bottomRight,
   Duration? maxDuration = const Duration(seconds: 60), // Max video duration
+  CropOptions? cropOptions,        // Cropping configuration
 })
+```
+
+### CropOptions Configuration
+
+```dart
+const CropOptions({
+  bool enableCrop = false,         // Enable/disable cropping
+  double? aspectRatio,             // Target aspect ratio (width/height)
+  bool freeform = true,            // Allow freeform cropping
+  bool showGrid = true,            // Show crop grid overlay
+  bool lockAspectRatio = false,    // Lock aspect ratio during cropping
+  CropRect? cropRect,              // Specific crop rectangle
+})
+```
+
+### CropRect Configuration
+
+```dart
+const CropRect({
+  required double x,               // X position (0.0 - 1.0, normalized)
+  required double y,               // Y position (0.0 - 1.0, normalized)
+  required double width,           // Width (0.0 - 1.0, normalized)
+  required double height,          // Height (0.0 - 1.0, normalized)
+})
+```
+
+### Predefined Crop Presets
+
+```dart
+// Available preset configurations
+CropOptions.square      // 1:1 aspect ratio
+CropOptions.portrait    // 3:4 aspect ratio
+CropOptions.landscape   // 4:3 aspect ratio
+CropOptions.widescreen  // 16:9 aspect ratio
 ```
 
 ### Watermark Positions
@@ -356,6 +550,8 @@ flutter run
 
 The example demonstrates:
 - All media picking operations
+- Advanced cropping with multiple presets
+- Interactive cropping UI for freeform selection
 - Advanced watermarking features
 - Multiple selection capabilities
 - File picking with filtering

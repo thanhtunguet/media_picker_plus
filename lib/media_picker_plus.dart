@@ -1,21 +1,38 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:media_picker_plus/media_options.dart';
 import 'package:media_picker_plus/media_source.dart';
 import 'package:media_picker_plus/media_type.dart';
 
+import 'crop_helper.dart';
 import 'media_picker_plus_platform_interface.dart';
 
 export 'media_options.dart';
 export 'media_source.dart';
 export 'media_type.dart';
 export 'watermark_position.dart';
+export 'crop_options.dart';
+export 'crop_ui.dart';
 
 class MediaPickerPlus {
   /// Pick an image from gallery
   static Future<String?> pickImage({
     MediaOptions options = const MediaOptions(),
+    BuildContext? context,
   }) async {
+    // Use interactive cropping if context is provided and freeform cropping is enabled
+    if (context != null && 
+        options.cropOptions?.freeform == true && 
+        options.cropOptions?.enableCrop == true) {
+      return await CropHelper.pickMediaWithCrop(
+        context, 
+        MediaSource.gallery, 
+        MediaType.image, 
+        options,
+      );
+    }
+    
     return MediaPickerPlusPlatform.instance
         .pickMedia(MediaSource.gallery, MediaType.image, options);
   }
@@ -31,7 +48,20 @@ class MediaPickerPlus {
   /// Capture a photo using camera
   static Future<String?> capturePhoto({
     MediaOptions options = const MediaOptions(),
+    BuildContext? context,
   }) async {
+    // Use interactive cropping if context is provided and freeform cropping is enabled
+    if (context != null && 
+        options.cropOptions?.freeform == true && 
+        options.cropOptions?.enableCrop == true) {
+      return await CropHelper.pickMediaWithCrop(
+        context, 
+        MediaSource.camera, 
+        MediaType.image, 
+        options,
+      );
+    }
+    
     return MediaPickerPlusPlatform.instance
         .pickMedia(MediaSource.camera, MediaType.image, options);
   }

@@ -52,6 +52,11 @@ class _AdvancedMediaPickerExampleState
   int _maxDurationMinutes = 5;
   String _customWatermark = 'Media Picker Plus';
   bool _enableImageResize = true;
+  
+  // Crop Settings
+  bool _enableCrop = false;
+  double? _cropAspectRatio;
+  String _cropPreset = 'none';
 
   // Permission states
   bool _hasCameraPermission = false;
@@ -87,6 +92,13 @@ class _AdvancedMediaPickerExampleState
         watermarkFontSize: _watermarkFontSize,
         watermarkPosition: _watermarkPosition,
         maxDuration: Duration(minutes: _maxDurationMinutes),
+        cropOptions: _enableCrop ? CropOptions(
+          enableCrop: true,
+          aspectRatio: _cropAspectRatio,
+          freeform: _cropAspectRatio == null,
+          showGrid: true,
+          lockAspectRatio: _cropAspectRatio != null,
+        ) : null,
       );
 
   /// Generate MediaOptions with custom watermark
@@ -98,6 +110,13 @@ class _AdvancedMediaPickerExampleState
         watermarkFontSize: _watermarkFontSize,
         watermarkPosition: _watermarkPosition,
         maxDuration: Duration(minutes: _maxDurationMinutes),
+        cropOptions: _enableCrop ? CropOptions(
+          enableCrop: true,
+          aspectRatio: _cropAspectRatio,
+          freeform: _cropAspectRatio == null,
+          showGrid: true,
+          lockAspectRatio: _cropAspectRatio != null,
+        ) : null,
       );
 
   /// Generate timestamp watermark
@@ -106,20 +125,61 @@ class _AdvancedMediaPickerExampleState
     return '$_customWatermark • ${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
   }
 
+  /// Set crop preset
+  void _setCropPreset(String preset) {
+    setState(() {
+      _cropPreset = preset;
+      switch (preset) {
+        case 'square':
+          _enableCrop = true;
+          _cropAspectRatio = 1.0;
+          break;
+        case 'portrait':
+          _enableCrop = true;
+          _cropAspectRatio = 3.0 / 4.0;
+          break;
+        case 'landscape':
+          _enableCrop = true;
+          _cropAspectRatio = 4.0 / 3.0;
+          break;
+        case 'widescreen':
+          _enableCrop = true;
+          _cropAspectRatio = 16.0 / 9.0;
+          break;
+        case 'freeform':
+          _enableCrop = true;
+          _cropAspectRatio = null;
+          break;
+        case 'none':
+        default:
+          _enableCrop = false;
+          _cropAspectRatio = null;
+          break;
+      }
+    });
+  }
+
   // Single Media Operations
   Future<void> _pickImage() async {
     setState(() => _isLoading = true);
     try {
       final path = await MediaPickerPlus.pickImage(
         options: _currentOptions,
+        context: mounted ? context : null, // Pass context for interactive cropping
       );
-      setState(() {
-        _singleMediaPath = path;
-      });
+      if (mounted) {
+        setState(() {
+          _singleMediaPath = path;
+        });
+      }
     } catch (e) {
-      _showError('Error picking image: $e');
+      if (mounted) {
+        _showError('Error picking image: $e');
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -154,10 +214,13 @@ class _AdvancedMediaPickerExampleState
 
       final path = await MediaPickerPlus.capturePhoto(
         options: _getOptionsWithWatermark(_generateTimestampWatermark()),
+        context: mounted ? context : null, // Pass context for interactive cropping
       );
-      setState(() {
-        _singleMediaPath = path;
-      });
+      if (mounted) {
+        setState(() {
+          _singleMediaPath = path;
+        });
+      }
     } catch (e) {
       _showError('Error capturing photo: $e');
     } finally {
@@ -359,6 +422,36 @@ class _AdvancedMediaPickerExampleState
           Text('$permission: ${granted ? "Granted" : "Denied"}'),
         ],
       ),
+    );
+  }
+
+  Widget _buildCropPresetChip(String label, String preset) {
+    final isSelected = _cropPreset == preset;
+    final isInteractive = preset == 'freeform' && isSelected;
+    
+    return FilterChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          if (isInteractive) ...[
+            const SizedBox(width: 4),
+            Icon(
+              Icons.touch_app,
+              size: 16,
+              color: Theme.of(context).primaryColor,
+            ),
+          ],
+        ],
+      ),
+      selected: isSelected,
+      onSelected: (selected) {
+        if (selected) {
+          _setCropPreset(preset);
+        }
+      },
+      backgroundColor: isSelected ? Theme.of(context).primaryColor.withAlpha(51) : null,
+      selectedColor: Theme.of(context).primaryColor.withAlpha(102),
     );
   }
 
@@ -685,6 +778,8 @@ class _AdvancedMediaPickerExampleState
                       'Watermark: "$_customWatermark" (${_watermarkFontSize}px)'),
                   Text(
                       'Position: $_watermarkPosition | Duration: ${_maxDurationMinutes}min'),
+                  Text(
+                      'Crop: ${_enableCrop ? (_cropAspectRatio != null ? "Aspect ${_cropAspectRatio!.toStringAsFixed(2)}" : "Freeform") : "Disabled"}'),
                 ],
               ),
             ),
@@ -737,6 +832,73 @@ class _AdvancedMediaPickerExampleState
             ],
           ),
           const SizedBox(height: 16),
+
+          // Interactive Cropping Demo
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.crop, color: Colors.blue.shade700),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Interactive Cropping',
+                      style: TextStyle(
+                        fontSize: 18, 
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'When you select "Freeform" cropping, an interactive UI will appear '
+                  'allowing you to manually adjust the crop area with drag handles, '
+                  'aspect ratio controls, and real-time preview.',
+                  style: TextStyle(fontSize: 14, color: Colors.black87),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () => _setCropPreset('freeform'),
+                  icon: const Icon(Icons.crop_free),
+                  label: const Text('Try Interactive Cropping'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Crop Presets
+          const Text(
+            'Quick Crop Presets',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              _buildCropPresetChip('None', 'none'),
+              _buildCropPresetChip('Square', 'square'),
+              _buildCropPresetChip('Portrait 3:4', 'portrait'),
+              _buildCropPresetChip('Landscape 4:3', 'landscape'),
+              _buildCropPresetChip('Widescreen 16:9', 'widescreen'),
+              _buildCropPresetChip('Freeform', 'freeform'),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
           _buildMediaPreview(),
 
           const SizedBox(height: 32),
@@ -1074,6 +1236,70 @@ class _AdvancedMediaPickerExampleState
                   ),
                   const SizedBox(height: 16),
 
+                  // Crop Configuration
+                  const Divider(),
+                  const Text(
+                    'Cropping Configuration',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Enable Crop Toggle
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Enable Cropping',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      Switch(
+                        value: _enableCrop,
+                        onChanged: (value) {
+                          setState(() {
+                            _enableCrop = value;
+                            if (!value) {
+                              _cropPreset = 'none';
+                              _cropAspectRatio = null;
+                            }
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _enableCrop
+                        ? 'Media will be cropped based on the selected aspect ratio or freeform'
+                        : 'Media will not be cropped',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+
+                  if (_enableCrop) ...[
+                    const SizedBox(height: 16),
+                    const Text('Crop Presets:'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        _buildCropPresetChip('Square', 'square'),
+                        _buildCropPresetChip('Portrait 3:4', 'portrait'),
+                        _buildCropPresetChip('Landscape 4:3', 'landscape'),
+                        _buildCropPresetChip('Widescreen 16:9', 'widescreen'),
+                        _buildCropPresetChip('Freeform', 'freeform'),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Current: ${_cropAspectRatio != null ? "Aspect ratio ${_cropAspectRatio!.toStringAsFixed(2)}" : "Freeform cropping"}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+
                   // Max Duration
                   Text('Max Video Duration: $_maxDurationMinutes minutes'),
                   Slider(
@@ -1110,6 +1336,7 @@ class _AdvancedMediaPickerExampleState
                   const Text('✅ Camera photo capture and video recording'),
                   const Text('✅ Advanced watermarking with positioning'),
                   const Text('✅ Image quality control and optional resizing'),
+                  const Text('✅ Media cropping with aspect ratio control'),
                   const Text('✅ Configurable resize settings (enable/disable)'),
                   const Text('✅ Multiple media selection'),
                   const Text('✅ File picking with extension filtering'),

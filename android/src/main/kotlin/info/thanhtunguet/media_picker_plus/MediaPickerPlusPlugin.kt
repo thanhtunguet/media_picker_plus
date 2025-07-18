@@ -6,10 +6,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -211,6 +214,18 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 pickMultipleMedia(source, type)
             }
 
+            "processImage" -> {
+                val imagePath = call.argument<String>("imagePath")
+                val options = call.argument<HashMap<String, Any>>("options")
+                
+                if (imagePath == null) {
+                    result.error("INVALID_ARGUMENTS", "Image path is required", null)
+                    return
+                }
+                
+                processImage(imagePath, options ?: HashMap(), result)
+            }
+
             else -> result.notImplemented()
         }
     }
@@ -405,6 +420,15 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         val options = mediaOptions ?: return sourcePath
         try {
             var bitmap = android.graphics.BitmapFactory.decodeFile(sourcePath)
+            
+            // Apply cropping if specified
+            if (options.containsKey("cropOptions")) {
+                val cropOptionsMap = options["cropOptions"] as? HashMap<String, Any>
+                if (cropOptionsMap != null && cropOptionsMap["enableCrop"] == true) {
+                    bitmap = applyCropToBitmap(bitmap, cropOptionsMap)
+                }
+            }
+            
             if (options.containsKey("maxWidth") && options.containsKey("maxHeight")) {
                 val maxWidth = options["maxWidth"] as? Int ?: 0
                 val maxHeight = options["maxHeight"] as? Int ?: 0
@@ -727,7 +751,14 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             Log.d("MediaPickerPlus", "Max dimensions: ${maxWidth}x${maxHeight}")
             
             // Calculate target dimensions (with aspect ratio preservation)
-            val (targetWidth, targetHeight) = calculateTargetDimensions(videoWidth, videoHeight, maxWidth, maxHeight)
+            var (targetWidth, targetHeight) = calculateTargetDimensions(videoWidth, videoHeight, maxWidth, maxHeight)
+            
+            // Apply cropping if specified
+            val cropInfo = applyCropToVideo(videoWidth, videoHeight, mediaOptions)
+            if (cropInfo != null) {
+                targetWidth = cropInfo.width
+                targetHeight = cropInfo.height
+            }
             
             Log.d("MediaPickerPlus", "Target dimensions: ${targetWidth}x${targetHeight}")
             
@@ -752,7 +783,8 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 watermarkY, 
                 targetWidth, 
                 targetHeight, 
-                rotation
+                rotation,
+                cropInfo
             )
             
             Log.d("MediaPickerPlus", "FFmpeg command: $command")
@@ -875,6 +907,72 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         }
     }
     
+    data class VideoCropInfo(
+        val x: Int,
+        val y: Int,
+        val width: Int,
+        val height: Int
+    )
+
+    private fun applyCropToVideo(videoWidth: Int, videoHeight: Int, options: HashMap<String, Any>?): VideoCropInfo? {
+        if (options == null || !options.containsKey("cropOptions")) return null
+        
+        val cropOptionsMap = options["cropOptions"] as? HashMap<String, Any> ?: return null
+        if (cropOptionsMap["enableCrop"] != true) return null
+        
+        val cropRect = cropOptionsMap["cropRect"] as? HashMap<String, Any>
+        if (cropRect != null) {
+            // Use specified crop rectangle
+            val x = (cropRect["x"] as? Double)?.toInt() ?: 0
+            val y = (cropRect["y"] as? Double)?.toInt() ?: 0
+            val width = (cropRect["width"] as? Double)?.toInt() ?: videoWidth
+            val height = (cropRect["height"] as? Double)?.toInt() ?: videoHeight
+            
+            // Ensure crop bounds are within video bounds
+            val croppedX = maxOf(0, minOf(x, videoWidth))
+            val croppedY = maxOf(0, minOf(y, videoHeight))
+            val croppedWidth = minOf(width, videoWidth - croppedX)
+            val croppedHeight = minOf(height, videoHeight - croppedY)
+            
+            if (croppedWidth > 0 && croppedHeight > 0) {
+                return VideoCropInfo(croppedX, croppedY, croppedWidth, croppedHeight)
+            }
+        } else if (cropOptionsMap["aspectRatio"] != null) {
+            // Apply aspect ratio cropping
+            val aspectRatio = (cropOptionsMap["aspectRatio"] as? Double)?.toFloat() ?: 1.0f
+            return applyCropWithAspectRatioToVideo(videoWidth, videoHeight, aspectRatio)
+        }
+        
+        return null
+    }
+
+    private fun applyCropWithAspectRatioToVideo(videoWidth: Int, videoHeight: Int, aspectRatio: Float): VideoCropInfo {
+        val originalWidth = videoWidth.toFloat()
+        val originalHeight = videoHeight.toFloat()
+        val originalAspectRatio = originalWidth / originalHeight
+
+        val newWidth: Int
+        val newHeight: Int
+        val x: Int
+        val y: Int
+
+        if (originalAspectRatio > aspectRatio) {
+            // Original is wider, crop width
+            newHeight = videoHeight
+            newWidth = (videoHeight * aspectRatio).toInt()
+            x = ((videoWidth - newWidth) / 2)
+            y = 0
+        } else {
+            // Original is taller, crop height
+            newWidth = videoWidth
+            newHeight = (videoWidth / aspectRatio).toInt()
+            x = 0
+            y = ((videoHeight - newHeight) / 2)
+        }
+
+        return VideoCropInfo(x, y, newWidth, newHeight)
+    }
+
     private fun buildFFmpegCommand(
         inputPath: String,
         outputPath: String,
@@ -883,14 +981,25 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         watermarkY: Int,
         targetWidth: Int,
         targetHeight: Int,
-        rotation: Int
+        rotation: Int,
+        cropInfo: VideoCropInfo?
     ): String {
         val inputVideo = "\"$inputPath\""
         val watermarkImage = "\"$watermarkPath\""
         val output = "\"$outputPath\""
         
-        // Build video scaling filter
+        // Build video filters
+        val videoFilters = mutableListOf<String>()
+        
+        // Add crop filter if needed
+        if (cropInfo != null) {
+            val cropFilter = "crop=${cropInfo.width}:${cropInfo.height}:${cropInfo.x}:${cropInfo.y}"
+            videoFilters.add(cropFilter)
+        }
+        
+        // Add scaling filter
         val scaleFilter = "scale=$targetWidth:$targetHeight"
+        videoFilters.add(scaleFilter)
         
         // Build rotation filter if needed
         val rotationFilter = when (rotation) {
@@ -899,16 +1008,12 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             270 -> "transpose=2"
             else -> null
         }
-        
-        // Build overlay filter
-        val overlayFilter = "overlay=$watermarkX:$watermarkY"
-        
-        // Combine filters
-        val videoFilters = mutableListOf<String>()
-        videoFilters.add(scaleFilter)
         if (rotationFilter != null) {
             videoFilters.add(rotationFilter)
         }
+        
+        // Build overlay filter
+        val overlayFilter = "overlay=$watermarkX:$watermarkY"
         
         val filterComplex = if (videoFilters.isEmpty()) {
             "[0:v][1:v]$overlayFilter"
@@ -918,6 +1023,60 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         
         // Build complete FFmpeg command
         return "-i $inputVideo -i $watermarkImage -filter_complex \"$filterComplex\" -c:a copy -c:v libx264 -preset fast -crf 23 -y $output"
+    }
+
+    private fun applyCropToBitmap(bitmap: Bitmap, cropOptions: HashMap<String, Any>): Bitmap {
+        val cropRect = cropOptions["cropRect"] as? HashMap<String, Any>
+        if (cropRect != null) {
+            // Use specified crop rectangle
+            val x = (cropRect["x"] as? Double)?.toInt() ?: 0
+            val y = (cropRect["y"] as? Double)?.toInt() ?: 0
+            val width = (cropRect["width"] as? Double)?.toInt() ?: bitmap.width
+            val height = (cropRect["height"] as? Double)?.toInt() ?: bitmap.height
+            
+            // Ensure crop bounds are within bitmap bounds
+            val croppedX = maxOf(0, minOf(x, bitmap.width))
+            val croppedY = maxOf(0, minOf(y, bitmap.height))
+            val croppedWidth = minOf(width, bitmap.width - croppedX)
+            val croppedHeight = minOf(height, bitmap.height - croppedY)
+            
+            if (croppedWidth > 0 && croppedHeight > 0) {
+                return Bitmap.createBitmap(bitmap, croppedX, croppedY, croppedWidth, croppedHeight)
+            }
+        } else if (cropOptions["aspectRatio"] != null) {
+            // Apply aspect ratio cropping
+            val aspectRatio = (cropOptions["aspectRatio"] as? Double)?.toFloat() ?: 1.0f
+            return applyCropWithAspectRatio(bitmap, aspectRatio)
+        }
+        
+        return bitmap
+    }
+
+    private fun applyCropWithAspectRatio(bitmap: Bitmap, aspectRatio: Float): Bitmap {
+        val originalWidth = bitmap.width.toFloat()
+        val originalHeight = bitmap.height.toFloat()
+        val originalAspectRatio = originalWidth / originalHeight
+
+        val newWidth: Int
+        val newHeight: Int
+        val x: Int
+        val y: Int
+
+        if (originalAspectRatio > aspectRatio) {
+            // Original is wider, crop width
+            newHeight = originalHeight.toInt()
+            newWidth = (originalHeight * aspectRatio).toInt()
+            x = ((originalWidth - newWidth) / 2).toInt()
+            y = 0
+        } else {
+            // Original is taller, crop height
+            newWidth = originalWidth.toInt()
+            newHeight = (originalWidth / aspectRatio).toInt()
+            x = 0
+            y = ((originalHeight - newHeight) / 2).toInt()
+        }
+
+        return Bitmap.createBitmap(bitmap, x, y, newWidth, newHeight)
     }
 
     private fun pickFile(allowedExtensions: List<String>?) {
@@ -1185,5 +1344,61 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             }
         }
         return false
+    }
+
+    private fun processImage(imagePath: String, options: HashMap<String, Any>, result: Result) {
+        try {
+            val inputFile = File(imagePath)
+            if (!inputFile.exists()) {
+                result.error("FILE_NOT_FOUND", "Image file not found", null)
+                return
+            }
+
+            // Create output file
+            val outputFile = File(context.cacheDir, "processed_${System.currentTimeMillis()}.jpg")
+            
+            // Load original bitmap
+            val originalBitmap = BitmapFactory.decodeFile(imagePath)
+            if (originalBitmap == null) {
+                result.error("INVALID_IMAGE", "Unable to decode image file", null)
+                return
+            }
+
+            var processedBitmap = originalBitmap
+
+            // Apply cropping if specified
+            val cropOptions = options["cropOptions"] as? HashMap<String, Any>
+            if (cropOptions != null) {
+                val enableCrop = cropOptions["enableCrop"] as? Boolean ?: false
+                if (enableCrop) {
+                    processedBitmap = applyCropToBitmap(processedBitmap, cropOptions)
+                }
+            }
+
+            // Apply watermark if specified
+            val watermark = options["watermark"] as? String
+            if (!watermark.isNullOrEmpty()) {
+                val watermarkFontSize = (options["watermarkFontSize"] as? Number)?.toFloat() ?: 30f
+                val watermarkPosition = options["watermarkPosition"] as? String ?: "bottomRight"
+                processedBitmap = addWatermarkToBitmap(processedBitmap, watermark, watermarkFontSize, watermarkPosition)
+            }
+
+            // Apply image quality and save
+            val quality = (options["imageQuality"] as? Number)?.toInt() ?: 80
+            val outputStream = FileOutputStream(outputFile)
+            processedBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+            outputStream.close()
+
+            // Clean up
+            if (processedBitmap != originalBitmap) {
+                processedBitmap.recycle()
+            }
+            originalBitmap.recycle()
+
+            result.success(outputFile.absolutePath)
+        } catch (e: Exception) {
+            Log.e("MediaPickerPlus", "Error processing image: ${e.message}", e)
+            result.error("PROCESSING_ERROR", "Error processing image: ${e.message}", null)
+        }
     }
 }
