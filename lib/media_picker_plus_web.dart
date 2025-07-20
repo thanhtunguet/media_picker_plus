@@ -10,14 +10,22 @@ import 'dart:js_interop_unsafe';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:web/web.dart' as web;
 
+import 'crop_options.dart';
 import 'media_options.dart';
 import 'media_picker_plus_platform_interface.dart';
 import 'media_source.dart';
 import 'media_type.dart';
-import 'crop_options.dart';
 
 @JS()
 external JSObject get globalThis;
+
+// Simple logging helper to avoid print() warnings
+void _log(String message) {
+  // In production, this could be replaced with a proper logging framework
+  // For now, using print for debugging purposes
+  // ignore: avoid_print
+  print('[MediaPickerPlusWeb] $message');
+}
 
 // ignore_for_file: invalid_assignment
 /// Web implementation of MediaPickerPlusPlatform.
@@ -84,7 +92,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
                   completer.completeError(e);
                 });
               } else if (type == MediaType.video) {
-                final url = web.URL.createObjectURL(file);
+                final url = _createVideoObjectURL(file);
                 completer.complete(url);
               } else {
                 completer.complete(null);
@@ -162,24 +170,65 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     return completer.future;
   }
 
+  String _createVideoObjectURL(web.File file) {
+    // Validate video file before creating object URL
+    final mimeType = file.type;
+
+    // Check if it's a valid video MIME type
+    if (!mimeType.startsWith('video/')) {
+      throw Exception('Invalid video file: MIME type is $mimeType');
+    }
+
+    // Log the video type for debugging
+    _log(
+        'Creating object URL for video: ${file.name}, type: $mimeType, size: ${file.size} bytes');
+
+    try {
+      final url = web.URL.createObjectURL(file);
+      _log('Created video object URL: $url');
+      return url;
+    } catch (e) {
+      _log('Failed to create object URL for video: $e');
+      throw Exception('Failed to create video object URL: $e');
+    }
+  }
+
   Future<String?> _processVideoFileWithWatermark(
       web.File file, MediaOptions options) async {
     if (options.watermark == null || options.watermark!.isEmpty) {
       // No watermark, just return object URL
-      return web.URL.createObjectURL(file);
+      return _createVideoObjectURL(file);
     }
-    final watermarkText = options.watermark!;
-    final position = options.watermarkPosition ?? 'bottomRight';
-    // Call JS function exposed in ffmpeg_watermark.js
-    final JSFunction addWatermarkToVideo = globalThis.getProperty('addWatermarkToVideo'.toJS) as JSFunction;
-    final promise = addWatermarkToVideo.callAsFunction(
-      null,
-      file.jsify(),
-      watermarkText.toJS,
-      position.toJS,
-    ) as JSPromise;
-    final url = await promise.toDart as String;
-    return url;
+
+    try {
+      final watermarkText = options.watermark!;
+      final position = options.watermarkPosition ?? 'bottomRight';
+
+      // Check if the watermarking function exists
+      final addWatermarkToVideo =
+          globalThis.getProperty('addWatermarkToVideo'.toJS);
+      if (addWatermarkToVideo.isUndefined || addWatermarkToVideo.isNull) {
+        // Watermarking function not available, return video without watermark
+        _log(
+            'Warning: Video watermarking not available on web. Returning video without watermark.');
+        return _createVideoObjectURL(file);
+      }
+
+      // Call JS function exposed in ffmpeg_watermark.js
+      final JSFunction watermarkFunction = addWatermarkToVideo as JSFunction;
+      final promise = watermarkFunction.callAsFunction(
+        null,
+        file.jsify(),
+        watermarkText.toJS,
+        position.toJS,
+      ) as JSPromise;
+      final url = await promise.toDart as String;
+      return url;
+    } catch (e) {
+      // Fallback to original video without watermark if processing fails
+      _log('Video watermarking failed: $e. Returning original video.');
+      return _createVideoObjectURL(file);
+    }
   }
 
   Future<String?> _processImageFile(web.File file, MediaOptions options) async {
@@ -212,16 +261,18 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
                   canvas.height = height;
                   final ctx =
                       canvas.getContext('2d') as web.CanvasRenderingContext2D;
-                  
+
                   // Apply cropping if specified
                   if (options.cropOptions?.enableCrop == true) {
-                    final croppedDimensions = _applyCropToImage(img, ctx, canvas, options.cropOptions!);
+                    final croppedDimensions = _applyCropToImage(
+                        img, ctx, canvas, options.cropOptions!);
                     width = croppedDimensions['width'] as int;
                     height = croppedDimensions['height'] as int;
                   } else {
-                    ctx.drawImage(img, 0, 0, width.toDouble(), height.toDouble());
+                    ctx.drawImage(
+                        img, 0, 0, width.toDouble(), height.toDouble());
                   }
-                  
+
                   // Watermark
                   if (options.watermark != null &&
                       options.watermark!.isNotEmpty) {
@@ -280,11 +331,14 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     ctx.globalAlpha = 1.0;
   }
 
-  Map<String, int> _applyCropToImage(web.HTMLImageElement img, web.CanvasRenderingContext2D ctx, 
-                                    web.HTMLCanvasElement canvas, CropOptions cropOptions) {
+  Map<String, int> _applyCropToImage(
+      web.HTMLImageElement img,
+      web.CanvasRenderingContext2D ctx,
+      web.HTMLCanvasElement canvas,
+      CropOptions cropOptions) {
     final originalWidth = img.naturalWidth;
     final originalHeight = img.naturalHeight;
-    
+
     if (cropOptions.cropRect != null) {
       // Use specified crop rectangle
       final rect = cropOptions.cropRect!;
@@ -292,28 +346,35 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       final cropY = (rect.y * originalHeight).round();
       final cropWidth = (rect.width * originalWidth).round();
       final cropHeight = (rect.height * originalHeight).round();
-      
+
       // Ensure crop bounds are within image bounds
       final clampedX = cropX.clamp(0, originalWidth);
       final clampedY = cropY.clamp(0, originalHeight);
       final clampedWidth = (cropWidth).clamp(0, originalWidth - clampedX);
       final clampedHeight = (cropHeight).clamp(0, originalHeight - clampedY);
-      
+
       canvas.width = clampedWidth;
       canvas.height = clampedHeight;
-      
-      ctx.drawImage(img, 
-                   clampedX.toDouble(), clampedY.toDouble(), clampedWidth.toDouble(), clampedHeight.toDouble(),
-                   0, 0, clampedWidth.toDouble(), clampedHeight.toDouble());
-      
+
+      ctx.drawImage(
+          img,
+          clampedX.toDouble(),
+          clampedY.toDouble(),
+          clampedWidth.toDouble(),
+          clampedHeight.toDouble(),
+          0,
+          0,
+          clampedWidth.toDouble(),
+          clampedHeight.toDouble());
+
       return {'width': clampedWidth, 'height': clampedHeight};
     } else if (cropOptions.aspectRatio != null) {
       // Apply aspect ratio cropping
       final targetAspectRatio = cropOptions.aspectRatio!;
       final originalAspectRatio = originalWidth / originalHeight;
-      
+
       int cropX, cropY, cropWidth, cropHeight;
-      
+
       if (originalAspectRatio > targetAspectRatio) {
         // Original is wider, crop width
         cropHeight = originalHeight;
@@ -327,18 +388,26 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
         cropX = 0;
         cropY = ((originalHeight - cropHeight) / 2).round();
       }
-      
+
       canvas.width = cropWidth;
       canvas.height = cropHeight;
-      
-      ctx.drawImage(img, 
-                   cropX.toDouble(), cropY.toDouble(), cropWidth.toDouble(), cropHeight.toDouble(),
-                   0, 0, cropWidth.toDouble(), cropHeight.toDouble());
-      
+
+      ctx.drawImage(
+          img,
+          cropX.toDouble(),
+          cropY.toDouble(),
+          cropWidth.toDouble(),
+          cropHeight.toDouble(),
+          0,
+          0,
+          cropWidth.toDouble(),
+          cropHeight.toDouble());
+
       return {'width': cropWidth, 'height': cropHeight};
     } else {
       // No cropping, just draw normally
-      ctx.drawImage(img, 0, 0, originalWidth.toDouble(), originalHeight.toDouble());
+      ctx.drawImage(
+          img, 0, 0, originalWidth.toDouble(), originalHeight.toDouble());
       return {'width': originalWidth, 'height': originalHeight};
     }
   }
@@ -366,8 +435,12 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
               completer.complete(null);
               return;
             }
-            final url = web.URL.createObjectURL(file);
-            completer.complete(url);
+            try {
+              final url = _createVideoObjectURL(file);
+              completer.complete(url);
+            } catch (e) {
+              completer.completeError(e);
+            }
           } else {
             completer.complete(null);
           }
@@ -403,7 +476,18 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
             for (var i = 0; i < files.length; i++) {
               final file = files.item(i);
               if (file != null) {
-                urls.add(web.URL.createObjectURL(file));
+                try {
+                  // Check if it's a video file based on accept attribute
+                  if (input.accept.contains('video/')) {
+                    urls.add(_createVideoObjectURL(file));
+                  } else {
+                    urls.add(web.URL.createObjectURL(file));
+                  }
+                } catch (e) {
+                  _log(
+                      'Failed to create object URL for file: ${file.name}, error: $e');
+                  // Skip this file but continue with others
+                }
               }
             }
             completer.complete(urls);
@@ -449,7 +533,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
             final results = <String>[];
             var completed = 0;
             final totalFiles = files.length;
-            
+
             for (var i = 0; i < files.length; i++) {
               final file = files.item(i);
               if (file == null) {
@@ -459,7 +543,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
                 }
                 continue;
               }
-              
+
               if (type == MediaType.image) {
                 _processImageFile(file, options).then((result) {
                   if (result != null) results.add(result);
@@ -516,15 +600,17 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       // Create an image element to process the data URL
       final img = web.HTMLImageElement();
       final completer = Completer<String?>();
-      
+
       img.onLoad.listen((_) async {
         try {
           final canvas = web.HTMLCanvasElement();
           final ctx = canvas.getContext('2d') as web.CanvasRenderingContext2D;
-          
+
           // Apply crop options if provided
-          if (options.cropOptions?.enableCrop == true && options.cropOptions?.cropRect != null) {
-            final cropDimensions = _applyCropToImage(img, ctx, canvas, options.cropOptions!);
+          if (options.cropOptions?.enableCrop == true &&
+              options.cropOptions?.cropRect != null) {
+            final cropDimensions =
+                _applyCropToImage(img, ctx, canvas, options.cropOptions!);
             canvas.width = cropDimensions['width']!;
             canvas.height = cropDimensions['height']!;
           } else {
@@ -533,12 +619,12 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
             canvas.height = img.naturalHeight;
             ctx.drawImage(img, 0, 0);
           }
-          
+
           // Apply watermark if provided
           if (options.watermark != null && options.watermark!.isNotEmpty) {
             _drawWatermark(ctx, canvas.width, canvas.height, options);
           }
-          
+
           // Convert to data URL with quality settings
           final dataUrl = canvas.toDataURL('image/jpeg');
           completer.complete(dataUrl);
@@ -546,11 +632,11 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
           completer.complete(imagePath); // Return original on error
         }
       });
-      
+
       img.onError.listen((_) {
         completer.complete(imagePath); // Return original on error
       });
-      
+
       img.src = imagePath;
       return await completer.future;
     } catch (e) {
