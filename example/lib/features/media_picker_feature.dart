@@ -24,27 +24,29 @@ class _MediaPickerFeatureState extends State<MediaPickerFeature> {
   final String _watermarkPosition = WatermarkPosition.bottomRight;
   final String _customWatermark = 'Media Picker Plus';
   bool _enableImageResize = true;
-  
+
   // Crop settings
   bool _enableCrop = false;
   double? _cropAspectRatio;
   String _cropPreset = 'none';
 
   MediaOptions get _currentOptions => MediaOptions(
-    imageQuality: _imageQuality,
-    maxWidth: _enableImageResize ? _maxWidth : null,
-    maxHeight: _enableImageResize ? _maxHeight : null,
-    watermark: _customWatermark,
-    watermarkFontSize: _watermarkFontSize,
-    watermarkPosition: _watermarkPosition,
-    cropOptions: _enableCrop ? CropOptions(
-      enableCrop: true,
-      aspectRatio: _cropAspectRatio,
-      freeform: _cropAspectRatio == null,
-      showGrid: true,
-      lockAspectRatio: _cropAspectRatio != null,
-    ) : null,
-  );
+        imageQuality: _imageQuality,
+        maxWidth: _enableImageResize ? _maxWidth : null,
+        maxHeight: _enableImageResize ? _maxHeight : null,
+        watermark: _customWatermark,
+        watermarkFontSize: _watermarkFontSize,
+        watermarkPosition: _watermarkPosition,
+        cropOptions: _enableCrop
+            ? CropOptions(
+                enableCrop: true,
+                aspectRatio: _cropAspectRatio,
+                freeform: _cropAspectRatio == null,
+                showGrid: true,
+                lockAspectRatio: _cropAspectRatio != null,
+              )
+            : null,
+      );
 
   void _setCropPreset(String preset) {
     setState(() {
@@ -119,13 +121,15 @@ class _MediaPickerFeatureState extends State<MediaPickerFeature> {
           watermark: '$_customWatermark • Multiple Images',
           watermarkFontSize: _watermarkFontSize,
           watermarkPosition: _watermarkPosition,
-          cropOptions: _enableCrop ? CropOptions(
-            enableCrop: true,
-            aspectRatio: _cropAspectRatio,
-            freeform: _cropAspectRatio == null,
-            showGrid: true,
-            lockAspectRatio: _cropAspectRatio != null,
-          ) : null,
+          cropOptions: _enableCrop
+              ? CropOptions(
+                  enableCrop: true,
+                  aspectRatio: _cropAspectRatio,
+                  freeform: _cropAspectRatio == null,
+                  showGrid: true,
+                  lockAspectRatio: _cropAspectRatio != null,
+                )
+              : null,
         ),
       );
       setState(() => _multipleMediaPaths = List<String>.from(paths ?? []));
@@ -147,13 +151,15 @@ class _MediaPickerFeatureState extends State<MediaPickerFeature> {
           watermark: '$_customWatermark • Multiple Videos',
           watermarkFontSize: _watermarkFontSize,
           watermarkPosition: _watermarkPosition,
-          cropOptions: _enableCrop ? CropOptions(
-            enableCrop: true,
-            aspectRatio: _cropAspectRatio,
-            freeform: _cropAspectRatio == null,
-            showGrid: true,
-            lockAspectRatio: _cropAspectRatio != null,
-          ) : null,
+          cropOptions: _enableCrop
+              ? CropOptions(
+                  enableCrop: true,
+                  aspectRatio: _cropAspectRatio,
+                  freeform: _cropAspectRatio == null,
+                  showGrid: true,
+                  lockAspectRatio: _cropAspectRatio != null,
+                )
+              : null,
         ),
       );
       setState(() => _multipleMediaPaths = List<String>.from(paths ?? []));
@@ -184,182 +190,197 @@ class _MediaPickerFeatureState extends State<MediaPickerFeature> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Settings Panel
-                Container(
-                  height: 280,
-                  margin: const EdgeInsets.all(8),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Media Settings',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Quality: $_imageQuality%'),
-                                Slider(
-                                  value: _imageQuality.toDouble(),
-                                  min: 10,
-                                  max: 100,
-                                  divisions: 90,
-                                  onChanged: (value) => setState(() => _imageQuality = value.toInt()),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Expanded(child: Text('Enable Resize')),
-                                Switch(
-                                  value: _enableImageResize,
-                                  onChanged: (value) => setState(() => _enableImageResize = value),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            CropSettingsWidget(
-                              enableCrop: _enableCrop,
-                              cropPreset: _cropPreset,
-                              onCropChanged: (enabled) => setState(() => _enableCrop = enabled),
-                              onPresetChanged: _setCropPreset,
-                            ),
-                          ],
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Settings Panel
+                  Container(
+                    margin: const EdgeInsets.all(8),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Media Settings',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Quality: $_imageQuality%'),
+                                  Slider(
+                                    value: _imageQuality.toDouble(),
+                                    min: 10,
+                                    max: 100,
+                                    divisions: 90,
+                                    onChanged: (value) => setState(
+                                        () => _imageQuality = value.toInt()),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Expanded(child: Text('Enable Resize')),
+                                  Switch(
+                                    value: _enableImageResize,
+                                    onChanged: (value) => setState(
+                                        () => _enableImageResize = value),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              CropSettingsWidget(
+                                enableCrop: _enableCrop,
+                                cropPreset: _cropPreset,
+                                onCropChanged: (enabled) =>
+                                    setState(() => _enableCrop = enabled),
+                                onPresetChanged: _setCropPreset,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                
-                // Action Buttons
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _pickImage,
-                              icon: const Icon(Icons.photo_library, size: 18),
-                              label: const Text('Pick Image', style: TextStyle(fontSize: 12)),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _pickVideo,
-                              icon: const Icon(Icons.video_library, size: 18),
-                              label: const Text('Pick Video', style: TextStyle(fontSize: 12)),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _pickMultipleImages,
-                              icon: const Icon(Icons.photo_library, size: 18),
-                              label: const Text('Multiple Images', style: TextStyle(fontSize: 12)),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _pickMultipleVideos,
-                              icon: const Icon(Icons.video_library, size: 18),
-                              label: const Text('Multiple Videos', style: TextStyle(fontSize: 12)),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
 
-                // Preview Section
-                Expanded(
-                  flex: 2,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
+                  // Action Buttons
+                  Padding(
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       children: [
-                        if (_singleMediaPath != null)
-                          MediaPreviewWidget(
-                            mediaPath: _singleMediaPath!,
-                            title: 'Single Media Preview',
-                            onClear: _clearSingleMedia,
-                            enableImageResize: _enableImageResize,
-                            maxWidth: _maxWidth,
-                            maxHeight: _maxHeight,
-                          ),
-                        if (_multipleMediaPaths.isNotEmpty)
-                          Card(
-                            child: Column(
-                              children: [
-                                ListTile(
-                                  leading: const Icon(Icons.collections),
-                                  title: const Text('Multiple Media Preview'),
-                                  trailing: IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: _clearMultipleMedia,
-                                  ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _pickImage,
+                                icon: const Icon(Icons.photo_library, size: 18),
+                                label: const Text('Pick Image',
+                                    style: TextStyle(fontSize: 12)),
+                                style: ElevatedButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
                                 ),
-                                SizedBox(
-                                  height: 150,
-                                  child: ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: _multipleMediaPaths.length,
-                                    itemBuilder: (context, index) {
-                                      return Container(
-                                        width: 120,
-                                        margin: const EdgeInsets.all(8),
-                                        child: MediaPreviewWidget(
-                                          mediaPath: _multipleMediaPaths[index],
-                                          height: 100,
-                                          showControls: false,
-                                          enableImageResize: _enableImageResize,
-                                          maxWidth: _maxWidth,
-                                          maxHeight: _maxHeight,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(8),
-                                  child: Text('${_multipleMediaPaths.length} files selected'),
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _pickVideo,
+                                icon: const Icon(Icons.video_library, size: 18),
+                                label: const Text('Pick Video',
+                                    style: TextStyle(fontSize: 12)),
+                                style: ElevatedButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _pickMultipleImages,
+                                icon: const Icon(Icons.photo_library, size: 18),
+                                label: const Text('Multiple Images',
+                                    style: TextStyle(fontSize: 12)),
+                                style: ElevatedButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _pickMultipleVideos,
+                                icon: const Icon(Icons.video_library, size: 18),
+                                label: const Text('Multiple Videos',
+                                    style: TextStyle(fontSize: 12)),
+                                style: ElevatedButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                ),
-              ],
+
+                  if (_singleMediaPath != null)
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      child: MediaPreviewWidget(
+                        mediaPath: _singleMediaPath!,
+                        title: 'Single Media Preview',
+                        onClear: _clearSingleMedia,
+                        enableImageResize: _enableImageResize,
+                        maxWidth: _maxWidth,
+                        maxHeight: _maxHeight,
+                      ),
+                    ),
+
+                  if (_multipleMediaPaths.isNotEmpty)
+                    Card(
+                      margin: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      child: Column(
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.collections),
+                            title: const Text('Multiple Media Preview'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: _clearMultipleMedia,
+                            ),
+                          ),
+                          SizedBox(
+                            height: 150,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _multipleMediaPaths.length,
+                              itemBuilder: (context, index) {
+                                return Container(
+                                  width: 120,
+                                  margin: const EdgeInsets.all(8),
+                                  child: MediaPreviewWidget(
+                                    mediaPath: _multipleMediaPaths[index],
+                                    height: 100,
+                                    showControls: false,
+                                    enableImageResize: _enableImageResize,
+                                    maxWidth: _maxWidth,
+                                    maxHeight: _maxHeight,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text(
+                                '${_multipleMediaPaths.length} files selected'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  SizedBox(height: 16),
+                ],
+              ),
             ),
     );
   }

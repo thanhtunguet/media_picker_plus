@@ -21,9 +21,8 @@ class MediaPickerPlus {
     MediaOptions options = const MediaOptions(),
     BuildContext? context,
   }) async {
-    // Use interactive cropping if context is provided and freeform cropping is enabled
+    // Use interactive cropping if context is provided and cropping is enabled
     if (context != null && 
-        options.cropOptions?.freeform == true && 
         options.cropOptions?.enableCrop == true) {
       return await CropHelper.pickMediaWithCrop(
         context, 
@@ -50,9 +49,8 @@ class MediaPickerPlus {
     MediaOptions options = const MediaOptions(),
     BuildContext? context,
   }) async {
-    // Use interactive cropping if context is provided and freeform cropping is enabled
+    // Use interactive cropping if context is provided and cropping is enabled
     if (context != null && 
-        options.cropOptions?.freeform == true && 
         options.cropOptions?.enableCrop == true) {
       return await CropHelper.pickMediaWithCrop(
         context, 

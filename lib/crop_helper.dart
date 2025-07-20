@@ -11,7 +11,7 @@ import 'media_type.dart';
 /// Helper class to handle interactive cropping flow
 class CropHelper {
 
-  /// Pick media with interactive cropping UI if freeform cropping is enabled
+  /// Pick media with interactive cropping UI when cropping is enabled
   static Future<String?> pickMediaWithCrop(
     BuildContext context,
     MediaSource source,
@@ -19,12 +19,11 @@ class CropHelper {
     MediaOptions options,
   ) async {
     // Check if interactive cropping is needed
-    if (options.cropOptions?.freeform == true && 
-        options.cropOptions?.enableCrop == true) {
+    if (options.cropOptions?.enableCrop == true) {
       return await _pickWithInteractiveCrop(context, source, type, options);
     }
     
-    // Use regular picking for non-interactive cropping
+    // Use regular picking when cropping is disabled
     return await MediaPickerPlusPlatform.instance.pickMedia(source, type, options);
   }
 

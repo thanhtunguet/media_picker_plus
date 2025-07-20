@@ -39,12 +39,12 @@ class _CameraFeatureState extends State<CameraFeature> {
   }
 
   MediaOptions get _currentOptions => MediaOptions(
-    imageQuality: _imageQuality,
-    watermark: _generateTimestampWatermark(),
-    watermarkFontSize: _watermarkFontSize,
-    watermarkPosition: _watermarkPosition,
-    maxDuration: Duration(minutes: _maxDurationMinutes),
-  );
+        imageQuality: _imageQuality,
+        watermark: _generateTimestampWatermark(),
+        watermarkFontSize: _watermarkFontSize,
+        watermarkPosition: _watermarkPosition,
+        maxDuration: Duration(minutes: _maxDurationMinutes),
+      );
 
   String _generateTimestampWatermark() {
     final now = DateTime.now();
@@ -55,7 +55,8 @@ class _CameraFeatureState extends State<CameraFeature> {
     try {
       final granted = await MediaPickerPlus.requestCameraPermission();
       setState(() => _hasCameraPermission = granted == true);
-      _showMessage(granted ? 'Camera permission granted' : 'Camera permission denied');
+      _showMessage(
+          granted ? 'Camera permission granted' : 'Camera permission denied');
     } catch (e) {
       _showError('Error requesting camera permission: $e');
     }
@@ -134,139 +135,151 @@ class _CameraFeatureState extends State<CameraFeature> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Permission Status
-                PermissionStatusWidget(
-                  hasCameraPermission: _hasCameraPermission,
-                  onRequestPermission: _requestCameraPermission,
-                ),
-
-                // Camera Settings
-                Container(
-                  height: 260,
-                  margin: const EdgeInsets.all(8),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Camera Settings',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Quality: $_imageQuality%'),
-                                Slider(
-                                  value: _imageQuality.toDouble(),
-                                  min: 10,
-                                  max: 100,
-                                  divisions: 90,
-                                  onChanged: (value) => setState(() => _imageQuality = value.toInt()),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Font Size: ${_watermarkFontSize.toInt()}px'),
-                                Slider(
-                                  value: _watermarkFontSize,
-                                  min: 12,
-                                  max: 72,
-                                  divisions: 60,
-                                  onChanged: (value) => setState(() => _watermarkFontSize = value),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              decoration: const InputDecoration(
-                                labelText: 'Watermark Text',
-                                border: OutlineInputBorder(),
-                              ),
-                              onChanged: (value) => setState(() => _customWatermark = value),
-                              controller: TextEditingController(text: _customWatermark),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Permission Status
+                  PermissionStatusWidget(
+                    hasCameraPermission: _hasCameraPermission,
+                    onRequestPermission: _requestCameraPermission,
                   ),
-                ),
 
-                // Action Buttons
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _hasCameraPermission ? _capturePhoto : null,
-                          icon: const Icon(Icons.camera_alt, size: 18),
-                          label: const Text('Capture Photo', style: TextStyle(fontSize: 12)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _hasCameraPermission ? _recordVideo : null,
-                          icon: const Icon(Icons.videocam, size: 18),
-                          label: const Text('Record Video', style: TextStyle(fontSize: 12)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Preview Section
-                Expanded(
-                  flex: 2,
-                  child: _capturedMediaPath != null
-                      ? SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          child: MediaPreviewWidget(
-                            mediaPath: _capturedMediaPath!,
-                            title: 'Captured Media Preview',
-                            onClear: _clearMedia,
-                          ),
-                        )
-                      : const Center(
+                  // Camera Settings
+                  Container(
+                    margin: const EdgeInsets.all(8),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: SingleChildScrollView(
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.camera_alt, size: 64, color: Colors.grey),
-                              SizedBox(height: 16),
-                              Text(
-                                'No media captured yet',
-                                style: TextStyle(fontSize: 18, color: Colors.grey),
+                              const Text(
+                                'Camera Settings',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
                               ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Tap capture or record to get started',
-                                style: TextStyle(color: Colors.grey),
+                              const SizedBox(height: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Quality: $_imageQuality%'),
+                                  Slider(
+                                    value: _imageQuality.toDouble(),
+                                    min: 10,
+                                    max: 100,
+                                    divisions: 90,
+                                    onChanged: (value) => setState(
+                                        () => _imageQuality = value.toInt()),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                      'Font Size: ${_watermarkFontSize.toInt()}px'),
+                                  Slider(
+                                    value: _watermarkFontSize,
+                                    min: 12,
+                                    max: 72,
+                                    divisions: 60,
+                                    onChanged: (value) => setState(
+                                        () => _watermarkFontSize = value),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                decoration: const InputDecoration(
+                                  labelText: 'Watermark Text',
+                                  border: OutlineInputBorder(),
+                                ),
+                                onChanged: (value) =>
+                                    setState(() => _customWatermark = value),
+                                controller: TextEditingController(
+                                    text: _customWatermark),
                               ),
                             ],
                           ),
                         ),
-                ),
-              ],
+                      ),
+                    ),
+                  ),
+
+                  // Action Buttons
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed:
+                                _hasCameraPermission ? _capturePhoto : null,
+                            icon: const Icon(Icons.camera_alt, size: 18),
+                            label: const Text('Capture Photo',
+                                style: TextStyle(fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed:
+                                _hasCameraPermission ? _recordVideo : null,
+                            icon: const Icon(Icons.videocam, size: 18),
+                            label: const Text('Record Video',
+                                style: TextStyle(fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Preview Section
+                  Container(
+                    child: _capturedMediaPath != null
+                        ? SingleChildScrollView(
+                            padding: const EdgeInsets.all(8),
+                            child: MediaPreviewWidget(
+                              mediaPath: _capturedMediaPath!,
+                              title: 'Captured Media Preview',
+                              onClear: _clearMedia,
+                            ),
+                          )
+                        : const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.camera_alt,
+                                    size: 64, color: Colors.grey),
+                                SizedBox(height: 16),
+                                Text(
+                                  'No media captured yet',
+                                  style: TextStyle(
+                                      fontSize: 18, color: Colors.grey),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Tap capture or record to get started',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                  ),
+                ],
+              ),
             ),
     );
   }
