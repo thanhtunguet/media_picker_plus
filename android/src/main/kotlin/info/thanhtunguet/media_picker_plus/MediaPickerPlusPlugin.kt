@@ -470,40 +470,124 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     private fun getFilePathFromUri(uri: Uri): String? {
-        val projection = arrayOf(MediaStore.MediaColumns.DATA)
-        val cursor = context.contentResolver.query(uri, projection, null, null, null)
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val columnIndex = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
-                return it.getString(columnIndex)
+        Log.d("MediaPickerPlus", "getFilePathFromUri: URI = $uri, scheme = ${uri.scheme}")
+        
+        return when (uri.scheme) {
+            "file" -> {
+                // Direct file path
+                val path = uri.path
+                Log.d("MediaPickerPlus", "File scheme, path: $path")
+                path
+            }
+            "content" -> {
+                // Content URI - handle different providers
+                when {
+                    // Android 10+ (API 29+) - Always use stream copying for content URIs
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+                        Log.d("MediaPickerPlus", "Android 10+, using stream copying for content URI")
+                        copyUriToTempFile(uri)
+                    }
+                    // Android 9 and below - Try DATA column first, then fallback to copying
+                    else -> {
+                        Log.d("MediaPickerPlus", "Android 9 and below, trying DATA column first")
+                        tryGetPathFromDataColumn(uri) ?: copyUriToTempFile(uri)
+                    }
+                }
+            }
+            else -> {
+                Log.d("MediaPickerPlus", "Unknown scheme, attempting to copy URI to temp file")
+                copyUriToTempFile(uri)
             }
         }
-        if (uri.scheme == "file") {
-            return uri.path
+    }
+    
+    private fun tryGetPathFromDataColumn(uri: Uri): String? {
+        return try {
+            val projection = arrayOf(MediaStore.MediaColumns.DATA)
+            val cursor = context.contentResolver.query(uri, projection, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val columnIndex = it.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
+                    val path = it.getString(columnIndex)
+                    Log.d("MediaPickerPlus", "Got path from DATA column: $path")
+                    // Verify the file actually exists
+                    if (path != null && File(path).exists()) {
+                        return path
+                    }
+                }
+            }
+            null
+        } catch (e: Exception) {
+            Log.e("MediaPickerPlus", "Error getting path from DATA column: ${e.message}")
+            null
         }
-        return copyUriToTempFile(uri)
     }
 
     private fun copyUriToTempFile(uri: Uri): String? {
-        try {
+        return try {
+            Log.d("MediaPickerPlus", "copyUriToTempFile: Starting copy for URI = $uri")
+            
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
             val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+            
+            if (storageDir == null) {
+                Log.e("MediaPickerPlus", "Failed to get external files directory")
+                return null
+            }
+            
+            // Ensure directory exists
+            if (!storageDir.exists() && !storageDir.mkdirs()) {
+                Log.e("MediaPickerPlus", "Failed to create storage directory: ${storageDir.absolutePath}")
+                return null
+            }
+            
             val mimeType = context.contentResolver.getType(uri)
+            Log.d("MediaPickerPlus", "MIME type: $mimeType")
+            
             val extension = when {
                 mimeType?.contains("image") == true -> ".jpg"
                 mimeType?.contains("video") == true -> ".mp4"
-                else -> ".tmp"
-            }
-            val file = File.createTempFile("MEDIA_${timeStamp}", extension, storageDir)
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(file).use { output ->
-                    input.copyTo(output)
+                mimeType?.startsWith("application/pdf") == true -> ".pdf"
+                mimeType?.startsWith("text/") == true -> ".txt"
+                else -> {
+                    // Try to get extension from URI path
+                    val lastSegment = uri.lastPathSegment
+                    if (lastSegment?.contains(".") == true) {
+                        val ext = lastSegment.substringAfterLast(".")
+                        if (ext.isNotEmpty()) ".$ext" else ".tmp"
+                    } else ".tmp"
                 }
             }
+            
+            val file = File.createTempFile("MEDIA_${timeStamp}", extension, storageDir)
+            Log.d("MediaPickerPlus", "Created temp file: ${file.absolutePath}")
+            
+            val inputStream = context.contentResolver.openInputStream(uri)
+            if (inputStream == null) {
+                Log.e("MediaPickerPlus", "Failed to open input stream for URI: $uri")
+                return null
+            }
+            
+            inputStream.use { input ->
+                FileOutputStream(file).use { output ->
+                    val bytesCount = input.copyTo(output)
+                    Log.d("MediaPickerPlus", "Copied $bytesCount bytes to temp file")
+                }
+            }
+            
+            if (!file.exists() || file.length() == 0L) {
+                Log.e("MediaPickerPlus", "Temp file was not created properly or is empty")
+                return null
+            }
+            
+            Log.d("MediaPickerPlus", "Successfully copied URI to temp file: ${file.absolutePath}, size: ${file.length()} bytes")
             return file.absolutePath
+        } catch (e: SecurityException) {
+            Log.e("MediaPickerPlus", "Security exception copying URI to temp file: ${e.message}")
+            null
         } catch (e: Exception) {
-            e.printStackTrace()
-            return null
+            Log.e("MediaPickerPlus", "Error copying URI to temp file: ${e.message}", e)
+            null
         }
     }
 

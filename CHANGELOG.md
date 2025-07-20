@@ -5,6 +5,7 @@
 - Refactored example project for easier maintainance
 - Fixed bug: cropping image outputed wrong result image (iOS)
 - Fixed bug: picking image on web
+- Fixed bug: error picking file on Android
 
 ## 0.1.1+3
 
