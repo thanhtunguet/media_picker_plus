@@ -1,3 +1,11 @@
+## 0.1.2+4
+
+### Fixed
+
+- Refactored example project for easier maintainance
+- Fixed bug: cropping image outputed wrong result image (iOS)
+
+
 ## 0.1.1+3
 
 ### Fixed

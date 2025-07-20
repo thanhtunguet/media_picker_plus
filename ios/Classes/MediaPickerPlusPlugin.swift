@@ -1103,13 +1103,27 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
 
     private func applyCropToImage(_ image: UIImage, cropOptions: [String: Any]) -> UIImage {
         if let cropRect = cropOptions["cropRect"] as? [String: Any] {
-            // Use specified crop rectangle
-            let x = cropRect["x"] as? Double ?? 0
-            let y = cropRect["y"] as? Double ?? 0
-            let width = cropRect["width"] as? Double ?? Double(image.size.width)
-            let height = cropRect["height"] as? Double ?? Double(image.size.height)
+            // Use specified crop rectangle - coordinates are normalized (0.0-1.0)
+            let normalizedX = cropRect["x"] as? Double ?? 0
+            let normalizedY = cropRect["y"] as? Double ?? 0
+            let normalizedWidth = cropRect["width"] as? Double ?? 1.0
+            let normalizedHeight = cropRect["height"] as? Double ?? 1.0
             
-            let rect = CGRect(x: x, y: y, width: width, height: height)
+            // Get the CGImage to work with actual pixel dimensions
+            guard let cgImage = image.cgImage else {
+                return image
+            }
+            
+            // Convert normalized coordinates to actual pixel coordinates based on CGImage dimensions
+            let cgImageWidth = CGFloat(cgImage.width)
+            let cgImageHeight = CGFloat(cgImage.height)
+            
+            let pixelX = normalizedX * Double(cgImageWidth)
+            let pixelY = normalizedY * Double(cgImageHeight)
+            let pixelWidth = normalizedWidth * Double(cgImageWidth)
+            let pixelHeight = normalizedHeight * Double(cgImageHeight)
+            
+            let rect = CGRect(x: pixelX, y: pixelY, width: pixelWidth, height: pixelHeight)
             return cropImage(image, to: rect)
         } else if let aspectRatio = cropOptions["aspectRatio"] as? Double {
             // Apply aspect ratio cropping
@@ -1120,24 +1134,30 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
     }
 
     private func cropImage(_ image: UIImage, to rect: CGRect) -> UIImage {
-        // Ensure crop bounds are within image bounds
-        let imageSize = image.size
+        guard let cgImage = image.cgImage else {
+            return image
+        }
+        
+        // Ensure crop bounds are within CGImage bounds
+        let cgImageWidth = CGFloat(cgImage.width)
+        let cgImageHeight = CGFloat(cgImage.height)
+        
         let clampedRect = CGRect(
-            x: max(0, min(rect.origin.x, imageSize.width)),
-            y: max(0, min(rect.origin.y, imageSize.height)),
-            width: min(rect.size.width, imageSize.width - max(0, rect.origin.x)),
-            height: min(rect.size.height, imageSize.height - max(0, rect.origin.y))
+            x: max(0, min(rect.origin.x, cgImageWidth)),
+            y: max(0, min(rect.origin.y, cgImageHeight)),
+            width: min(rect.size.width, cgImageWidth - max(0, rect.origin.x)),
+            height: min(rect.size.height, cgImageHeight - max(0, rect.origin.y))
         )
         
         guard clampedRect.width > 0 && clampedRect.height > 0 else {
             return image
         }
         
-        guard let cgImage = image.cgImage?.cropping(to: clampedRect) else {
+        guard let croppedCGImage = cgImage.cropping(to: clampedRect) else {
             return image
         }
         
-        return UIImage(cgImage: cgImage, scale: image.scale, orientation: image.imageOrientation)
+        return UIImage(cgImage: croppedCGImage, scale: image.scale, orientation: image.imageOrientation)
     }
 
     private func applyCropWithAspectRatio(_ image: UIImage, aspectRatio: CGFloat) -> UIImage {
