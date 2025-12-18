@@ -38,6 +38,8 @@ Goal: expand features and developer experience after macOS/Web are functional an
   - Align permission handling patterns
   - Consistent file naming and storage patterns
   - Unified watermarking positioning and styling
+  - [x] Fix iOS image watermark bounds/positioning (prevent bottom-edge overflow vs Android)
+    - Use `boundingRect`-based bounds + clamping for more accurate emoji/stroke/descender sizing.
 
 ### Security & Privacy
 - [ ] **Implement security best practices**

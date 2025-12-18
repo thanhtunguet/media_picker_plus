@@ -428,7 +428,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         -> UIImage
     {
         // Create a new context with the same size as the image
-        UIGraphicsBeginImageContextWithOptions(image.size, false, 0.0)
+        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
 
         // Draw the original image
         image.draw(in: CGRect(origin: .zero, size: image.size))
@@ -445,12 +445,30 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             .paragraphStyle: paragraphStyle,
         ]
 
-        // Calculate text size
-        let textSize = text.size(withAttributes: attributes)
+        // Calculate text bounds (more accurate than `size(withAttributes:)` for emoji/stroke/descenders)
+        let padding: CGFloat = 20.0
+        let maxTextSize = CGSize(
+            width: max(0, image.size.width - (2 * padding)),
+            height: max(0, image.size.height - (2 * padding))
+        )
+        let boundingOptions: NSStringDrawingOptions = [
+            .usesLineFragmentOrigin,
+            .usesFontLeading,
+            .usesDeviceMetrics,
+        ]
+        var textBounds = (text as NSString).boundingRect(
+            with: maxTextSize,
+            options: boundingOptions,
+            attributes: attributes,
+            context: nil
+        ).integral
+
+        let strokeWidth = attributes[.strokeWidth] as? CGFloat ?? 0
+        let strokeOutset = abs(strokeWidth)
+        textBounds = textBounds.insetBy(dx: -strokeOutset, dy: -strokeOutset).integral
 
         // Calculate position
         var point: CGPoint
-        let padding: CGFloat = 20.0
 
         // Convert string position to WatermarkPosition enum
         let watermarkPosition: WatermarkPosition
@@ -472,33 +490,40 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         case .topLeft:
             point = CGPoint(x: padding, y: padding)
         case .topCenter:
-            point = CGPoint(x: (image.size.width - textSize.width) / 2, y: padding)
+            point = CGPoint(x: (image.size.width - textBounds.width) / 2, y: padding)
         case .topRight:
-            point = CGPoint(x: image.size.width - textSize.width - padding, y: padding)
+            point = CGPoint(x: image.size.width - textBounds.width - padding, y: padding)
         case .middleLeft:
-            point = CGPoint(x: padding, y: (image.size.height - textSize.height) / 2)
+            point = CGPoint(x: padding, y: (image.size.height - textBounds.height) / 2)
         case .center:
             point = CGPoint(
-                x: (image.size.width - textSize.width) / 2,
-                y: (image.size.height - textSize.height) / 2)
+                x: (image.size.width - textBounds.width) / 2,
+                y: (image.size.height - textBounds.height) / 2)
         case .middleRight:
             point = CGPoint(
-                x: image.size.width - textSize.width - padding,
-                y: (image.size.height - textSize.height) / 2)
+                x: image.size.width - textBounds.width - padding,
+                y: (image.size.height - textBounds.height) / 2)
         case .bottomLeft:
-            point = CGPoint(x: padding, y: image.size.height - textSize.height - padding)
+            point = CGPoint(x: padding, y: image.size.height - textBounds.height - padding)
         case .bottomCenter:
             point = CGPoint(
-                x: (image.size.width - textSize.width) / 2,
-                y: image.size.height - textSize.height - padding)
+                x: (image.size.width - textBounds.width) / 2,
+                y: image.size.height - textBounds.height - padding)
         case .bottomRight:
             point = CGPoint(
-                x: image.size.width - textSize.width - padding,
-                y: image.size.height - textSize.height - padding)
+                x: image.size.width - textBounds.width - padding,
+                y: image.size.height - textBounds.height - padding)
         }
 
-        // Draw the text
-        text.draw(at: point, withAttributes: attributes)
+        // Clamp to image bounds (prevents overflow with larger glyph bounds like emoji/stroke)
+        let maxX = max(padding, image.size.width - textBounds.width - padding)
+        let maxY = max(padding, image.size.height - textBounds.height - padding)
+        point.x = min(max(point.x, padding), maxX)
+        point.y = min(max(point.y, padding), maxY)
+
+        // Draw the text (offset by bounds origin to account for negative extents)
+        let drawPoint = CGPoint(x: point.x - textBounds.origin.x, y: point.y - textBounds.origin.y)
+        (text as NSString).draw(at: drawPoint, withAttributes: attributes)
 
         // Get the watermarked image
         let watermarkedImage = UIGraphicsGetImageFromCurrentImageContext()

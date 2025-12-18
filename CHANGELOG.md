@@ -1,3 +1,9 @@
+## Unreleased
+
+### Fixed
+
+- Fix iOS image watermark positioning so it no longer overflows the image edge (more consistent with Android).
+
 ## 0.1.2+4
 
 ### Fixed
