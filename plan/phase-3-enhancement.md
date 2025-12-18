@@ -1,0 +1,47 @@
+# Phase 3 — Enhancements (Low Priority)
+
+Goal: expand features and developer experience after macOS/Web are functional and test coverage is improved.
+
+## Advanced Features
+- [ ] **Add multiple media selection support**
+  - Implement multiple image/video selection
+  - Add batch processing capabilities
+  - Create progress tracking for multiple files
+  - Handle memory management for large selections
+
+## Documentation & DevOps
+- [ ] **Expand API documentation and usage examples**
+  - Create comprehensive API documentation
+  - Add usage examples and tutorials
+  - Update README with detailed setup instructions
+  - Create migration guides from other plugins
+
+- [ ] **Add CI/CD pipeline for automated testing**
+  - Set up GitHub Actions for automated testing
+  - Add platform-specific test runners
+  - Implement automated publishing workflow
+  - Add code coverage reporting
+
+## Technical Debt & Improvements
+
+### Code Quality
+- [ ] **Refactor existing code for better maintainability**
+  - Extract common functionality into shared utilities
+  - Improve error handling consistency across platforms
+  - Add proper logging and debugging capabilities
+  - Optimize performance for large media files
+
+### Platform Consistency
+- [ ] **Ensure consistent behavior across all platforms**
+  - Standardize error messages and codes
+  - Align permission handling patterns
+  - Consistent file naming and storage patterns
+  - Unified watermarking positioning and styling
+
+### Security & Privacy
+- [ ] **Implement security best practices**
+  - Add input validation for all parameters
+  - Implement proper file access controls
+  - Add privacy-focused permission descriptions
+  - Secure temporary file handling
+
