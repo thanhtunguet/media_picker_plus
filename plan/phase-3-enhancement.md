@@ -3,11 +3,12 @@
 Goal: expand features and developer experience after macOS/Web are functional and test coverage is improved.
 
 ## Advanced Features
-- [ ] **Add multiple media selection support**
+- [x] **Add multiple media selection support**
   - Implement multiple image/video selection
   - Add batch processing capabilities
   - Create progress tracking for multiple files
   - Handle memory management for large selections
+  - Verification: `README.md` lists “Multiple Selection” as a feature and shows `pickMultipleImages` / `pickMultipleFiles` usage.
 
 ## Documentation & DevOps
 - [ ] **Expand API documentation and usage examples**
@@ -44,4 +45,3 @@ Goal: expand features and developer experience after macOS/Web are functional an
   - Implement proper file access controls
   - Add privacy-focused permission descriptions
   - Secure temporary file handling
-

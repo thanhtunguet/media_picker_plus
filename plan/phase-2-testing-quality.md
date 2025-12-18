@@ -16,14 +16,14 @@ Goal: improve confidence and prevent regressions across platforms and the crop U
   - Validate file processing and watermarking end-to-end
 
 ## File System Support
-- [ ] **Implement file picker functionality for document selection**
+- [x] **Implement file picker functionality for document selection**
   - Add support for MediaSource.files
   - Implement document picker for each platform
   - Add file type validation and filtering
   - Handle various file formats and sizes
+  - Verification: `README.md` documents `MediaPickerPlus.pickFile` and `MediaPickerPlus.pickMultipleFiles` with extension filtering.
 
 ## Next Session Priorities (Actionable)
 1. Add unit tests for crop functionality
 2. Add widget tests for interactive UI
 3. Add integration tests for platform implementations
-
