@@ -14,10 +14,11 @@ class CropSettingsWidget extends StatelessWidget {
     required this.onPresetChanged,
   });
 
-  Widget _buildCropPresetChip(String label, String preset, BuildContext context) {
+  Widget _buildCropPresetChip(
+      String label, String preset, BuildContext context) {
     final isSelected = cropPreset == preset;
     final isInteractive = preset == 'freeform' && isSelected;
-    
+
     return FilterChip(
       label: Row(
         mainAxisSize: MainAxisSize.min,
@@ -39,7 +40,8 @@ class CropSettingsWidget extends StatelessWidget {
           onPresetChanged(preset);
         }
       },
-      backgroundColor: isSelected ? Theme.of(context).primaryColor.withAlpha(51) : null,
+      backgroundColor:
+          isSelected ? Theme.of(context).primaryColor.withAlpha(51) : null,
       selectedColor: Theme.of(context).primaryColor.withAlpha(102),
     );
   }
@@ -60,7 +62,8 @@ class CropSettingsWidget extends StatelessWidget {
         ),
         if (enableCrop) ...[
           const SizedBox(height: 8),
-          const Text('Crop Presets:', style: TextStyle(fontWeight: FontWeight.w500)),
+          const Text('Crop Presets:',
+              style: TextStyle(fontWeight: FontWeight.w500)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 6,

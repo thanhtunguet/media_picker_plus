@@ -93,7 +93,10 @@ class _FilePickerFeatureState extends State<FilePickerFeature> {
             const SizedBox(height: 12),
             const Text(
               'Tip: File types can be customized by modifying the allowedExtensions parameter.',
-              style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12, color: Colors.grey),
+              style: TextStyle(
+                  fontStyle: FontStyle.italic,
+                  fontSize: 12,
+                  color: Colors.grey),
             ),
           ],
         ),
@@ -124,7 +127,8 @@ class _FilePickerFeatureState extends State<FilePickerFeature> {
                 const SizedBox(height: 12),
                 Text(
                   'File: ${_getFileName(_filePath!)}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -209,7 +213,8 @@ class _FilePickerFeatureState extends State<FilePickerFeature> {
                         child: ElevatedButton.icon(
                           onPressed: _pickFile,
                           icon: const Icon(Icons.folder, size: 18),
-                          label: const Text('Pick Single File', style: TextStyle(fontSize: 12)),
+                          label: const Text('Pick Single File',
+                              style: TextStyle(fontSize: 12)),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
@@ -220,7 +225,8 @@ class _FilePickerFeatureState extends State<FilePickerFeature> {
                         child: ElevatedButton.icon(
                           onPressed: _pickMultipleFiles,
                           icon: const Icon(Icons.folder_open, size: 18),
-                          label: const Text('Pick Multiple Files', style: TextStyle(fontSize: 12)),
+                          label: const Text('Pick Multiple Files',
+                              style: TextStyle(fontSize: 12)),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
@@ -245,11 +251,13 @@ class _FilePickerFeatureState extends State<FilePickerFeature> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.folder, size: 64, color: Colors.grey),
+                                Icon(Icons.folder,
+                                    size: 64, color: Colors.grey),
                                 SizedBox(height: 16),
                                 Text(
                                   'No files selected',
-                                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                                  style: TextStyle(
+                                      fontSize: 18, color: Colors.grey),
                                 ),
                                 SizedBox(height: 8),
                                 Text(

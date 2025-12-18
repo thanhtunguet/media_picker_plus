@@ -41,7 +41,8 @@ class _PermissionFeatureState extends State<PermissionFeature> {
     try {
       final granted = await MediaPickerPlus.requestCameraPermission();
       setState(() => _hasCameraPermission = granted == true);
-      _showMessage(granted ? 'Camera permission granted' : 'Camera permission denied');
+      _showMessage(
+          granted ? 'Camera permission granted' : 'Camera permission denied');
     } catch (e) {
       _showError('Error requesting camera permission: $e');
     } finally {
@@ -54,7 +55,8 @@ class _PermissionFeatureState extends State<PermissionFeature> {
     try {
       final granted = await MediaPickerPlus.requestGalleryPermission();
       setState(() => _hasGalleryPermission = granted == true);
-      _showMessage(granted ? 'Gallery permission granted' : 'Gallery permission denied');
+      _showMessage(
+          granted ? 'Gallery permission granted' : 'Gallery permission denied');
     } catch (e) {
       _showError('Error requesting gallery permission: $e');
     } finally {
@@ -81,7 +83,8 @@ class _PermissionFeatureState extends State<PermissionFeature> {
     );
   }
 
-  Widget _buildPermissionCard(String title, bool granted, VoidCallback onRequest) {
+  Widget _buildPermissionCard(
+      String title, bool granted, VoidCallback onRequest) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -101,7 +104,8 @@ class _PermissionFeatureState extends State<PermissionFeature> {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
@@ -151,11 +155,14 @@ class _PermissionFeatureState extends State<PermissionFeature> {
             ),
             const SizedBox(height: 16),
             Text(
-              allGranted ? 'All Permissions Granted' : 'Some Permissions Missing',
+              allGranted
+                  ? 'All Permissions Granted'
+                  : 'Some Permissions Missing',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: allGranted ? Colors.green.shade700 : Colors.orange.shade700,
+                color:
+                    allGranted ? Colors.green.shade700 : Colors.orange.shade700,
               ),
             ),
             const SizedBox(height: 8),
@@ -165,7 +172,8 @@ class _PermissionFeatureState extends State<PermissionFeature> {
                   : 'Request missing permissions to unlock all features',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: allGranted ? Colors.green.shade600 : Colors.orange.shade600,
+                color:
+                    allGranted ? Colors.green.shade600 : Colors.orange.shade600,
               ),
             ),
             if (!allGranted) ...[
@@ -202,14 +210,20 @@ class _PermissionFeatureState extends State<PermissionFeature> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            const Text('📷 Camera Permission:', style: TextStyle(fontWeight: FontWeight.w500)),
-            const Text('Required for capturing photos and recording videos directly from the camera.'),
+            const Text('📷 Camera Permission:',
+                style: TextStyle(fontWeight: FontWeight.w500)),
+            const Text(
+                'Required for capturing photos and recording videos directly from the camera.'),
             const SizedBox(height: 8),
-            const Text('🖼️ Gallery Permission:', style: TextStyle(fontWeight: FontWeight.w500)),
-            const Text('Required for accessing and selecting images/videos from device gallery.'),
+            const Text('🖼️ Gallery Permission:',
+                style: TextStyle(fontWeight: FontWeight.w500)),
+            const Text(
+                'Required for accessing and selecting images/videos from device gallery.'),
             const SizedBox(height: 8),
-            const Text('🎤 Microphone Permission:', style: TextStyle(fontWeight: FontWeight.w500)),
-            const Text('Automatically handled when recording videos with audio.'),
+            const Text('🎤 Microphone Permission:',
+                style: TextStyle(fontWeight: FontWeight.w500)),
+            const Text(
+                'Automatically handled when recording videos with audio.'),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),

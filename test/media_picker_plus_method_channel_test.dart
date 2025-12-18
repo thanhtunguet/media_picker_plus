@@ -9,10 +9,12 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   MethodChannelMediaPickerPlus platform = MethodChannelMediaPickerPlus();
-  const MethodChannel channel = MethodChannel('info.thanhtunguet.media_picker_plus');
+  const MethodChannel channel =
+      MethodChannel('info.thanhtunguet.media_picker_plus');
 
   setUp(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
       channel,
       (MethodCall methodCall) async {
         switch (methodCall.method) {
@@ -33,7 +35,8 @@ void main() {
   });
 
   tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
   });
 
   test('getPlatformVersion', () async {
@@ -42,7 +45,8 @@ void main() {
 
   test('pickMedia calls correct method', () async {
     const options = MediaOptions();
-    final result = await platform.pickMedia(MediaSource.gallery, MediaType.image, options);
+    final result =
+        await platform.pickMedia(MediaSource.gallery, MediaType.image, options);
     expect(result, 'test_path.jpg');
   });
 
@@ -73,12 +77,14 @@ void main() {
       imageQuality: 90,
       watermark: 'Test Watermark',
     );
-    final result = await platform.pickMedia(MediaSource.camera, MediaType.video, options);
+    final result =
+        await platform.pickMedia(MediaSource.camera, MediaType.video, options);
     expect(result, 'test_path.jpg');
   });
 
   test('pickMedia handles exceptions', () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
       channel,
       (MethodCall methodCall) async {
         if (methodCall.method == 'pickMedia') {
@@ -96,7 +102,8 @@ void main() {
   });
 
   test('pickFile returns file path', () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
       channel,
       (MethodCall methodCall) async {
         if (methodCall.method == 'pickFile') {
@@ -112,7 +119,8 @@ void main() {
   });
 
   test('pickMultipleFiles returns list of file paths', () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
       channel,
       (MethodCall methodCall) async {
         if (methodCall.method == 'pickMultipleFiles') {
@@ -128,7 +136,8 @@ void main() {
   });
 
   test('pickMultipleMedia returns list of media paths', () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
       channel,
       (MethodCall methodCall) async {
         if (methodCall.method == 'pickMultipleMedia') {
@@ -139,12 +148,14 @@ void main() {
     );
 
     const options = MediaOptions();
-    final result = await platform.pickMultipleMedia(MediaSource.gallery, MediaType.image, options);
+    final result = await platform.pickMultipleMedia(
+        MediaSource.gallery, MediaType.image, options);
     expect(result, ['image1.jpg', 'image2.jpg']);
   });
 
   test('pickFile handles null result', () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
       channel,
       (MethodCall methodCall) async {
         if (methodCall.method == 'pickFile') {
@@ -160,7 +171,8 @@ void main() {
   });
 
   test('pickMultipleFiles handles null result', () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
       channel,
       (MethodCall methodCall) async {
         if (methodCall.method == 'pickMultipleFiles') {
@@ -176,7 +188,8 @@ void main() {
   });
 
   test('pickMultipleMedia handles null result', () async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
       channel,
       (MethodCall methodCall) async {
         if (methodCall.method == 'pickMultipleMedia') {
@@ -187,7 +200,8 @@ void main() {
     );
 
     const options = MediaOptions();
-    final result = await platform.pickMultipleMedia(MediaSource.gallery, MediaType.image, options);
+    final result = await platform.pickMultipleMedia(
+        MediaSource.gallery, MediaType.image, options);
     expect(result, null);
   });
 }

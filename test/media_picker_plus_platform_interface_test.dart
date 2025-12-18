@@ -8,12 +8,12 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 class MockMediaPickerPlusPlatform
     with MockPlatformInterfaceMixin
     implements MediaPickerPlusPlatform {
-
   @override
   Future<String?> getPlatformVersion() => Future.value('42');
 
   @override
-  Future<String?> pickMedia(MediaSource source, MediaType type, MediaOptions options) {
+  Future<String?> pickMedia(
+      MediaSource source, MediaType type, MediaOptions options) {
     return Future.value('test_path.jpg');
   }
 
@@ -30,17 +30,20 @@ class MockMediaPickerPlusPlatform
   Future<bool> requestGalleryPermission() => Future.value(true);
 
   @override
-  Future<String?> pickFile(MediaOptions options, List<String>? allowedExtensions) {
+  Future<String?> pickFile(
+      MediaOptions options, List<String>? allowedExtensions) {
     return Future.value('test_file.pdf');
   }
 
   @override
-  Future<List<String>?> pickMultipleFiles(MediaOptions options, List<String>? allowedExtensions) {
+  Future<List<String>?> pickMultipleFiles(
+      MediaOptions options, List<String>? allowedExtensions) {
     return Future.value(['test_file1.pdf', 'test_file2.docx']);
   }
 
   @override
-  Future<List<String>?> pickMultipleMedia(MediaSource source, MediaType type, MediaOptions options) {
+  Future<List<String>?> pickMultipleMedia(
+      MediaSource source, MediaType type, MediaOptions options) {
     return Future.value(['test_media1.jpg', 'test_media2.jpg']);
   }
 
@@ -61,7 +64,7 @@ void main() {
     test('default pickFile throws UnimplementedError', () async {
       final platform = _UnimplementedPlatform();
       const options = MediaOptions();
-      
+
       expect(
         () => platform.pickFile(options, null),
         throwsA(isA<UnimplementedError>()),
@@ -71,7 +74,7 @@ void main() {
     test('default pickMultipleFiles throws UnimplementedError', () async {
       final platform = _UnimplementedPlatform();
       const options = MediaOptions();
-      
+
       expect(
         () => platform.pickMultipleFiles(options, null),
         throwsA(isA<UnimplementedError>()),
@@ -81,9 +84,10 @@ void main() {
     test('default pickMultipleMedia throws UnimplementedError', () async {
       final platform = _UnimplementedPlatform();
       const options = MediaOptions();
-      
+
       expect(
-        () => platform.pickMultipleMedia(MediaSource.gallery, MediaType.image, options),
+        () => platform.pickMultipleMedia(
+            MediaSource.gallery, MediaType.image, options),
         throwsA(isA<UnimplementedError>()),
       );
     });
@@ -91,7 +95,7 @@ void main() {
     test('default pickMedia throws UnimplementedError', () async {
       final platform = _UnimplementedPlatform();
       const options = MediaOptions();
-      
+
       expect(
         () => platform.pickMedia(MediaSource.gallery, MediaType.image, options),
         throwsA(isA<UnimplementedError>()),
@@ -100,7 +104,7 @@ void main() {
 
     test('default hasCameraPermission throws UnimplementedError', () async {
       final platform = _UnimplementedPlatform();
-      
+
       expect(
         () => platform.hasCameraPermission(),
         throwsA(isA<UnimplementedError>()),
@@ -109,7 +113,7 @@ void main() {
 
     test('default requestCameraPermission throws UnimplementedError', () async {
       final platform = _UnimplementedPlatform();
-      
+
       expect(
         () => platform.requestCameraPermission(),
         throwsA(isA<UnimplementedError>()),
@@ -118,16 +122,17 @@ void main() {
 
     test('default hasGalleryPermission throws UnimplementedError', () async {
       final platform = _UnimplementedPlatform();
-      
+
       expect(
         () => platform.hasGalleryPermission(),
         throwsA(isA<UnimplementedError>()),
       );
     });
 
-    test('default requestGalleryPermission throws UnimplementedError', () async {
+    test('default requestGalleryPermission throws UnimplementedError',
+        () async {
       final platform = _UnimplementedPlatform();
-      
+
       expect(
         () => platform.requestGalleryPermission(),
         throwsA(isA<UnimplementedError>()),
@@ -136,7 +141,7 @@ void main() {
 
     test('default getPlatformVersion throws UnimplementedError', () async {
       final platform = _UnimplementedPlatform();
-      
+
       expect(
         () => platform.getPlatformVersion(),
         throwsA(isA<UnimplementedError>()),
@@ -164,7 +169,8 @@ void main() {
 
       test('pickMultipleFiles returns expected result', () async {
         const options = MediaOptions();
-        final result = await mockPlatform.pickMultipleFiles(options, ['.pdf', '.docx']);
+        final result =
+            await mockPlatform.pickMultipleFiles(options, ['.pdf', '.docx']);
         expect(result, ['test_file1.pdf', 'test_file2.docx']);
       });
 
@@ -176,19 +182,22 @@ void main() {
 
       test('pickMultipleMedia returns expected result', () async {
         const options = MediaOptions();
-        final result = await mockPlatform.pickMultipleMedia(MediaSource.gallery, MediaType.image, options);
+        final result = await mockPlatform.pickMultipleMedia(
+            MediaSource.gallery, MediaType.image, options);
         expect(result, ['test_media1.jpg', 'test_media2.jpg']);
       });
 
       test('pickMultipleMedia with video type', () async {
         const options = MediaOptions();
-        final result = await mockPlatform.pickMultipleMedia(MediaSource.gallery, MediaType.video, options);
+        final result = await mockPlatform.pickMultipleMedia(
+            MediaSource.gallery, MediaType.video, options);
         expect(result, ['test_media1.jpg', 'test_media2.jpg']);
       });
 
       test('pickMultipleMedia with camera source', () async {
         const options = MediaOptions();
-        final result = await mockPlatform.pickMultipleMedia(MediaSource.camera, MediaType.image, options);
+        final result = await mockPlatform.pickMultipleMedia(
+            MediaSource.camera, MediaType.image, options);
         expect(result, ['test_media1.jpg', 'test_media2.jpg']);
       });
     });

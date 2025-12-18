@@ -94,7 +94,8 @@ class CropOptions {
 
   factory CropOptions.fromMap(Map<String, dynamic> map) {
     return CropOptions(
-      cropRect: map['cropRect'] != null ? CropRect.fromMap(map['cropRect']) : null,
+      cropRect:
+          map['cropRect'] != null ? CropRect.fromMap(map['cropRect']) : null,
       enableCrop: map['enableCrop'] ?? false,
       aspectRatio: map['aspectRatio']?.toDouble(),
       freeform: map['freeform'] ?? true,

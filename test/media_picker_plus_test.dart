@@ -7,12 +7,12 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 class MockMediaPickerPlusPlatform
     with MockPlatformInterfaceMixin
     implements MediaPickerPlusPlatform {
-
   @override
   Future<String?> getPlatformVersion() => Future.value('42');
 
   @override
-  Future<String?> pickMedia(MediaSource source, MediaType type, MediaOptions options) {
+  Future<String?> pickMedia(
+      MediaSource source, MediaType type, MediaOptions options) {
     return Future.value('test_path.jpg');
   }
 
@@ -29,17 +29,20 @@ class MockMediaPickerPlusPlatform
   Future<bool> requestGalleryPermission() => Future.value(true);
 
   @override
-  Future<String?> pickFile(MediaOptions options, List<String>? allowedExtensions) {
+  Future<String?> pickFile(
+      MediaOptions options, List<String>? allowedExtensions) {
     return Future.value('test_file.pdf');
   }
 
   @override
-  Future<List<String>?> pickMultipleFiles(MediaOptions options, List<String>? allowedExtensions) {
+  Future<List<String>?> pickMultipleFiles(
+      MediaOptions options, List<String>? allowedExtensions) {
     return Future.value(['test_file1.pdf', 'test_file2.docx']);
   }
 
   @override
-  Future<List<String>?> pickMultipleMedia(MediaSource source, MediaType type, MediaOptions options) {
+  Future<List<String>?> pickMultipleMedia(
+      MediaSource source, MediaType type, MediaOptions options) {
     return Future.value(['test_media1.jpg', 'test_media2.jpg']);
   }
 
@@ -50,7 +53,8 @@ class MockMediaPickerPlusPlatform
 }
 
 void main() {
-  final MediaPickerPlusPlatform initialPlatform = MediaPickerPlusPlatform.instance;
+  final MediaPickerPlusPlatform initialPlatform =
+      MediaPickerPlusPlatform.instance;
 
   test('$MethodChannelMediaPickerPlus is the default instance', () {
     expect(initialPlatform, isInstanceOf<MethodChannelMediaPickerPlus>());
@@ -127,7 +131,8 @@ void main() {
       expect(result, 'test_file.pdf');
     });
 
-    test('pickMultipleFiles returns list of file paths from platform', () async {
+    test('pickMultipleFiles returns list of file paths from platform',
+        () async {
       final result = await MediaPickerPlus.pickMultipleFiles();
       expect(result, ['test_file1.pdf', 'test_file2.docx']);
     });
@@ -139,12 +144,14 @@ void main() {
       expect(result, ['test_file1.pdf', 'test_file2.docx']);
     });
 
-    test('pickMultipleImages returns list of image paths from platform', () async {
+    test('pickMultipleImages returns list of image paths from platform',
+        () async {
       final result = await MediaPickerPlus.pickMultipleImages();
       expect(result, ['test_media1.jpg', 'test_media2.jpg']);
     });
 
-    test('pickMultipleVideos returns list of video paths from platform', () async {
+    test('pickMultipleVideos returns list of video paths from platform',
+        () async {
       final result = await MediaPickerPlus.pickMultipleVideos();
       expect(result, ['test_media1.jpg', 'test_media2.jpg']);
     });

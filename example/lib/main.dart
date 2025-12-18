@@ -170,7 +170,8 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
                 const SizedBox(height: 6),
                 Flexible(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.red.shade50,
                       borderRadius: BorderRadius.circular(8),
@@ -312,7 +313,7 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
               builder: (context, constraints) {
                 final crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
                 final childAspectRatio = constraints.maxWidth > 600 ? 1.1 : 0.9;
-                
+
                 return GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -320,52 +321,52 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                   childAspectRatio: childAspectRatio,
-              children: [
-                _buildFeatureCard(
-                  title: 'Media Picker',
-                  description: 'Pick images & videos with processing',
-                  icon: Icons.photo_library,
-                  color: Colors.blue,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (context) => const MediaPickerFeature()),
-                  ),
-                  requiresPermission: true,
-                  hasPermission: _hasGalleryPermission,
-                ),
-                _buildFeatureCard(
-                  title: 'Camera & Recording',
-                  description: 'Capture photos & record videos',
-                  icon: Icons.camera_alt,
-                  color: Colors.green,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (context) => const CameraFeature()),
-                  ),
-                  requiresPermission: true,
-                  hasPermission: _hasCameraPermission,
-                ),
-                _buildFeatureCard(
-                  title: 'File Picker',
-                  description: 'Select documents & files',
-                  icon: Icons.folder,
-                  color: Colors.orange,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (context) => const FilePickerFeature()),
-                  ),
-                ),
-                _buildFeatureCard(
-                  title: 'Permissions',
-                  description: 'Manage camera & gallery permissions',
-                  icon: Icons.security,
-                  color: Colors.purple,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (context) => const PermissionFeature()),
-                  ),
-                ),
-              ],
+                  children: [
+                    _buildFeatureCard(
+                      title: 'Media Picker',
+                      description: 'Pick images & videos with processing',
+                      icon: Icons.photo_library,
+                      color: Colors.blue,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (context) => const MediaPickerFeature()),
+                      ),
+                      requiresPermission: true,
+                      hasPermission: _hasGalleryPermission,
+                    ),
+                    _buildFeatureCard(
+                      title: 'Camera & Recording',
+                      description: 'Capture photos & record videos',
+                      icon: Icons.camera_alt,
+                      color: Colors.green,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (context) => const CameraFeature()),
+                      ),
+                      requiresPermission: true,
+                      hasPermission: _hasCameraPermission,
+                    ),
+                    _buildFeatureCard(
+                      title: 'File Picker',
+                      description: 'Select documents & files',
+                      icon: Icons.folder,
+                      color: Colors.orange,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (context) => const FilePickerFeature()),
+                      ),
+                    ),
+                    _buildFeatureCard(
+                      title: 'Permissions',
+                      description: 'Manage camera & gallery permissions',
+                      icon: Icons.security,
+                      color: Colors.purple,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (context) => const PermissionFeature()),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

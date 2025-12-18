@@ -31,12 +31,17 @@ class PermissionStatusWidget extends StatelessWidget {
                 children: [
                   Text(
                     'Camera Permission',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    hasCameraPermission ? 'Granted' : 'Required for camera features',
+                    hasCameraPermission
+                        ? 'Granted'
+                        : 'Required for camera features',
                     style: TextStyle(
-                      color: hasCameraPermission ? Colors.green.shade600 : Colors.red.shade600,
+                      color: hasCameraPermission
+                          ? Colors.green.shade600
+                          : Colors.red.shade600,
                     ),
                   ),
                 ],

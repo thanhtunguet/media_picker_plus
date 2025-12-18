@@ -306,15 +306,17 @@ class _EnhancedImagePreviewState extends State<EnhancedImagePreview> {
   }
 
   String _getResizeStatus() {
-    if (_imageSize == null || widget.maxWidth == null || widget.maxHeight == null) {
+    if (_imageSize == null ||
+        widget.maxWidth == null ||
+        widget.maxHeight == null) {
       return 'Unknown';
     }
-    
+
     final actualWidth = _imageSize!.width.toInt();
     final actualHeight = _imageSize!.height.toInt();
     final maxWidth = widget.maxWidth!;
     final maxHeight = widget.maxHeight!;
-    
+
     if (actualWidth <= maxWidth && actualHeight <= maxHeight) {
       if (actualWidth == maxWidth || actualHeight == maxHeight) {
         return 'Resized (fit to bounds)';
@@ -351,7 +353,9 @@ class _EnhancedImagePreviewState extends State<EnhancedImagePreview> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildInfoRow('Path', _getImagePath()),
-            if (widget.resizeEnabled && widget.maxWidth != null && widget.maxHeight != null)
+            if (widget.resizeEnabled &&
+                widget.maxWidth != null &&
+                widget.maxHeight != null)
               _buildInfoRow(
                 'Target Resolution',
                 '${widget.maxWidth} x ${widget.maxHeight} (max)',
@@ -361,7 +365,10 @@ class _EnhancedImagePreviewState extends State<EnhancedImagePreview> {
                 'Actual Resolution',
                 '${_imageSize!.width.toInt()} x ${_imageSize!.height.toInt()}',
               ),
-            if (widget.resizeEnabled && _imageSize != null && widget.maxWidth != null && widget.maxHeight != null)
+            if (widget.resizeEnabled &&
+                _imageSize != null &&
+                widget.maxWidth != null &&
+                widget.maxHeight != null)
               _buildInfoRow(
                 'Resize Status',
                 _getResizeStatus(),
@@ -379,7 +386,11 @@ class _EnhancedImagePreviewState extends State<EnhancedImagePreview> {
                 kIsWeb || widget.imagePath.startsWith('data:')
                     ? 'Web/Data URL'
                     : 'Processed File'),
-            _buildInfoRow('Processing', widget.resizeEnabled ? 'Resized & Watermarked' : 'Watermarked Only'),
+            _buildInfoRow(
+                'Processing',
+                widget.resizeEnabled
+                    ? 'Resized & Watermarked'
+                    : 'Watermarked Only'),
           ],
         ),
         actions: [
@@ -842,12 +853,12 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
     if (widget.maxWidth == null || widget.maxHeight == null) {
       return 'Unknown';
     }
-    
+
     final actualWidth = size.width.toInt();
     final actualHeight = size.height.toInt();
     final maxWidth = widget.maxWidth!;
     final maxHeight = widget.maxHeight!;
-    
+
     if (actualWidth <= maxWidth && actualHeight <= maxHeight) {
       if (actualWidth == maxWidth || actualHeight == maxHeight) {
         return 'Resized (fit to bounds)';
@@ -890,14 +901,18 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
           children: [
             _buildInfoRow('Path', _getVideoPath()),
             _buildInfoRow('Duration', _formatDuration(duration)),
-            if (widget.resizeEnabled && widget.maxWidth != null && widget.maxHeight != null)
+            if (widget.resizeEnabled &&
+                widget.maxWidth != null &&
+                widget.maxHeight != null)
               _buildInfoRow(
                 'Target Resolution',
                 '${widget.maxWidth} x ${widget.maxHeight} (max)',
               ),
-            _buildInfoRow(
-                'Actual Resolution', '${size.width.toInt()}x${size.height.toInt()}'),
-            if (widget.resizeEnabled && widget.maxWidth != null && widget.maxHeight != null)
+            _buildInfoRow('Actual Resolution',
+                '${size.width.toInt()}x${size.height.toInt()}'),
+            if (widget.resizeEnabled &&
+                widget.maxWidth != null &&
+                widget.maxHeight != null)
               _buildInfoRow(
                 'Resize Status',
                 _getVideoResizeStatus(size),
@@ -909,7 +924,11 @@ class _EnhancedVideoPlayerState extends State<EnhancedVideoPlayer> {
                 kIsWeb || widget.videoPath.startsWith('data:')
                     ? 'Web/Data URL'
                     : 'Processed File'),
-            _buildInfoRow('Processing', widget.resizeEnabled ? 'Resized & Watermarked' : 'Watermarked Only'),
+            _buildInfoRow(
+                'Processing',
+                widget.resizeEnabled
+                    ? 'Resized & Watermarked'
+                    : 'Watermarked Only'),
           ],
         ),
         actions: [

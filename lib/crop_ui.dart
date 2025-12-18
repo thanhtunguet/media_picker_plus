@@ -10,6 +10,12 @@ import 'crop_options.dart';
 /// Interactive cropping UI widget for manual crop selection
 class CropUI extends StatefulWidget {
   final String imagePath;
+
+  /// Optional pre-decoded image to display instead of loading [imagePath].
+  ///
+  /// This is mainly intended for tests and advanced use-cases where you already
+  /// have a decoded [ui.Image] available.
+  final ui.Image? initialImage;
   final CropOptions? initialCropOptions;
   final Function(CropRect? cropRect) onCropChanged;
   final VoidCallback? onConfirm;
@@ -18,6 +24,7 @@ class CropUI extends StatefulWidget {
   const CropUI({
     super.key,
     required this.imagePath,
+    this.initialImage,
     this.initialCropOptions,
     required this.onCropChanged,
     this.onConfirm,
@@ -37,14 +44,22 @@ class _CropUIState extends State<CropUI> with TickerProviderStateMixin {
   bool _isAtMinimumSize = false;
 
   // Performance optimization: reduce callback frequency
-  DateTime _lastCallbackTime = DateTime.now();
+  DateTime _lastCallbackTime = DateTime.fromMillisecondsSinceEpoch(0);
   static const _callbackThrottleMs = 16; // ~60 FPS
 
   @override
   void initState() {
     super.initState();
     _initializeCropSettings();
-    _loadImage();
+    if (widget.initialImage != null) {
+      _image = widget.initialImage;
+      _isLoading = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _notifyCropChanged();
+      });
+    } else {
+      _loadImage();
+    }
   }
 
   void _initializeCropSettings() {

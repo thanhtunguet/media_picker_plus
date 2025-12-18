@@ -22,16 +22,15 @@ class MediaPickerPlus {
     BuildContext? context,
   }) async {
     // Use interactive cropping if context is provided and cropping is enabled
-    if (context != null && 
-        options.cropOptions?.enableCrop == true) {
+    if (context != null && options.cropOptions?.enableCrop == true) {
       return await CropHelper.pickMediaWithCrop(
-        context, 
-        MediaSource.gallery, 
-        MediaType.image, 
+        context,
+        MediaSource.gallery,
+        MediaType.image,
         options,
       );
     }
-    
+
     return MediaPickerPlusPlatform.instance
         .pickMedia(MediaSource.gallery, MediaType.image, options);
   }
@@ -50,16 +49,15 @@ class MediaPickerPlus {
     BuildContext? context,
   }) async {
     // Use interactive cropping if context is provided and cropping is enabled
-    if (context != null && 
-        options.cropOptions?.enableCrop == true) {
+    if (context != null && options.cropOptions?.enableCrop == true) {
       return await CropHelper.pickMediaWithCrop(
-        context, 
-        MediaSource.camera, 
-        MediaType.image, 
+        context,
+        MediaSource.camera,
+        MediaType.image,
         options,
       );
     }
-    
+
     return MediaPickerPlusPlatform.instance
         .pickMedia(MediaSource.camera, MediaType.image, options);
   }

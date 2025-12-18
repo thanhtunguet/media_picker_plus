@@ -10,7 +10,6 @@ import 'media_type.dart';
 
 /// Helper class to handle interactive cropping flow
 class CropHelper {
-
   /// Pick media with interactive cropping UI when cropping is enabled
   static Future<String?> pickMediaWithCrop(
     BuildContext context,
@@ -22,9 +21,10 @@ class CropHelper {
     if (options.cropOptions?.enableCrop == true) {
       return await _pickWithInteractiveCrop(context, source, type, options);
     }
-    
+
     // Use regular picking when cropping is disabled
-    return await MediaPickerPlusPlatform.instance.pickMedia(source, type, options);
+    return await MediaPickerPlusPlatform.instance
+        .pickMedia(source, type, options);
   }
 
   static Future<String?> _pickWithInteractiveCrop(
@@ -44,15 +44,17 @@ class CropHelper {
       maxDuration: options.maxDuration,
       cropOptions: null, // Disable cropping for initial pick
     );
-    
-    final tempResult = await MediaPickerPlusPlatform.instance.pickMedia(source, type, tempOptions);
+
+    final tempResult = await MediaPickerPlusPlatform.instance
+        .pickMedia(source, type, tempOptions);
     if (tempResult == null) return null;
 
     // Check if context is still mounted before showing UI
     if (!context.mounted) return null;
 
     // Show interactive cropping UI
-    final cropResult = await showCropUI(context, tempResult, options.cropOptions);
+    final cropResult =
+        await showCropUI(context, tempResult, options.cropOptions);
     if (cropResult == null) return null;
 
     // Apply final processing with watermark if needed
@@ -73,11 +75,11 @@ class CropHelper {
           lockAspectRatio: false,
         ),
       );
-      
+
       // Create a temporary file from the original and process with final options
       return await _processImageWithFinalOptions(tempResult, finalOptions);
     }
-    
+
     // Apply cropping without watermark
     final finalOptions = MediaOptions(
       imageQuality: options.imageQuality,
@@ -95,7 +97,7 @@ class CropHelper {
         lockAspectRatio: false,
       ),
     );
-    
+
     return await _processImageWithFinalOptions(tempResult, finalOptions);
   }
 
@@ -106,9 +108,10 @@ class CropHelper {
     try {
       final tempFile = File(imagePath);
       if (!await tempFile.exists()) return null;
-      
+
       // Use the platform interface to process the image with the crop settings
-      return await MediaPickerPlusPlatform.instance.processImage(imagePath, options);
+      return await MediaPickerPlusPlatform.instance
+          .processImage(imagePath, options);
     } catch (e) {
       // If processing fails, return the original image
       return imagePath;

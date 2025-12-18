@@ -25,11 +25,12 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       MediaSource source, MediaType type, MediaOptions options) async {
     try {
       // Check if freeform cropping is enabled
-      if (options.cropOptions?.freeform == true && options.cropOptions?.enableCrop == true) {
+      if (options.cropOptions?.freeform == true &&
+          options.cropOptions?.enableCrop == true) {
         // Handle interactive cropping
         return await _pickMediaWithInteractiveCrop(source, type, options);
       }
-      
+
       final result = await methodChannel.invokeMethod<String>('pickMedia', {
         'source': source.toString().split('.').last,
         'type': type.toString().split('.').last,
@@ -55,15 +56,15 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       // Disable cropping for initial pick
       cropOptions: null,
     );
-    
+
     final tempResult = await methodChannel.invokeMethod<String>('pickMedia', {
       'source': source.toString().split('.').last,
       'type': type.toString().split('.').last,
       'options': tempOptions.toMap(),
     });
-    
+
     if (tempResult == null) return null;
-    
+
     // Show interactive cropping UI - this will be handled at the Flutter app level
     // For now, return the uncropped image and let the app handle the UI
     return tempResult;
@@ -82,7 +83,8 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
   @override
   Future<bool> requestCameraPermission() async {
     try {
-      final result = await methodChannel.invokeMethod('requestCameraPermission');
+      final result =
+          await methodChannel.invokeMethod('requestCameraPermission');
       return _convertToBool(result);
     } catch (e) {
       return false;
@@ -102,7 +104,8 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
   @override
   Future<bool> requestGalleryPermission() async {
     try {
-      final result = await methodChannel.invokeMethod('requestGalleryPermission');
+      final result =
+          await methodChannel.invokeMethod('requestGalleryPermission');
       return _convertToBool(result);
     } catch (e) {
       return false;

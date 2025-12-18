@@ -635,6 +635,8 @@ final String? croppedImage = await MediaPickerPlus.pickImage(
 
 The interactive UI is displayed as a full-screen modal that guides users through the cropping process with intuitive touch controls and visual feedback.
 
+**Testing/Advanced:** `CropUI` also supports injecting a pre-decoded `ui.Image` via `initialImage` (skips loading from `imagePath`).
+
 ### File Operations
 
 #### Pick Single File
