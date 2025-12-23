@@ -1538,19 +1538,15 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         let position = options["watermarkPosition"] as? String ?? "bottomRight"
         
         // Use the existing video watermarking method
-        addWatermarkToVideo(
+        if let watermarkedPath = addWatermarkToVideo(
             videoPath: videoPath,
             text: watermarkText,
             fontSize: fontSize,
             position: position
-        ) { [weak self] watermarkedVideoPath in
-            DispatchQueue.main.async {
-                if let path = watermarkedVideoPath {
-                    result(path)
-                } else {
-                    result(FlutterError(code: "PROCESSING_FAILED", message: "Failed to add watermark to video", details: nil))
-                }
-            }
+        ) {
+            result(watermarkedPath)
+        } else {
+            result(FlutterError(code: "PROCESSING_FAILED", message: "Failed to add watermark to video", details: nil))
         }
     }
 }
