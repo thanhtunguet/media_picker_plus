@@ -5,6 +5,7 @@
 - Unit/widget tests for crop options and interactive crop UI.
 - Integration tests (mocked MethodChannel) for camera/gallery/file flows under `example/integration_test/`.
 - `CropUI` now supports `initialImage` injection (useful for tests/advanced usage).
+- **Standalone watermarking methods**: `MediaPickerPlus.addWatermarkToImage()` and `MediaPickerPlus.addWatermarkToVideo()` for adding watermarks to existing media files.
 
 ### Fixed
 

@@ -480,6 +480,118 @@ final String? recordedPath = await MediaPickerPlus.recordVideo(
 );
 ```
 
+### Standalone Watermarking
+
+The plugin provides dedicated methods to add watermarks to existing media files without going through the media picker workflow. These methods are perfect for post-processing or batch operations on your existing media library.
+
+#### Add Watermark to Existing Image
+
+```dart
+// Add watermark to an existing image file
+final String? watermarkedImagePath = await MediaPickerPlus.addWatermarkToImage(
+  '/path/to/your/image.jpg',
+  options: const MediaOptions(
+    watermark: '© MyApp 2025',
+    watermarkPosition: WatermarkPosition.bottomRight,
+    watermarkFontSize: 32,
+    imageQuality: 90, // Output quality
+  ),
+);
+
+if (watermarkedImagePath != null) {
+  // Use the watermarked image
+  File watermarkedFile = File(watermarkedImagePath);
+}
+```
+
+#### Add Watermark to Existing Video
+
+```dart
+// Add watermark to an existing video file
+final String? watermarkedVideoPath = await MediaPickerPlus.addWatermarkToVideo(
+  '/path/to/your/video.mp4',
+  options: const MediaOptions(
+    watermark: '🎬 MyApp Productions',
+    watermarkPosition: WatermarkPosition.topLeft,
+    watermarkFontSize: 28,
+  ),
+);
+
+if (watermarkedVideoPath != null) {
+  // Use the watermarked video
+  File watermarkedFile = File(watermarkedVideoPath);
+}
+```
+
+#### Batch Watermarking Example
+
+```dart
+// Process multiple images with the same watermark
+Future<List<String>> batchWatermarkImages(List<String> imagePaths) async {
+  final List<String> watermarkedPaths = [];
+  
+  const watermarkOptions = MediaOptions(
+    watermark: 'Batch Processed ${DateTime.now().year}',
+    watermarkPosition: WatermarkPosition.bottomCenter,
+    watermarkFontSize: 24,
+    imageQuality: 85,
+  );
+  
+  for (final imagePath in imagePaths) {
+    try {
+      final watermarkedPath = await MediaPickerPlus.addWatermarkToImage(
+        imagePath,
+        options: watermarkOptions,
+      );
+      if (watermarkedPath != null) {
+        watermarkedPaths.add(watermarkedPath);
+      }
+    } catch (e) {
+      print('Failed to watermark $imagePath: $e');
+    }
+  }
+  
+  return watermarkedPaths;
+}
+```
+
+#### Platform Support for Standalone Watermarking
+
+| Feature | Android | iOS | macOS | Web |
+|---------|:-------:|:---:|:-----:|:---:|
+| **Image Watermarking** | ✅ | ✅ | ✅ | ✅ |
+| **Video Watermarking** | ✅ | ✅ | ✅ | ✅* |
+
+*Web video watermarking requires FFmpeg.js to be included in your project.
+
+#### Error Handling for Watermarking
+
+```dart
+try {
+  final watermarkedPath = await MediaPickerPlus.addWatermarkToImage(
+    '/path/to/image.jpg',
+    options: const MediaOptions(
+      watermark: 'Test Watermark',
+      watermarkPosition: WatermarkPosition.bottomRight,
+    ),
+  );
+  
+  if (watermarkedPath != null) {
+    // Success - use the watermarked file
+    print('Watermarked image saved to: $watermarkedPath');
+  }
+} catch (e) {
+  // Handle specific errors
+  if (e.toString().contains('file does not exist')) {
+    print('Source file not found');
+  } else if (e.toString().contains('watermark text is required')) {
+    print('Please provide watermark text');
+  } else {
+    print('Watermarking failed: $e');
+  }
+}
+```
+
 ### Cropping Operations
 
 The plugin supports advanced cropping functionality for both images and videos with various aspect ratio presets and freeform cropping. When using freeform cropping with a `BuildContext`, an interactive cropping UI allows manual selection of the crop area.

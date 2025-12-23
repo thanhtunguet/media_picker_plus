@@ -51,6 +51,16 @@ class MockMediaPickerPlusPlatform
   Future<String?> processImage(String imagePath, MediaOptions options) {
     return Future.value('processed_$imagePath');
   }
+
+  @override
+  Future<String?> addWatermarkToImage(String imagePath, MediaOptions options) {
+    return Future.value('watermarked_$imagePath');
+  }
+
+  @override
+  Future<String?> addWatermarkToVideo(String videoPath, MediaOptions options) {
+    return Future.value('watermarked_$videoPath');
+  }
 }
 
 void main() {

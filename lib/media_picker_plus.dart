@@ -123,4 +123,22 @@ class MediaPickerPlus {
     return MediaPickerPlusPlatform.instance
         .pickMultipleMedia(MediaSource.gallery, MediaType.video, options);
   }
+
+  /// Add watermark to an existing image file
+  static Future<String?> addWatermarkToImage(
+    String imagePath, {
+    required MediaOptions options,
+  }) async {
+    return MediaPickerPlusPlatform.instance
+        .addWatermarkToImage(imagePath, options);
+  }
+
+  /// Add watermark to an existing video file
+  static Future<String?> addWatermarkToVideo(
+    String videoPath, {
+    required MediaOptions options,
+  }) async {
+    return MediaPickerPlusPlatform.instance
+        .addWatermarkToVideo(videoPath, options);
+  }
 }

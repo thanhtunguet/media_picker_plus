@@ -643,4 +643,100 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       return imagePath; // Return original on error
     }
   }
+
+  @override
+  Future<String?> addWatermarkToImage(
+      String imagePath, MediaOptions options) async {
+    try {
+      // Check if watermark is specified
+      if (options.watermark == null || options.watermark!.isEmpty) {
+        throw Exception('Watermark text is required');
+      }
+
+      // For web, the imagePath could be a data URL, blob URL, or object URL
+      final img = web.HTMLImageElement();
+      final completer = Completer<String?>();
+
+      img.onLoad.listen((_) async {
+        try {
+          final canvas = web.HTMLCanvasElement();
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+
+          final ctx = canvas.getContext('2d') as web.CanvasRenderingContext2D;
+
+          // Draw the original image
+          ctx.drawImage(img, 0, 0);
+
+          // Add watermark
+          _drawWatermark(ctx, canvas.width, canvas.height, options);
+
+          // Convert to data URL with quality settings
+          final quality =
+              (options.imageQuality.clamp(0, 100)).toDouble() / 100.0;
+          final dataUrl = canvas.toDataURL('image/jpeg', quality as dynamic);
+          completer.complete(dataUrl);
+        } catch (e) {
+          completer
+              .completeError(Exception('Failed to add watermark to image: $e'));
+        }
+      });
+
+      img.onError.listen((_) {
+        completer.completeError(Exception('Failed to load image'));
+      });
+
+      img.src = imagePath;
+      return await completer.future;
+    } catch (e) {
+      throw Exception('Error adding watermark to image: $e');
+    }
+  }
+
+  @override
+  Future<String?> addWatermarkToVideo(
+      String videoPath, MediaOptions options) async {
+    try {
+      // Check if watermark is specified
+      if (options.watermark == null || options.watermark!.isEmpty) {
+        throw Exception('Watermark text is required');
+      }
+
+      // For web video watermarking, we need to use the JavaScript function
+      final watermarkText = options.watermark!;
+      final position = options.watermarkPosition ?? 'bottomRight';
+
+      // Check if the watermarking function exists
+      final addWatermarkToVideoFunc =
+          globalThis.getProperty('addWatermarkToVideo'.toJS);
+      if (addWatermarkToVideoFunc.isUndefined ||
+          addWatermarkToVideoFunc.isNull) {
+        throw Exception(
+            'Video watermarking function not available on web. Please include ffmpeg_watermark.js');
+      }
+
+      // Create a File object from the video path (assuming it's a blob URL)
+      // This is a simplified approach - in a real scenario you might need to
+      // fetch the blob and create a File object
+      _log('Adding watermark to video: $videoPath');
+
+      try {
+        // Call JS function exposed in ffmpeg_watermark.js
+        final JSFunction watermarkFunction =
+            addWatermarkToVideoFunc as JSFunction;
+        final promise = watermarkFunction.callAsFunction(
+          null,
+          videoPath.toJS, // Pass the video path/URL
+          watermarkText.toJS,
+          position.toJS,
+        ) as JSPromise;
+        final url = await promise.toDart as String;
+        return url;
+      } catch (e) {
+        throw Exception('Failed to add watermark to video: $e');
+      }
+    } catch (e) {
+      throw Exception('Error adding watermark to video: $e');
+    }
+  }
 }

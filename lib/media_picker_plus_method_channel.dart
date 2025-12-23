@@ -170,6 +170,36 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     }
   }
 
+  @override
+  Future<String?> addWatermarkToImage(
+      String imagePath, MediaOptions options) async {
+    try {
+      final result =
+          await methodChannel.invokeMethod<String>('addWatermarkToImage', {
+        'imagePath': imagePath,
+        'options': options.toMap(),
+      });
+      return result;
+    } on PlatformException catch (e) {
+      throw Exception('Error adding watermark to image: ${e.message}');
+    }
+  }
+
+  @override
+  Future<String?> addWatermarkToVideo(
+      String videoPath, MediaOptions options) async {
+    try {
+      final result =
+          await methodChannel.invokeMethod<String>('addWatermarkToVideo', {
+        'videoPath': videoPath,
+        'options': options.toMap(),
+      });
+      return result;
+    } on PlatformException catch (e) {
+      throw Exception('Error adding watermark to video: ${e.message}');
+    }
+  }
+
   /// Helper method to safely convert various types to boolean
   /// This handles cases where native platforms might return different types
   bool _convertToBool(dynamic value) {

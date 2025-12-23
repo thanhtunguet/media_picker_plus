@@ -243,6 +243,27 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             
             let options = args["options"] as? [String: Any] ?? [:]
             processImage(imagePath: imagePath, options: options, result: result)
+            
+        case "addWatermarkToImage":
+            guard let args = call.arguments as? [String: Any],
+                  let imagePath = args["imagePath"] as? String else {
+                result(MediaPickerPlusError.invalidArgs())
+                return
+            }
+            
+            let options = args["options"] as? [String: Any] ?? [:]
+            addWatermarkToExistingImage(imagePath: imagePath, options: options, result: result)
+            
+        case "addWatermarkToVideo":
+            guard let args = call.arguments as? [String: Any],
+                  let videoPath = args["videoPath"] as? String else {
+                result(MediaPickerPlusError.invalidArgs())
+                return
+            }
+            
+            let options = args["options"] as? [String: Any] ?? [:]
+            addWatermarkToExistingVideo(videoPath: videoPath, options: options, result: result)
+            
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -1286,6 +1307,85 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             result(fileURL.path)
         } catch {
             result(MediaPickerPlusError.processingFailed())
+        }
+    }
+    
+    private func addWatermarkToExistingImage(imagePath: String, options: [String: Any], result: @escaping FlutterResult) {
+        // Validate input image path
+        guard FileManager.default.fileExists(atPath: imagePath) else {
+            result(MediaPickerPlusError.invalidImage())
+            return
+        }
+        
+        guard let image = NSImage(contentsOfFile: imagePath) else {
+            result(MediaPickerPlusError.invalidImage())
+            return
+        }
+        
+        // Check if watermark is specified
+        guard let watermarkText = options["watermark"] as? String, !watermarkText.isEmpty else {
+            result(MediaPickerPlusError.invalidArgs())
+            return
+        }
+        
+        let fontSize = options["watermarkFontSize"] as? Double ?? 24.0
+        let position = options["watermarkPosition"] as? String ?? "bottomRight"
+        
+        // Apply watermark to the image
+        let watermarkedImage = addWatermarkToImage(image, text: watermarkText, position: position, fontSize: fontSize)
+        
+        // Save the watermarked image
+        let quality = (options["imageQuality"] as? Int ?? 80) / 100
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let filename = "watermarked_image_\(Int(Date().timeIntervalSince1970)).jpg"
+        let fileURL = documentsDirectory.appendingPathComponent(filename)
+        
+        guard let cgImage = watermarkedImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            result(MediaPickerPlusError.processingFailed())
+            return
+        }
+        
+        let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
+        guard let data = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: quality]) else {
+            result(MediaPickerPlusError.processingFailed())
+            return
+        }
+        
+        do {
+            try data.write(to: fileURL)
+            result(fileURL.path)
+        } catch {
+            result(MediaPickerPlusError.processingFailed())
+        }
+    }
+    
+    private func addWatermarkToExistingVideo(videoPath: String, options: [String: Any], result: @escaping FlutterResult) {
+        // Validate input video path
+        guard FileManager.default.fileExists(atPath: videoPath) else {
+            result(FlutterError(code: "INVALID_VIDEO", message: "Video file does not exist", details: nil))
+            return
+        }
+        
+        // Check if watermark is specified
+        guard let watermarkText = options["watermark"] as? String, !watermarkText.isEmpty else {
+            result(FlutterError(code: "INVALID_ARGS", message: "Watermark text is required", details: nil))
+            return
+        }
+        
+        let fontSize = options["watermarkFontSize"] as? Double ?? 24.0
+        let position = options["watermarkPosition"] as? String ?? "bottomRight"
+        
+        let videoURL = URL(fileURLWithPath: videoPath)
+        
+        // Use the existing video watermarking method
+        addWatermarkToVideo(videoURL, text: watermarkText, position: position, fontSize: fontSize) { outputURL in
+            DispatchQueue.main.async {
+                if let outputURL = outputURL {
+                    result(outputURL.path)
+                } else {
+                    result(FlutterError(code: "PROCESSING_FAILED", message: "Failed to add watermark to video", details: nil))
+                }
+            }
         }
     }
 }

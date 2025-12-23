@@ -72,4 +72,12 @@ abstract class MediaPickerPlusPlatform extends PlatformInterface {
   Future<String?> processImage(String imagePath, MediaOptions options) {
     throw UnimplementedError('processImage() has not been implemented.');
   }
+
+  Future<String?> addWatermarkToImage(String imagePath, MediaOptions options) {
+    throw UnimplementedError('addWatermarkToImage() has not been implemented.');
+  }
+
+  Future<String?> addWatermarkToVideo(String videoPath, MediaOptions options) {
+    throw UnimplementedError('addWatermarkToVideo() has not been implemented.');
+  }
 }

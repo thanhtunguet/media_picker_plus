@@ -50,6 +50,16 @@ class MockMediaPickerPlusPlatform
   Future<String?> processImage(String imagePath, MediaOptions options) {
     return Future.value('processed_$imagePath');
   }
+
+  @override
+  Future<String?> addWatermarkToImage(String imagePath, MediaOptions options) {
+    return Future.value('watermarked_$imagePath');
+  }
+
+  @override
+  Future<String?> addWatermarkToVideo(String videoPath, MediaOptions options) {
+    return Future.value('watermarked_$videoPath');
+  }
 }
 
 void main() {
@@ -165,6 +175,32 @@ void main() {
       );
       final result = await MediaPickerPlus.pickMultipleImages(options: options);
       expect(result, ['test_media1.jpg', 'test_media2.jpg']);
+    });
+
+    test('addWatermarkToImage returns watermarked path', () async {
+      const options = MediaOptions(
+        watermark: 'Test Watermark',
+        watermarkFontSize: 24,
+        watermarkPosition: 'bottomRight',
+      );
+      final result = await MediaPickerPlus.addWatermarkToImage(
+        'test_image.jpg',
+        options: options,
+      );
+      expect(result, 'watermarked_test_image.jpg');
+    });
+
+    test('addWatermarkToVideo returns watermarked path', () async {
+      const options = MediaOptions(
+        watermark: 'Test Watermark',
+        watermarkFontSize: 24,
+        watermarkPosition: 'topLeft',
+      );
+      final result = await MediaPickerPlus.addWatermarkToVideo(
+        'test_video.mp4',
+        options: options,
+      );
+      expect(result, 'watermarked_test_video.mp4');
     });
   });
 

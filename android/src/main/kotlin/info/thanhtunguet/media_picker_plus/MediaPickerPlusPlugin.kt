@@ -231,6 +231,30 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 
                 processImage(imagePath, options ?: HashMap(), result)
             }
+            
+            "addWatermarkToImage" -> {
+                val imagePath = call.argument<String>("imagePath")
+                val options = call.argument<HashMap<String, Any>>("options")
+                
+                if (imagePath == null) {
+                    result.error("INVALID_ARGUMENTS", "Image path is required", null)
+                    return
+                }
+                
+                addWatermarkToExistingImage(imagePath, options ?: HashMap(), result)
+            }
+            
+            "addWatermarkToVideo" -> {
+                val videoPath = call.argument<String>("videoPath")
+                val options = call.argument<HashMap<String, Any>>("options")
+                
+                if (videoPath == null) {
+                    result.error("INVALID_ARGUMENTS", "Video path is required", null)
+                    return
+                }
+                
+                addWatermarkToExistingVideo(videoPath, options ?: HashMap(), result)
+            }
 
             else -> result.notImplemented()
         }
@@ -1609,6 +1633,103 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         } catch (e: Exception) {
             Log.e("MediaPickerPlus", "Error processing image: ${e.message}", e)
             result.error("PROCESSING_ERROR", "Error processing image: ${e.message}", null)
+        }
+    }
+    
+    private fun addWatermarkToExistingImage(imagePath: String, options: HashMap<String, Any>, result: Result) {
+        try {
+            // Validate input image path
+            val inputFile = File(imagePath)
+            if (!inputFile.exists()) {
+                result.error("FILE_NOT_FOUND", "Image file not found", null)
+                return
+            }
+
+            // Check if watermark is specified
+            val watermarkText = options["watermark"] as? String
+            if (watermarkText.isNullOrEmpty()) {
+                result.error("INVALID_ARGUMENTS", "Watermark text is required", null)
+                return
+            }
+
+            // Load original bitmap
+            val originalBitmap = BitmapFactory.decodeFile(imagePath)
+            if (originalBitmap == null) {
+                result.error("INVALID_IMAGE", "Unable to decode image file", null)
+                return
+            }
+
+            // Apply watermark
+            val fontSize = (options["watermarkFontSize"] as? Number)?.toFloat() ?: 30f
+            val position = options["watermarkPosition"] as? String ?: "bottomRight"
+            val watermarkedBitmap = addWatermarkToBitmap(originalBitmap, watermarkText, fontSize, position)
+
+            // Create output file
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val outputFileName = "watermarked_image_${timeStamp}.jpg"
+            val outputFile = File(context.cacheDir, outputFileName)
+
+            // Save watermarked image
+            val quality = (options["imageQuality"] as? Number)?.toInt() ?: 80
+            val outputStream = FileOutputStream(outputFile)
+            watermarkedBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+            outputStream.close()
+
+            // Clean up
+            if (watermarkedBitmap != originalBitmap) {
+                watermarkedBitmap.recycle()
+            }
+            originalBitmap.recycle()
+
+            result.success(outputFile.absolutePath)
+        } catch (e: Exception) {
+            Log.e("MediaPickerPlus", "Error adding watermark to image: ${e.message}", e)
+            result.error("WATERMARK_ERROR", "Error adding watermark to image: ${e.message}", null)
+        }
+    }
+    
+    private fun addWatermarkToExistingVideo(videoPath: String, options: HashMap<String, Any>, result: Result) {
+        try {
+            // Validate input video path
+            val inputFile = File(videoPath)
+            if (!inputFile.exists()) {
+                result.error("FILE_NOT_FOUND", "Video file not found", null)
+                return
+            }
+
+            // Check if watermark is specified
+            val watermarkText = options["watermark"] as? String
+            if (watermarkText.isNullOrEmpty()) {
+                result.error("INVALID_ARGUMENTS", "Watermark text is required", null)
+                return
+            }
+
+            // Create output file
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val outputFileName = "watermarked_video_${timeStamp}.mp4"
+            val outputFile = File(context.cacheDir, outputFileName)
+
+            // Create watermark bitmap
+            val fontSize = (options["watermarkFontSize"] as? Number)?.toFloat() ?: 48f
+            val position = options["watermarkPosition"] as? String ?: "bottomRight"
+            val watermarkBitmap = createWatermarkBitmap(watermarkText, fontSize)
+
+            // Process video with watermark
+            val success = watermarkVideoWithNativeProcessing(
+                videoPath,
+                outputFile.absolutePath,
+                watermarkBitmap,
+                position
+            )
+
+            if (success) {
+                result.success(outputFile.absolutePath)
+            } else {
+                result.error("WATERMARK_ERROR", "Failed to add watermark to video", null)
+            }
+        } catch (e: Exception) {
+            Log.e("MediaPickerPlus", "Error adding watermark to video: ${e.message}", e)
+            result.error("WATERMARK_ERROR", "Error adding watermark to video: ${e.message}", null)
         }
     }
 }
