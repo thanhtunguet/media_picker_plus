@@ -448,8 +448,17 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         -> UIImage
     {
         // Create a new context with the same size as the image
-        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
-
+        // Use 0 for scale to use the device's main screen scale
+        UIGraphicsBeginImageContextWithOptions(image.size, false, 0)
+        
+        // Ensure we have a valid context
+        guard let context = UIGraphicsGetCurrentContext() else {
+            return image
+        }
+        
+        // Set up the context with proper color space
+        context.interpolationQuality = .high
+        
         // Draw the original image
         image.draw(in: CGRect(origin: .zero, size: image.size))
 

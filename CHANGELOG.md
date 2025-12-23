@@ -11,6 +11,7 @@
 
 - Fix iOS image watermark positioning so it no longer overflows the image edge (more consistent with Android).
 - Crop UI now emits the initial crop rectangle reliably (avoids first callback being throttled).
+- Fix black image output issue in iOS `addWatermarkToImage` method by improving graphics context configuration.
 
 ## 0.1.2+4
 
