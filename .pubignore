@@ -1,0 +1,15 @@
+.claude/
+.dart_tool
+.github/
+.serena/
+.vscode/
+build/
+example/
+integration_test/
+plan/
+test/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+QWEN.md
+TODOs.md
