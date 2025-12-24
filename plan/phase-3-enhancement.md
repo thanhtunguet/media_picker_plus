@@ -16,6 +16,10 @@ Goal: expand features and developer experience after macOS/Web are functional an
   - Add usage examples and tutorials
   - Update README with detailed setup instructions
   - Create migration guides from other plugins
+  - [x] Add watermark feature demonstration to example project
+    - Created `example/lib/features/watermark_feature.dart` with interactive UI
+    - Demonstrates `addWatermarkToImage()` and `addWatermarkToVideo()` methods
+    - Includes configurable watermark text, font size, and position settings
 
 - [ ] **Add CI/CD pipeline for automated testing**
   - Set up GitHub Actions for automated testing

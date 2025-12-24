@@ -16,7 +16,7 @@
 languages:
 - dart
 - swift
-- kotlin
+# - kotlin
 - java
 - typescript
 - cpp

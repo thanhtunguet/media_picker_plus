@@ -8,6 +8,7 @@ import 'features/camera_feature.dart';
 import 'features/file_picker_feature.dart';
 import 'features/media_picker_feature.dart';
 import 'features/permission_feature.dart';
+import 'features/watermark_feature.dart';
 
 Future<void> main() async {
   runApp(const MyApp());
@@ -37,14 +38,31 @@ class MediaPickerExample extends StatefulWidget {
   State<MediaPickerExample> createState() => _MediaPickerExampleState();
 }
 
-class _MediaPickerExampleState extends State<MediaPickerExample> {
+class _MediaPickerExampleState extends State<MediaPickerExample>
+    with WidgetsBindingObserver {
   bool _hasCameraPermission = false;
   bool _hasGalleryPermission = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkPermissions();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh permissions when app becomes active (user might have changed permissions in system settings)
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissions();
+    }
   }
 
   Future<void> _checkPermissions() async {
@@ -52,10 +70,12 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
       final cameraPermission = await MediaPickerPlus.hasCameraPermission();
       final galleryPermission = await MediaPickerPlus.hasGalleryPermission();
 
-      setState(() {
-        _hasCameraPermission = cameraPermission == true;
-        _hasGalleryPermission = galleryPermission == true;
-      });
+      if (mounted) {
+        setState(() {
+          _hasCameraPermission = cameraPermission == true;
+          _hasGalleryPermission = galleryPermission == true;
+        });
+      }
     } catch (e) {
       debugPrint('Error checking permissions: $e');
     }
@@ -246,13 +266,21 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
                   ? Colors.green
                   : Colors.orange,
             ),
-            onPressed: () {
-              Navigator.of(context).push(
+            onPressed: () async {
+              // Navigate to permissions page and refresh when returning
+              await Navigator.of(context).push(
                 MaterialPageRoute(
                     builder: (context) => const PermissionFeature()),
               );
+              // Refresh permissions when returning from permissions page
+              _checkPermissions();
             },
             tooltip: 'Permission Status',
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _checkPermissions,
+            tooltip: 'Refresh Permissions',
           ),
           IconButton(
             icon: const Icon(Icons.info_outline),
@@ -261,150 +289,174 @@ class _MediaPickerExampleState extends State<MediaPickerExample> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Welcome Section
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).primaryColor,
-                    Theme.of(context).primaryColor.withAlpha(204),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Media Picker Plus',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Comprehensive media picking plugin',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withAlpha(204),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Features Grid
-            const Text(
-              'Features',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
-                final childAspectRatio = constraints.maxWidth > 600 ? 1.1 : 0.9;
-
-                return GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: childAspectRatio,
-                  children: [
-                    _buildFeatureCard(
-                      title: 'Media Picker',
-                      description: 'Pick images & videos with processing',
-                      icon: Icons.photo_library,
-                      color: Colors.blue,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (context) => const MediaPickerFeature()),
-                      ),
-                      requiresPermission: true,
-                      hasPermission: _hasGalleryPermission,
-                    ),
-                    _buildFeatureCard(
-                      title: 'Camera & Recording',
-                      description: 'Capture photos & record videos',
-                      icon: Icons.camera_alt,
-                      color: Colors.green,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (context) => const CameraFeature()),
-                      ),
-                      requiresPermission: true,
-                      hasPermission: _hasCameraPermission,
-                    ),
-                    _buildFeatureCard(
-                      title: 'File Picker',
-                      description: 'Select documents & files',
-                      icon: Icons.folder,
-                      color: Colors.orange,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (context) => const FilePickerFeature()),
-                      ),
-                    ),
-                    _buildFeatureCard(
-                      title: 'Permissions',
-                      description: 'Manage camera & gallery permissions',
-                      icon: Icons.security,
-                      color: Colors.purple,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (context) => const PermissionFeature()),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-
-            // Platform Info
-            _buildPlatformInfo(),
-            const SizedBox(height: 16),
-
-            // Key Features
-            Card(
-              child: Padding(
+      body: RefreshIndicator(
+        onRefresh: _checkPermissions,
+        child: SingleChildScrollView(
+          physics:
+              const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh even when content doesn't scroll
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Welcome Section
+              Container(
+                width: double.infinity,
                 padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).primaryColor,
+                      Theme.of(context).primaryColor.withAlpha(204),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Key Features Demonstrated',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      'Media Picker Plus',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    const Text('📸 Image and video picking from gallery'),
-                    const Text('🎥 Camera photo capture and video recording'),
-                    const Text('🏷️ Advanced watermarking with positioning'),
-                    const Text('✂️ Interactive cropping with manual selection'),
-                    const Text('🎛️ Image quality control and resizing'),
-                    const Text('📁 Multiple media selection'),
-                    const Text('📄 File picking with extension filtering'),
-                    const Text('🔐 Permission management'),
-                    const Text('⚙️ Real-time settings configuration'),
-                    const Text(
-                        '🌐 Cross-platform support (Android, iOS, macOS, Web)'),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Comprehensive media picking plugin',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withAlpha(204),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 24),
+
+              // Features Grid
+              const Text(
+                'Features',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
+                  final childAspectRatio =
+                      constraints.maxWidth > 600 ? 1.1 : 0.9;
+
+                  return GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: childAspectRatio,
+                    children: [
+                      _buildFeatureCard(
+                        title: 'Media Picker',
+                        description: 'Pick images & videos with processing',
+                        icon: Icons.photo_library,
+                        color: Colors.blue,
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const MediaPickerFeature()),
+                          );
+                          _checkPermissions(); // Refresh permissions when returning
+                        },
+                        requiresPermission: true,
+                        hasPermission: _hasGalleryPermission,
+                      ),
+                      _buildFeatureCard(
+                        title: 'Camera & Recording',
+                        description: 'Capture photos & record videos',
+                        icon: Icons.camera_alt,
+                        color: Colors.green,
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (context) => const CameraFeature()),
+                          );
+                          _checkPermissions(); // Refresh permissions when returning
+                        },
+                        requiresPermission: true,
+                        hasPermission: _hasCameraPermission,
+                      ),
+                      _buildFeatureCard(
+                        title: 'File Picker',
+                        description: 'Select documents & files',
+                        icon: Icons.folder,
+                        color: Colors.orange,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (context) => const FilePickerFeature()),
+                        ),
+                      ),
+                      _buildFeatureCard(
+                        title: 'Watermark',
+                        description: 'Add watermarks to photos & videos',
+                        icon: Icons.branding_watermark,
+                        color: Colors.teal,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (context) => const WatermarkFeature()),
+                        ),
+                      ),
+                      _buildFeatureCard(
+                        title: 'Permissions',
+                        description: 'Manage camera & gallery permissions',
+                        icon: Icons.security,
+                        color: Colors.purple,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (context) => const PermissionFeature()),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // Platform Info
+              _buildPlatformInfo(),
+              const SizedBox(height: 16),
+
+              // Key Features
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Key Features Demonstrated',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('📸 Image and video picking from gallery'),
+                      const Text('🎥 Camera photo capture and video recording'),
+                      const Text('🏷️ Advanced watermarking with positioning'),
+                      const Text(
+                          '✂️ Interactive cropping with manual selection'),
+                      const Text('🎛️ Image quality control and resizing'),
+                      const Text('📁 Multiple media selection'),
+                      const Text('📄 File picking with extension filtering'),
+                      const Text('🔐 Permission management'),
+                      const Text('⚙️ Real-time settings configuration'),
+                      const Text(
+                          '🌐 Cross-platform support (Android, iOS, macOS, Web)'),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

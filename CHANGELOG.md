@@ -6,6 +6,7 @@
 - Integration tests (mocked MethodChannel) for camera/gallery/file flows under `example/integration_test/`.
 - `CropUI` now supports `initialImage` injection (useful for tests/advanced usage).
 - **Standalone watermarking methods**: `MediaPickerPlus.addWatermarkToImage()` and `MediaPickerPlus.addWatermarkToVideo()` for adding watermarks to existing media files.
+- **Watermark feature example**: Added comprehensive watermark feature demonstration in `example/lib/features/watermark_feature.dart` with interactive UI for adding watermarks to photos and videos.
 
 ### Fixed
 
