@@ -211,7 +211,8 @@ void main() {
       expect(options.maxWidth, 1280);
       expect(options.maxHeight, 1280);
       expect(options.watermark, null);
-      expect(options.watermarkFontSize, 30);
+      expect(options.watermarkFontSize, null);
+      expect(options.watermarkFontSizePercentage, 4.0);
       expect(options.watermarkPosition, 'bottomRight');
       expect(options.maxDuration, const Duration(seconds: 60));
     });
@@ -235,7 +236,18 @@ void main() {
       expect(options.maxDuration, const Duration(seconds: 120));
     });
 
-    test('toMap returns correct map', () {
+    test('percentage-based font size can be set', () {
+      const options = MediaOptions(
+        watermark: 'Test Watermark',
+        watermarkFontSizePercentage: 5.5,
+        watermarkPosition: 'topRight',
+      );
+      expect(options.watermark, 'Test Watermark');
+      expect(options.watermarkFontSizePercentage, 5.5);
+      expect(options.watermarkPosition, 'topRight');
+    });
+
+    test('toMap returns correct map with absolute font size', () {
       const options = MediaOptions(
         imageQuality: 95,
         maxWidth: 1920,
@@ -253,6 +265,18 @@ void main() {
       expect(map['watermarkFontSize'], 24);
       expect(map['watermarkPosition'], 'topLeft');
       expect(map['maxDuration'], 120);
+    });
+
+    test('toMap returns correct map with percentage-based font size', () {
+      const options = MediaOptions(
+        watermark: 'Test',
+        watermarkFontSizePercentage: 5.0,
+        watermarkPosition: 'bottomLeft',
+      );
+      final map = options.toMap();
+      expect(map['watermark'], 'Test');
+      expect(map['watermarkFontSizePercentage'], 5.0);
+      expect(map['watermarkPosition'], 'bottomLeft');
     });
   });
 

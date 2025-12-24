@@ -20,6 +20,29 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
     private var pendingResult: FlutterResult?
     private var mediaOptions: [String: Any]?
 
+    /// Calculate watermark font size from options.
+    /// If watermarkFontSizePercentage is provided, calculates based on shorter edge.
+    /// Otherwise, uses watermarkFontSize or default value.
+    private func calculateWatermarkFontSize(
+        options: [String: Any]?,
+        width: CGFloat,
+        height: CGFloat,
+        defaultSize: CGFloat = 30.0
+    ) -> CGFloat {
+        guard let options = options else { return defaultSize }
+        
+        // Check if percentage is provided
+        if let percentage = options["watermarkFontSizePercentage"] as? Double {
+            let shorterEdge = min(width, height)
+            return shorterEdge * CGFloat(percentage / 100.0)
+        }
+        
+        // Fall back to absolute font size
+        return (options["watermarkFontSize"] as? CGFloat) 
+            ?? (options["watermarkFontSize"] as? Double).map { CGFloat($0) }
+            ?? defaultSize
+    }
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(
             name: "info.thanhtunguet.media_picker_plus", binaryMessenger: registrar.messenger())
@@ -377,10 +400,16 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
 
             // Add watermark if specified
             if let options = mediaOptions, let watermarkText = options["watermark"] as? String {
+                let fontSize = calculateWatermarkFontSize(
+                    options: options,
+                    width: finalImage.size.width,
+                    height: finalImage.size.height,
+                    defaultSize: 24
+                )
                 finalImage = addWatermark(
                     to: finalImage,
                     text: watermarkText,
-                    fontSize: options["watermarkFontSize"] as? CGFloat ?? 24,
+                    fontSize: fontSize,
                     position: options["watermarkPosition"] as? String ?? "bottomRight")
             }
 
@@ -409,7 +438,30 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                     let enableCrop = cropOptions?["enableCrop"] as? Bool ?? false
                     
                     if watermarkText != nil || enableCrop {
-                        let fontSize = options["watermarkFontSize"] as? CGFloat ?? 24
+                        // Get video size for font calculation
+                        let asset = AVAsset(url: videoURL)
+                        guard let videoTrack = asset.tracks(withMediaType: .video).first else {
+                            // Fallback to copying if we can't get video dimensions
+                            do {
+                                try FileManager.default.copyItem(at: videoURL, to: destinationURL)
+                                return destinationURL.path
+                            } catch {
+                                print("Error copying video: \(error)")
+                                return nil
+                            }
+                        }
+                        let transform = videoTrack.preferredTransform
+                        let isPortrait = abs(transform.b) == 1 && abs(transform.c) == 1
+                        let videoSize = isPortrait
+                            ? CGSize(width: videoTrack.naturalSize.height, height: videoTrack.naturalSize.width)
+                            : videoTrack.naturalSize
+                        
+                        let fontSize = calculateWatermarkFontSize(
+                            options: options,
+                            width: videoSize.width,
+                            height: videoSize.height,
+                            defaultSize: 24
+                        )
                         let position = options["watermarkPosition"] as? String ?? "bottomRight"
 
                         // First copy the video to the destination
@@ -1462,10 +1514,15 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         
         // Apply watermark if specified
         if let watermark = options["watermark"] as? String, !watermark.isEmpty {
-            let watermarkFontSize = options["watermarkFontSize"] as? Double ?? 30.0
+            let fontSize = calculateWatermarkFontSize(
+                options: options,
+                width: processedImage.size.width,
+                height: processedImage.size.height,
+                defaultSize: 30.0
+            )
             let watermarkPosition = options["watermarkPosition"] as? String ?? "bottomRight"
             processedImage = addWatermark(to: processedImage, text: watermark, 
-                                          fontSize: CGFloat(watermarkFontSize), position: watermarkPosition)
+                                          fontSize: fontSize, position: watermarkPosition)
         }
         
         // Apply quality and save
@@ -1505,7 +1562,12 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             return
         }
         
-        let fontSize = options["watermarkFontSize"] as? CGFloat ?? 24.0
+        let fontSize = calculateWatermarkFontSize(
+            options: options,
+            width: image.size.width,
+            height: image.size.height,
+            defaultSize: 24.0
+        )
         let position = options["watermarkPosition"] as? String ?? "bottomRight"
         
         // Apply watermark to the image
@@ -1543,7 +1605,24 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             return
         }
         
-        let fontSize = options["watermarkFontSize"] as? CGFloat ?? 24.0
+        // Get video dimensions for font size calculation
+        let asset = AVAsset(url: URL(fileURLWithPath: videoPath))
+        guard let videoTrack = asset.tracks(withMediaType: .video).first else {
+            result(FlutterError(code: "INVALID_VIDEO", message: "Unable to read video track", details: nil))
+            return
+        }
+        let transform = videoTrack.preferredTransform
+        let isPortrait = abs(transform.b) == 1 && abs(transform.c) == 1
+        let videoSize = isPortrait
+            ? CGSize(width: videoTrack.naturalSize.height, height: videoTrack.naturalSize.width)
+            : videoTrack.naturalSize
+        
+        let fontSize = calculateWatermarkFontSize(
+            options: options,
+            width: videoSize.width,
+            height: videoSize.height,
+            defaultSize: 24.0
+        )
         let position = options["watermarkPosition"] as? String ?? "bottomRight"
         
         // Use the existing video watermarking method

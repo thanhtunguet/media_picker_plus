@@ -415,7 +415,8 @@ class _MediaPickerExampleState extends State<MediaPickerExample>
                         onTap: () async {
                           await Navigator.of(context).push(
                             MaterialPageRoute(
-                                builder: (context) => const CamerAwesomeFeature()),
+                                builder: (context) =>
+                                    const CamerAwesomeFeature()),
                           );
                           _checkPermissions(); // Refresh permissions when returning
                         },

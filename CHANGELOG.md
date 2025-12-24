@@ -8,6 +8,7 @@
 - **Standalone watermarking methods**: `MediaPickerPlus.addWatermarkToImage()` and `MediaPickerPlus.addWatermarkToVideo()` for adding watermarks to existing media files.
 - **Watermark feature example**: Added comprehensive watermark feature demonstration in `example/lib/features/watermark_feature.dart` with interactive UI for adding watermarks to photos and videos.
 - **Third-party camera integration demo**: Added example showing how to integrate third-party camera packages with MediaPickerPlus watermarking functionality.
+- **Percentage-based watermark font size**: Added `watermarkFontSizePercentage` parameter to `MediaOptions` for responsive watermark sizing. Font size is calculated as a percentage (default 4%) of the shorter edge of the image/video, ensuring consistent watermark appearance across different media dimensions. Updated all platform implementations (Android, iOS, Web) to support this feature.
 
 ### Fixed
 

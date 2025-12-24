@@ -193,6 +193,36 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     }
   }
 
+  /// Get video dimensions from a File or URL
+  Future<Map<String, int>> _getVideoDimensions(dynamic videoSource) async {
+    final completer = Completer<Map<String, int>>();
+    final video = web.document.createElement('video') as web.HTMLVideoElement;
+
+    video.addEventListener(
+        'loadedmetadata',
+        (web.Event event) {
+          completer.complete({
+            'width': video.videoWidth,
+            'height': video.videoHeight,
+          });
+        }.toJS);
+
+    video.addEventListener(
+        'error',
+        (web.Event event) {
+          // Default dimensions if we can't load video
+          completer.complete({'width': 1280, 'height': 720});
+        }.toJS);
+
+    if (videoSource is web.File) {
+      video.src = web.URL.createObjectURL(videoSource);
+    } else if (videoSource is String) {
+      video.src = videoSource;
+    }
+
+    return completer.future;
+  }
+
   Future<String?> _processVideoFileWithWatermark(
       web.File file, MediaOptions options) async {
     if (options.watermark == null || options.watermark!.isEmpty) {
@@ -214,6 +244,15 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
         return _createVideoObjectURL(file);
       }
 
+      // Get video dimensions to calculate font size
+      final dimensions = await _getVideoDimensions(file);
+      final fontSize = _calculateWatermarkFontSize(
+        options,
+        dimensions['width']!,
+        dimensions['height']!,
+        defaultSize: 48.0,
+      );
+
       // Call JS function exposed in ffmpeg_watermark.js
       final JSFunction watermarkFunction = addWatermarkToVideo as JSFunction;
       final promise = watermarkFunction.callAsFunction(
@@ -221,6 +260,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
         file.jsify(),
         watermarkText.toJS,
         position.toJS,
+        fontSize.toJS,
       ) as JSPromise;
       final url = await promise.toDart as String;
       return url;
@@ -294,10 +334,26 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     return completer.future;
   }
 
+  /// Calculate watermark font size from options.
+  /// If watermarkFontSizePercentage is provided, calculates based on shorter edge.
+  /// Otherwise, uses watermarkFontSize or default value.
+  double _calculateWatermarkFontSize(
+      MediaOptions options, int width, int height,
+      {double defaultSize = 30.0}) {
+    // Check if percentage is provided
+    if (options.watermarkFontSizePercentage != null) {
+      final shorterEdge = width < height ? width : height;
+      return shorterEdge * (options.watermarkFontSizePercentage! / 100.0);
+    }
+
+    // Fall back to absolute font size
+    return options.watermarkFontSize ?? defaultSize;
+  }
+
   void _drawWatermark(web.CanvasRenderingContext2D ctx, int width, int height,
       MediaOptions options) {
     final text = options.watermark ?? '';
-    final fontSize = options.watermarkFontSize ?? 30;
+    final fontSize = _calculateWatermarkFontSize(options, width, height);
     ctx.font = '${fontSize}px Arial';
     ctx.textBaseline = 'bottom';
     ctx.globalAlpha = 0.7;
@@ -715,6 +771,15 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
             'Video watermarking function not available on web. Please include ffmpeg_watermark.js');
       }
 
+      // Get video dimensions to calculate font size
+      final dimensions = await _getVideoDimensions(videoPath);
+      final fontSize = _calculateWatermarkFontSize(
+        options,
+        dimensions['width']!,
+        dimensions['height']!,
+        defaultSize: 48.0,
+      );
+
       // Create a File object from the video path (assuming it's a blob URL)
       // This is a simplified approach - in a real scenario you might need to
       // fetch the blob and create a File object
@@ -729,6 +794,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
           videoPath.toJS, // Pass the video path/URL
           watermarkText.toJS,
           position.toJS,
+          fontSize.toJS,
         ) as JSPromise;
         final url = await promise.toDart as String;
         return url;

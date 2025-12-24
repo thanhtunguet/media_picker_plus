@@ -241,9 +241,10 @@ class _CamerAwesomeFeatureState extends State<CamerAwesomeFeature> {
     try {
       final watermarkedPath = await MediaPickerPlus.addWatermarkToImage(
         imagePath,
+        // Using percentage-based font size for responsive watermarks
         options: const MediaOptions(
           watermark: 'Third-Party Camera + MediaPickerPlus',
-          watermarkFontSize: 20,
+          watermarkFontSizePercentage: 3.5, // 3.5% of shorter edge
           watermarkPosition: WatermarkPosition.bottomRight,
         ),
       );
@@ -276,9 +277,10 @@ class _CamerAwesomeFeatureState extends State<CamerAwesomeFeature> {
         final imagePath = _capturedPhotos[i];
         final watermarkedPath = await MediaPickerPlus.addWatermarkToImage(
           imagePath,
+          // Using percentage-based font size for responsive watermarks
           options: MediaOptions(
             watermark: '3rd Party Batch #${i + 1}',
-            watermarkFontSize: 18,
+            watermarkFontSizePercentage: 3.0, // 3% of shorter edge
             watermarkPosition: WatermarkPosition.bottomRight,
           ),
         );

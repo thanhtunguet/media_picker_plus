@@ -20,7 +20,8 @@ class _MediaPickerFeatureState extends State<MediaPickerFeature> {
   int _imageQuality = 85;
   final int _maxWidth = 2560;
   final int _maxHeight = 1440;
-  final double _watermarkFontSize = 32;
+  // Using percentage-based font size (4% of shorter edge) for responsive watermarks
+  final double _watermarkFontSizePercentage = 4.0;
   final String _watermarkPosition = WatermarkPosition.bottomRight;
   final String _customWatermark = 'Media Picker Plus';
   bool _enableImageResize = true;
@@ -35,7 +36,7 @@ class _MediaPickerFeatureState extends State<MediaPickerFeature> {
         maxWidth: _enableImageResize ? _maxWidth : null,
         maxHeight: _enableImageResize ? _maxHeight : null,
         watermark: _customWatermark,
-        watermarkFontSize: _watermarkFontSize,
+        watermarkFontSizePercentage: _watermarkFontSizePercentage,
         watermarkPosition: _watermarkPosition,
         cropOptions: _enableCrop
             ? CropOptions(
@@ -119,7 +120,7 @@ class _MediaPickerFeatureState extends State<MediaPickerFeature> {
           maxWidth: _enableImageResize ? _maxWidth : null,
           maxHeight: _enableImageResize ? _maxHeight : null,
           watermark: '$_customWatermark • Multiple Images',
-          watermarkFontSize: _watermarkFontSize,
+          watermarkFontSizePercentage: _watermarkFontSizePercentage,
           watermarkPosition: _watermarkPosition,
           cropOptions: _enableCrop
               ? CropOptions(
@@ -149,7 +150,7 @@ class _MediaPickerFeatureState extends State<MediaPickerFeature> {
           maxWidth: _enableImageResize ? _maxWidth : null,
           maxHeight: _enableImageResize ? _maxHeight : null,
           watermark: '$_customWatermark • Multiple Videos',
-          watermarkFontSize: _watermarkFontSize,
+          watermarkFontSizePercentage: _watermarkFontSizePercentage,
           watermarkPosition: _watermarkPosition,
           cropOptions: _enableCrop
               ? CropOptions(

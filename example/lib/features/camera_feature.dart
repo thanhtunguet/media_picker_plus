@@ -18,7 +18,9 @@ class _CameraFeatureState extends State<CameraFeature> {
 
   // Camera settings
   int _imageQuality = 85;
+  bool _usePercentageFontSize = true; // Default to percentage-based
   double _watermarkFontSize = 32;
+  double _watermarkFontSizePercentage = 4.0; // 4% of shorter edge
   final String _watermarkPosition = WatermarkPosition.bottomRight;
   final int _maxDurationMinutes = 5;
   String _customWatermark = 'Media Picker Plus';
@@ -41,7 +43,9 @@ class _CameraFeatureState extends State<CameraFeature> {
   MediaOptions get _currentOptions => MediaOptions(
         imageQuality: _imageQuality,
         watermark: _generateTimestampWatermark(),
-        watermarkFontSize: _watermarkFontSize,
+        watermarkFontSize: _usePercentageFontSize ? null : _watermarkFontSize,
+        watermarkFontSizePercentage:
+            _usePercentageFontSize ? _watermarkFontSizePercentage : null,
         watermarkPosition: _watermarkPosition,
         maxDuration: Duration(minutes: _maxDurationMinutes),
       );
@@ -175,19 +179,46 @@ class _CameraFeatureState extends State<CameraFeature> {
                                 ],
                               ),
                               const SizedBox(height: 8),
+                              SwitchListTile(
+                                title: const Text('Percentage-Based Font Size'),
+                                subtitle: Text(
+                                  _usePercentageFontSize
+                                      ? 'Scales with media dimensions'
+                                      : 'Fixed pixel size',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                value: _usePercentageFontSize,
+                                onChanged: (value) {
+                                  setState(
+                                      () => _usePercentageFontSize = value);
+                                },
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              const SizedBox(height: 8),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                      'Font Size: ${_watermarkFontSize.toInt()}px'),
-                                  Slider(
-                                    value: _watermarkFontSize,
-                                    min: 12,
-                                    max: 72,
-                                    divisions: 60,
-                                    onChanged: (value) => setState(
-                                        () => _watermarkFontSize = value),
-                                  ),
+                                  Text(_usePercentageFontSize
+                                      ? 'Font Size: ${_watermarkFontSizePercentage.toStringAsFixed(1)}%'
+                                      : 'Font Size: ${_watermarkFontSize.toInt()}px'),
+                                  if (_usePercentageFontSize)
+                                    Slider(
+                                      value: _watermarkFontSizePercentage,
+                                      min: 1,
+                                      max: 20,
+                                      divisions: 190,
+                                      onChanged: (value) => setState(() =>
+                                          _watermarkFontSizePercentage = value),
+                                    )
+                                  else
+                                    Slider(
+                                      value: _watermarkFontSize,
+                                      min: 12,
+                                      max: 72,
+                                      divisions: 60,
+                                      onChanged: (value) => setState(
+                                          () => _watermarkFontSize = value),
+                                    ),
                                 ],
                               ),
                               const SizedBox(height: 8),

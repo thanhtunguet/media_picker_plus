@@ -97,6 +97,30 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         }
     }
 
+    /**
+     * Calculate watermark font size from options.
+     * If watermarkFontSizePercentage is provided, calculates based on shorter edge.
+     * Otherwise, uses watermarkFontSize or default value.
+     */
+    private fun calculateWatermarkFontSize(
+        options: HashMap<String, Any>?,
+        width: Int,
+        height: Int,
+        defaultSize: Float = 30f
+    ): Float {
+        if (options == null) return defaultSize
+
+        // Check if percentage is provided
+        val percentage = options["watermarkFontSizePercentage"] as? Double
+        if (percentage != null) {
+            val shorterEdge = min(width, height).toFloat()
+            return shorterEdge * (percentage.toFloat() / 100f)
+        }
+
+        // Fall back to absolute font size
+        return (options["watermarkFontSize"] as? Double)?.toFloat() ?: defaultSize
+    }
+
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(
             flutterPluginBinding.binaryMessenger,
@@ -647,7 +671,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             if (options.containsKey("watermark")) {
                 val watermarkText = options["watermark"] as? String
                 if (!watermarkText.isNullOrEmpty()) {
-                    val fontSize = (options["watermarkFontSize"] as? Double)?.toFloat() ?: 24f
+                    val fontSize = calculateWatermarkFontSize(options, bitmap.width, bitmap.height, 24f)
                     val positionObj = options["watermarkPosition"]
                     val position = if (positionObj is String) {
                         positionObj
@@ -795,7 +819,20 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             val videoFileName = "VID_PROCESSED_$timeStamp.mp4"
             val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
             val outputVideoFile = File(storageDir, videoFileName)
-            val fontSize = (options["watermarkFontSize"] as? Double)?.toFloat() ?: 48f  // Increased default size
+            
+            // Get video dimensions to calculate font size
+            val retriever = MediaMetadataRetriever()
+            var videoWidth = 1920  // Default fallback
+            var videoHeight = 1080 // Default fallback
+            try {
+                retriever.setDataSource(sourcePath)
+                videoWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 1920
+                videoHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 1080
+            } finally {
+                retriever.release()
+            }
+            
+            val fontSize = calculateWatermarkFontSize(options, videoWidth, videoHeight, 48f)
             val positionObj = options["watermarkPosition"]
             val position = if (positionObj is String) positionObj else "bottomRight"
             val watermarkBitmap = createWatermarkBitmap(watermarkText, fontSize)
@@ -1612,7 +1649,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             // Apply watermark if specified
             val watermark = options["watermark"] as? String
             if (!watermark.isNullOrEmpty()) {
-                val watermarkFontSize = (options["watermarkFontSize"] as? Number)?.toFloat() ?: 30f
+                val watermarkFontSize = calculateWatermarkFontSize(options, processedBitmap.width, processedBitmap.height, 30f)
                 val watermarkPosition = options["watermarkPosition"] as? String ?: "bottomRight"
                 processedBitmap = addWatermarkToBitmap(processedBitmap, watermark, watermarkFontSize, watermarkPosition)
             }
@@ -1660,7 +1697,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             }
 
             // Apply watermark
-            val fontSize = (options["watermarkFontSize"] as? Number)?.toFloat() ?: 30f
+            val fontSize = calculateWatermarkFontSize(options, originalBitmap.width, originalBitmap.height, 30f)
             val position = options["watermarkPosition"] as? String ?: "bottomRight"
             val watermarkedBitmap = addWatermarkToBitmap(originalBitmap, watermarkText, fontSize, position)
 
@@ -1709,8 +1746,20 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             val outputFileName = "watermarked_video_${timeStamp}.mp4"
             val outputFile = File(context.cacheDir, outputFileName)
 
-            // Create watermark bitmap
-            val fontSize = (options["watermarkFontSize"] as? Number)?.toFloat() ?: 48f
+            // Get video dimensions to calculate font size
+            val retriever = MediaMetadataRetriever()
+            var videoWidth = 1920  // Default fallback
+            var videoHeight = 1080 // Default fallback
+            try {
+                retriever.setDataSource(videoPath)
+                videoWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 1920
+                videoHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 1080
+            } finally {
+                retriever.release()
+            }
+
+            // Create watermark bitmap with calculated font size
+            val fontSize = calculateWatermarkFontSize(options, videoWidth, videoHeight, 48f)
             val position = options["watermarkPosition"] as? String ?: "bottomRight"
             val watermarkBitmap = createWatermarkBitmap(watermarkText, fontSize)
 

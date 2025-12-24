@@ -18,12 +18,16 @@ class _WatermarkFeatureState extends State<WatermarkFeature> {
 
   // Watermark settings
   String _watermarkText = 'Media Picker Plus';
+  bool _usePercentageFontSize = true; // Default to percentage-based
   double _watermarkFontSize = 32;
+  double _watermarkFontSizePercentage = 4.0; // 4% of shorter edge
   String _watermarkPosition = WatermarkPosition.bottomRight;
 
   MediaOptions get _currentOptions => MediaOptions(
         watermark: _watermarkText,
-        watermarkFontSize: _watermarkFontSize,
+        watermarkFontSize: _usePercentageFontSize ? null : _watermarkFontSize,
+        watermarkFontSizePercentage:
+            _usePercentageFontSize ? _watermarkFontSizePercentage : null,
         watermarkPosition: _watermarkPosition,
       );
 
@@ -227,7 +231,25 @@ class _WatermarkFeatureState extends State<WatermarkFeature> {
                             ),
                             const SizedBox(height: 16),
 
-                            // Font Size
+                            // Font Size Mode Toggle
+                            SwitchListTile(
+                              title:
+                                  const Text('Use Percentage-Based Font Size'),
+                              subtitle: Text(
+                                _usePercentageFontSize
+                                    ? 'Font size scales with media dimensions'
+                                    : 'Fixed font size in pixels',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              value: _usePercentageFontSize,
+                              onChanged: (value) {
+                                setState(() => _usePercentageFontSize = value);
+                              },
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Font Size Slider
                             Row(
                               children: [
                                 const Icon(Icons.format_size),
@@ -238,24 +260,41 @@ class _WatermarkFeatureState extends State<WatermarkFeature> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Font Size: ${_watermarkFontSize.toInt()}',
+                                        _usePercentageFontSize
+                                            ? 'Font Size: ${_watermarkFontSizePercentage.toStringAsFixed(1)}%'
+                                            : 'Font Size: ${_watermarkFontSize.toInt()}px',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
-                                      Slider(
-                                        value: _watermarkFontSize,
-                                        min: 12,
-                                        max: 72,
-                                        divisions: 60,
-                                        label: _watermarkFontSize
-                                            .toInt()
-                                            .toString(),
-                                        onChanged: (value) {
-                                          setState(
-                                              () => _watermarkFontSize = value);
-                                        },
-                                      ),
+                                      if (_usePercentageFontSize)
+                                        Slider(
+                                          value: _watermarkFontSizePercentage,
+                                          min: 1,
+                                          max: 20,
+                                          divisions: 190,
+                                          label:
+                                              '${_watermarkFontSizePercentage.toStringAsFixed(1)}%',
+                                          onChanged: (value) {
+                                            setState(() =>
+                                                _watermarkFontSizePercentage =
+                                                    value);
+                                          },
+                                        )
+                                      else
+                                        Slider(
+                                          value: _watermarkFontSize,
+                                          min: 12,
+                                          max: 72,
+                                          divisions: 60,
+                                          label: _watermarkFontSize
+                                              .toInt()
+                                              .toString(),
+                                          onChanged: (value) {
+                                            setState(() =>
+                                                _watermarkFontSize = value);
+                                          },
+                                        ),
                                     ],
                                   ),
                                 ),
