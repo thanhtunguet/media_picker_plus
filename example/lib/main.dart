@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:media_picker_plus/media_picker_plus.dart';
 
 import 'features/camera_feature.dart';
+import 'features/camerawesome_feature.dart';
 import 'features/file_picker_feature.dart';
 import 'features/media_picker_feature.dart';
 import 'features/permission_feature.dart';
@@ -405,6 +406,21 @@ class _MediaPickerExampleState extends State<MediaPickerExample>
                           MaterialPageRoute(
                               builder: (context) => const WatermarkFeature()),
                         ),
+                      ),
+                      _buildFeatureCard(
+                        title: '3rd Party Camera',
+                        description: 'Third-party camera integration demo',
+                        icon: Icons.camera_enhance,
+                        color: Colors.deepPurple,
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (context) => const CamerAwesomeFeature()),
+                          );
+                          _checkPermissions(); // Refresh permissions when returning
+                        },
+                        requiresPermission: true,
+                        hasPermission: _hasCameraPermission,
                       ),
                       _buildFeatureCard(
                         title: 'Permissions',

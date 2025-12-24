@@ -36,6 +36,12 @@ dependencies:
   
   # Photo view for image zoom and pan
   photo_view: ^0.14.0
+  
+  # Camera package for third-party camera integration demo
+  camera: ^0.11.0+2
+  
+  # Path provider for directory access
+  path_provider: ^2.1.4
 
 dev_dependencies:
   integration_test:
