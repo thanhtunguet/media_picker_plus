@@ -2,6 +2,12 @@
 
 ### Added
 
+### Fixed
+
+## 0.3.0-rc.5
+
+### Added
+
 - Unit/widget tests for crop options and interactive crop UI.
 - Integration tests (mocked MethodChannel) for camera/gallery/file flows under `example/integration_test/`.
 - `CropUI` now supports `initialImage` injection (useful for tests/advanced usage).
