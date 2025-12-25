@@ -1033,9 +1033,10 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
   /// Check if getUserMedia is supported
   bool _supportsGetUserMedia() {
     try {
-      // Check if mediaDevices and getUserMedia are available
-      final navigator = web.window.navigator;
-      return navigator.mediaDevices.getUserMedia.toString().isNotEmpty;
+      // Simply check if mediaDevices exists - getUserMedia is a standard method on it
+      // We can't directly check the method due to JS interop limitations
+      final _ = web.window.navigator.mediaDevices;
+      return true;
     } catch (e) {
       return false;
     }
