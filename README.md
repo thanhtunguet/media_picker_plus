@@ -35,6 +35,8 @@ This plugin is ideal for developers building:
 
 ## ✅ Platform Support
 
+> **⚠️ Web Developers:** If you're targeting web, please read the [Web Platform Considerations](#️-important-web-platform-considerations) section in the Usage guide to avoid common runtime errors with `Platform` APIs, `Image.file()`, and `VideoPlayerController.file()`.
+
 | Feature         | Android | iOS | Web | macOS |
 |-----------------|:-------:|:---:|:---:|:-----:|
 | Pick image      |    ✅    |  ✅  |  ✅  |   ✅   |
@@ -44,7 +46,10 @@ This plugin is ideal for developers building:
 | Watermark image |    ✅    |  ✅  |  ✅  |   ✅   |
 | Pick video      |    ✅    |  ✅  |  ✅  |   ✅   |
 | Capture video   |    ✅    |  ✅  |  ✅  |   ✅   |
-| Watermark video |    ✅    |  ✅  |  ✅  |   ✅   |
+| Watermark video |    ✅    |  ✅  |  ⚠️*  |   ✅   |
+
+\* Video watermarking on web requires optional FFmpeg.js setup. See [docs/web-permissions.md](docs/web-permissions.md) for details.
+
 
 
 ## 📋 Requirements
@@ -394,6 +399,125 @@ platform :osx, '11.0'
 ```dart
 import 'package:media_picker_plus/media_picker_plus.dart';
 ```
+
+### ⚠️ Important: Web Platform Considerations
+
+**If your app targets web, read this section carefully to avoid runtime errors.**
+
+#### The Problem
+
+On web, many Flutter APIs that work on mobile/desktop will throw errors:
+- ❌ `Platform.isAndroid`, `Platform.isIOS` → "Unsupported operation: Platform._operatingSystem"
+- ❌ `Image.file()` → "Image.file is not supported on Flutter Web"
+- ❌ `VideoPlayerController.file()` → Runtime error
+- ❌ `Permission.photos`, `Permission.camera` from `permission_handler` → Not supported
+
+#### The Solution
+
+**Always check `kIsWeb` BEFORE using platform-specific code:**
+
+```dart
+import 'dart:io';
+import 'package:flutter/foundation.dart'; // For kIsWeb
+
+// ✅ CORRECT: Check kIsWeb first
+if (kIsWeb) {
+  // Use web-specific code
+} else if (Platform.isAndroid) {
+  // Use Android-specific code
+}
+
+// ❌ WRONG: Will crash on web
+if (Platform.isAndroid) {  // This line crashes on web!
+  // ...
+}
+```
+
+#### Displaying Images (Web vs Native)
+
+On web, `media_picker_plus` returns **data URLs** or **blob URLs**. You must use `Image.network()`:
+
+```dart
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+
+Widget _buildImage(String path, BoxFit fit) {
+  if (kIsWeb || path.startsWith('data:') || path.startsWith('blob:')) {
+    // Web: Use Image.network for URLs
+    return Image.network(path, fit: fit);
+  } else {
+    // Native: Use Image.file for file paths
+    return Image.file(File(path), fit: fit);
+  }
+}
+
+// Usage:
+String? imagePath = await MediaPickerPlus.pickImage();
+if (imagePath != null) {
+  _buildImage(imagePath, BoxFit.contain);
+}
+```
+
+#### Playing Videos (Web vs Native)
+
+```dart
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:video_player/video_player.dart';
+
+void _setVideo(String path) {
+  _videoController?.dispose();
+  
+  if (kIsWeb || path.startsWith('data:') || path.startsWith('blob:')) {
+    // Web: Use network controller for URLs
+    _videoController = VideoPlayerController.networkUrl(Uri.parse(path));
+  } else {
+    // Native: Use file controller for file paths
+    _videoController = VideoPlayerController.file(File(path));
+  }
+  
+  _videoController!.initialize().then((_) {
+    setState(() {
+      _videoController!.play();
+    });
+  });
+}
+```
+
+#### Permission Handling (Web vs Native)
+
+```dart
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+Future<void> _requestPermissions() async {
+  // Skip permission requests on web and desktop
+  // Web: Browser handles permissions automatically
+  // Desktop: Configured via Info.plist/manifest
+  if (kIsWeb || Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+    return;
+  }
+
+  // Only request on mobile (Android/iOS)
+  await [
+    Permission.camera,
+    Permission.microphone,
+    Permission.photos,
+    Permission.storage,
+  ].request();
+}
+```
+
+#### Key Takeaways for Web
+
+1. **Always check `kIsWeb` first** before using `Platform` APIs
+2. **Use `Image.network()`** for images on web (data URLs)
+3. **Use `VideoPlayerController.networkUrl()`** for videos on web
+4. **Skip permission requests** on web - browser handles them automatically
+5. **Video watermarks are optional** on web (requires FFmpeg.js setup)
+
+**See full web platform guide:** [`docs/web-permissions.md`](docs/web-permissions.md)
 
 ### Permission Handling
 
