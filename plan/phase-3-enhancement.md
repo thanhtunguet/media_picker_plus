@@ -20,6 +20,8 @@ Goal: expand features and developer experience after macOS/Web are functional an
     - Created `example/lib/features/watermark_feature.dart` with interactive UI
     - Demonstrates `addWatermarkToImage()` and `addWatermarkToVideo()` methods
     - Includes configurable watermark text, font size, and position settings
+  - [x] Create comprehensive example app with permissions, camerawesome integration, and all picking modes
+    - Updated `example/lib/main.dart` with full feature set.
 
 - [ ] **Add CI/CD pipeline for automated testing**
   - Set up GitHub Actions for automated testing
