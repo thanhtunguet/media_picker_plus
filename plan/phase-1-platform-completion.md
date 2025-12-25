@@ -17,6 +17,14 @@ Goal: bring macOS and Web implementations up to feature parity with Android/iOS.
   - Ensure proper file management and cleanup
   - Verification: `README.md` platform support table + usage sections imply macOS processing is supported.
 
+- [x] **Add macOS camera preview with manual controls**
+  - Implemented `CameraPreviewWindow` class with `AVCaptureVideoPreviewLayer` for live camera preview
+  - Implemented `VideoPreviewWindow` class with recording timer and start/stop controls
+  - Added Capture/Cancel buttons for photo capture similar to iOS `UIImagePickerController`
+  - Added Record/Stop/Cancel buttons for video recording with duration timer
+  - Replaced previous silent automatic capture behavior with user-controlled experience
+  - Verification: Users can now see live camera preview and manually control when to capture/record on macOS.
+
 ## Web Implementation
 - [x] **Complete web implementation - Add HTML5 media APIs and file picking**
   - Implement HTML5 getUserMedia for camera access

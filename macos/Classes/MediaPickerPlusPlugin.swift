@@ -134,6 +134,8 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     private var captureSession: AVCaptureSession?
     private var photoCaptureDelegate: PhotoCaptureDelegate?
     private var movieCaptureDelegate: MovieCaptureDelegate?
+    private var cameraPreviewWindow: CameraPreviewWindow?
+    private var videoPreviewWindow: VideoPreviewWindow?
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "info.thanhtunguet.media_picker_plus", binaryMessenger: registrar.messenger)
@@ -440,12 +442,18 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         captureSession = nil
         photoCaptureDelegate = nil
         movieCaptureDelegate = nil
+        
+        // Close preview windows
+        cameraPreviewWindow?.close()
+        cameraPreviewWindow = nil
+        videoPreviewWindow?.close()
+        videoPreviewWindow = nil
     }
     
     // MARK: - Camera Methods
     
     private func capturePhoto() {
-        print("Starting photo capture...")
+        print("Starting photo capture with preview...")
         
         // Clean up any existing session
         cleanupCaptureSession()
@@ -514,28 +522,25 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         print("Starting capture session...")
         session.startRunning()
         
-        // Add timeout mechanism
-        DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
-            if self.pendingResult != nil {
-                print("Photo capture timeout - stopping session")
-                self.cleanupCaptureSession()
-                self.pendingResult?(MediaPickerPlusError.saveFailed())
-                self.pendingResult = nil
+        // Create and show preview window
+        cameraPreviewWindow = CameraPreviewWindow(
+            captureSession: session,
+            photoOutput: output,
+            photoDelegate: photoCaptureDelegate!,
+            onCapture: { [weak self] in
+                print("Capture button pressed")
+                // Photo capture is handled by the PhotoCaptureDelegate
+            },
+            onCancel: { [weak self] in
+                print("Cancel button pressed")
+                self?.cleanupCaptureSession()
+                self?.pendingResult?(MediaPickerPlusError.cancelled())
+                self?.pendingResult = nil
             }
-        }
+        )
         
-        // Wait longer for Continuity Camera to be ready
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            guard let delegate = self.photoCaptureDelegate else { 
-                print("Photo capture delegate is nil")
-                return 
-            }
-            
-            print("Creating photo settings...")
-            let settings = AVCapturePhotoSettings()
-            print("Capturing photo with settings: \(settings)")
-            output.capturePhoto(with: settings, delegate: delegate)
-        }
+        cameraPreviewWindow?.center()
+        cameraPreviewWindow?.makeKeyAndOrderFront(nil)
     }
     
     private func recordVideo() {
@@ -560,12 +565,18 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     }
     
     private func performVideoRecording() {
+        print("Starting video recording with preview...")
+        
         // Clean up any existing session
         cleanupCaptureSession()
         
         // Create new session
         captureSession = AVCaptureSession()
-        guard let session = captureSession else { return }
+        guard let session = captureSession else { 
+            pendingResult?(MediaPickerPlusError.saveFailed())
+            pendingResult = nil
+            return
+        }
         
         // Setup video input
         guard let videoDevice = getBestAvailableVideoDevice(),
@@ -603,35 +614,27 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             }
         }
         
+        print("Starting capture session...")
         session.startRunning()
         
-        // Add timeout mechanism
-        DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
-            if self.pendingResult != nil {
-                print("Video recording timeout - stopping session")
-                self.cleanupCaptureSession()
-                self.pendingResult?(MediaPickerPlusError.saveFailed())
-                self.pendingResult = nil
+        // Create and show video preview window
+        let maxDuration = (mediaOptions?["maxDuration"] as? Int) ?? 30
+        videoPreviewWindow = VideoPreviewWindow(
+            captureSession: session,
+            movieOutput: output,
+            movieDelegate: movieCaptureDelegate!,
+            outputURL: tempURL,
+            maxDuration: maxDuration,
+            onCancel: { [weak self] in
+                print("Cancel button pressed")
+                self?.cleanupCaptureSession()
+                self?.pendingResult?(MediaPickerPlusError.cancelled())
+                self?.pendingResult = nil
             }
-        }
+        )
         
-        // Wait longer for Continuity Camera to be ready, then start recording
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            guard let delegate = self.movieCaptureDelegate else { return }
-            print("Starting video recording")
-            output.startRecording(to: tempURL, recordingDelegate: delegate)
-            
-            // Auto-stop recording based on maxDuration or default to 30 seconds
-            let maxDuration = (self.mediaOptions?["maxDuration"] as? Int) ?? 30
-            print("Video recording will auto-stop after \(maxDuration) seconds")
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + TimeInterval(maxDuration)) {
-                if output.isRecording {
-                    print("Auto-stopping video recording after \(maxDuration) seconds")
-                    output.stopRecording()
-                }
-            }
-        }
+        videoPreviewWindow?.center()
+        videoPreviewWindow?.makeKeyAndOrderFront(nil)
     }
     
     // MARK: - Image Processing
@@ -1483,4 +1486,273 @@ class MovieCaptureDelegate: NSObject, AVCaptureFileOutputRecordingDelegate {
     }
 }
 
+// MARK: - Camera Preview Window
 
+class CameraPreviewWindow: NSWindow {
+    private let captureSession: AVCaptureSession
+    private let photoOutput: AVCapturePhotoOutput
+    private let photoDelegate: PhotoCaptureDelegate
+    private let onCapture: () -> Void
+    private let onCancel: () -> Void
+    private var previewLayer: AVCaptureVideoPreviewLayer?
+    
+    init(captureSession: AVCaptureSession,
+         photoOutput: AVCapturePhotoOutput,
+         photoDelegate: PhotoCaptureDelegate,
+         onCapture: @escaping () -> Void,
+         onCancel: @escaping () -> Void) {
+        self.captureSession = captureSession
+        self.photoOutput = photoOutput
+        self.photoDelegate = photoDelegate
+        self.onCapture = onCapture
+        self.onCancel = onCancel
+        
+        let windowRect = NSRect(x: 0, y: 0, width: 640, height: 520)
+        super.init(
+            contentRect: windowRect,
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        
+        self.title = "Camera"
+        self.isReleasedWhenClosed = false
+        
+        setupUI()
+    }
+    
+    private func setupUI() {
+        guard let contentView = contentView else { return }
+        
+        // Setup preview layer
+        previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+        previewLayer?.videoGravity = .resizeAspectFill
+        
+        // Create preview container view
+        let previewView = NSView(frame: NSRect(x: 0, y: 60, width: 640, height: 460))
+        previewView.wantsLayer = true
+        previewView.layer = CALayer()
+        previewView.layer?.backgroundColor = NSColor.black.cgColor
+        
+        if let previewLayer = previewLayer {
+            previewLayer.frame = previewView.bounds
+            previewView.layer?.addSublayer(previewLayer)
+        }
+        
+        contentView.addSubview(previewView)
+        
+        // Create button container
+        let buttonContainer = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: 60))
+        buttonContainer.wantsLayer = true
+        buttonContainer.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        
+        // Create capture button
+        let captureButton = NSButton(frame: NSRect(x: 270, y: 15, width: 100, height: 30))
+        captureButton.title = "Capture"
+        captureButton.bezelStyle = .rounded
+        captureButton.target = self
+        captureButton.action = #selector(captureButtonPressed)
+        captureButton.keyEquivalent = "\r" // Enter key
+        
+        // Create cancel button
+        let cancelButton = NSButton(frame: NSRect(x: 160, y: 15, width: 100, height: 30))
+        cancelButton.title = "Cancel"
+        cancelButton.bezelStyle = .rounded
+        cancelButton.target = self
+        cancelButton.action = #selector(cancelButtonPressed)
+        cancelButton.keyEquivalent = "\u{1b}" // Escape key
+        
+        buttonContainer.addSubview(captureButton)
+        buttonContainer.addSubview(cancelButton)
+        contentView.addSubview(buttonContainer)
+    }
+    
+    @objc private func captureButtonPressed() {
+        print("Capture button pressed - taking photo")
+        let settings = AVCapturePhotoSettings()
+        photoOutput.capturePhoto(with: settings, delegate: photoDelegate)
+        onCapture()
+    }
+    
+    @objc private func cancelButtonPressed() {
+        print("Cancel button pressed")
+        onCancel()
+    }
+}
+
+// MARK: - Video Preview Window
+
+class VideoPreviewWindow: NSWindow {
+    private let captureSession: AVCaptureSession
+    private let movieOutput: AVCaptureMovieFileOutput
+    private let movieDelegate: MovieCaptureDelegate
+    private let outputURL: URL
+    private let maxDuration: Int
+    private let onCancel: () -> Void
+    private var previewLayer: AVCaptureVideoPreviewLayer?
+    private var isRecording = false
+    private var recordButton: NSButton?
+    private var timerLabel: NSTextField?
+    private var recordingTimer: Timer?
+    private var recordingStartTime: Date?
+    
+    init(captureSession: AVCaptureSession,
+         movieOutput: AVCaptureMovieFileOutput,
+         movieDelegate: MovieCaptureDelegate,
+         outputURL: URL,
+         maxDuration: Int,
+         onCancel: @escaping () -> Void) {
+        self.captureSession = captureSession
+        self.movieOutput = movieOutput
+        self.movieDelegate = movieDelegate
+        self.outputURL = outputURL
+        self.maxDuration = maxDuration
+        self.onCancel = onCancel
+        
+        let windowRect = NSRect(x: 0, y: 0, width: 640, height: 520)
+        super.init(
+            contentRect: windowRect,
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        
+        self.title = "Record Video"
+        self.isReleasedWhenClosed = false
+        
+        setupUI()
+    }
+    
+    private func setupUI() {
+        guard let contentView = contentView else { return }
+        
+        // Setup preview layer
+        previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+        previewLayer?.videoGravity = .resizeAspectFill
+        
+        // Create preview container view
+        let previewView = NSView(frame: NSRect(x: 0, y: 60, width: 640, height: 460))
+        previewView.wantsLayer = true
+        previewView.layer = CALayer()
+        previewView.layer?.backgroundColor = NSColor.black.cgColor
+        
+        if let previewLayer = previewLayer {
+            previewLayer.frame = previewView.bounds
+            previewView.layer?.addSublayer(previewLayer)
+        }
+        
+        contentView.addSubview(previewView)
+        
+        // Create button container
+        let buttonContainer = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: 60))
+        buttonContainer.wantsLayer = true
+        buttonContainer.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        
+        // Create timer label
+        timerLabel = NSTextField(frame: NSRect(x: 20, y: 20, width: 100, height: 20))
+        timerLabel?.stringValue = "00:00"
+        timerLabel?.isEditable = false
+        timerLabel?.isBordered = false
+        timerLabel?.backgroundColor = .clear
+        timerLabel?.font = NSFont.monospacedDigitSystemFont(ofSize: 16, weight: .medium)
+        
+        // Create record button
+        recordButton = NSButton(frame: NSRect(x: 270, y: 15, width: 100, height: 30))
+        recordButton?.title = "Record"
+        recordButton?.bezelStyle = .rounded
+        recordButton?.target = self
+        recordButton?.action = #selector(recordButtonPressed)
+        recordButton?.keyEquivalent = "\r" // Enter key
+        
+        // Create cancel button
+        let cancelButton = NSButton(frame: NSRect(x: 160, y: 15, width: 100, height: 30))
+        cancelButton.title = "Cancel"
+        cancelButton.bezelStyle = .rounded
+        cancelButton.target = self
+        cancelButton.action = #selector(cancelButtonPressed)
+        cancelButton.keyEquivalent = "\u{1b}" // Escape key
+        
+        if let timerLabel = timerLabel {
+            buttonContainer.addSubview(timerLabel)
+        }
+        if let recordButton = recordButton {
+            buttonContainer.addSubview(recordButton)
+        }
+        buttonContainer.addSubview(cancelButton)
+        contentView.addSubview(buttonContainer)
+    }
+    
+    @objc private func recordButtonPressed() {
+        if isRecording {
+            stopRecording()
+        } else {
+            startRecording()
+        }
+    }
+    
+    private func startRecording() {
+        print("Starting video recording")
+        isRecording = true
+        recordButton?.title = "Stop"
+        recordingStartTime = Date()
+        
+        // Start recording
+        movieOutput.startRecording(to: outputURL, recordingDelegate: movieDelegate)
+        
+        // Start timer
+        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            self?.updateTimer()
+        }
+        
+        // Auto-stop after max duration
+        DispatchQueue.main.asyncAfter(deadline: .now() + TimeInterval(maxDuration)) { [weak self] in
+            if self?.isRecording == true {
+                print("Auto-stopping video recording after max duration")
+                self?.stopRecording()
+            }
+        }
+    }
+    
+    private func stopRecording() {
+        print("Stopping video recording")
+        isRecording = false
+        recordButton?.title = "Record"
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+        
+        if movieOutput.isRecording {
+            movieOutput.stopRecording()
+        }
+    }
+    
+    private func updateTimer() {
+        guard let startTime = recordingStartTime else { return }
+        let elapsed = Date().timeIntervalSince(startTime)
+        let minutes = Int(elapsed) / 60
+        let seconds = Int(elapsed) % 60
+        timerLabel?.stringValue = String(format: "%02d:%02d", minutes, seconds)
+        
+        // Check if max duration reached
+        if elapsed >= TimeInterval(maxDuration) {
+            stopRecording()
+        }
+    }
+    
+    @objc private func cancelButtonPressed() {
+        print("Cancel button pressed")
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+        
+        if movieOutput.isRecording {
+            movieOutput.stopRecording()
+        }
+        
+        onCancel()
+    }
+    
+    override func close() {
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+        super.close()
+    }
+}

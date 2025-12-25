@@ -3,6 +3,7 @@
 ### Added
 - Comprehensive example app (`example/lib/main.dart`) demonstrating permissions, picking, cropping, watermarking, and `camerawesome` integration.
 - Fullscreen viewer for selected media in example app: Users can now tap on displayed images or videos to view them in fullscreen mode with pinch-to-zoom functionality using `InteractiveViewer`.
+- **macOS camera preview**: Added native camera preview window for photo and video capture on macOS using `AVCaptureVideoPreviewLayer`. Users now see a live camera preview with manual capture controls (Capture/Record buttons) similar to iOS `UIImagePickerController`, replacing the previous silent automatic capture behavior.
 
 ### Fixed
 - **Watermark font consistency**: Fixed video watermarks to match photo watermark styling on iOS and macOS. Video watermarks now use attributed strings with black stroke/outline (strokeWidth: -2), creating consistent white text with black outline across both images and videos.
