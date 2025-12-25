@@ -527,7 +527,8 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         ]
 
         // Calculate text bounds (more accurate than `size(withAttributes:)` for emoji/stroke/descenders)
-        let padding: CGFloat = 20.0
+        let shorterEdge = min(image.size.width, image.size.height)
+        let padding: CGFloat = shorterEdge * 0.02 // 2% of shorter edge for consistent padding
         let maxTextSize = CGSize(
             width: max(0, image.size.width - (2 * padding)),
             height: max(0, image.size.height - (2 * padding))
@@ -777,7 +778,8 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
 
             // Calculate position
             var textPosition: CGPoint
-            let padding: CGFloat = 20.0
+            let shorterEdge = min(videoSize.width, videoSize.height)
+            let padding: CGFloat = shorterEdge * 0.02 // 2% of shorter edge for consistent padding
 
             // Convert string position to WatermarkPosition enum
             let watermarkPosition: WatermarkPosition
@@ -1371,7 +1373,8 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
 
         // Calculate position
         var textPosition: CGPoint
-        let padding: CGFloat = 20.0
+        let shorterEdge = min(videoSize.width, videoSize.height)
+        let padding: CGFloat = shorterEdge * 0.02 // 2% of shorter edge for consistent padding
 
         // Convert string position to WatermarkPosition enum
         let watermarkPosition: WatermarkPosition

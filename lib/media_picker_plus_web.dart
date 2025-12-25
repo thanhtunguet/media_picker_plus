@@ -361,25 +361,51 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     ctx.strokeStyle = 'black' as dynamic;
     ctx.lineWidth = 2;
     final metrics = ctx.measureText(text);
-    double x = width - metrics.width - 20;
-    double y = height - 20;
+
+    // Calculate 2% padding based on shorter edge for non-center positions
+    final shorterEdge = width < height ? width : height;
+    final edgePadding = shorterEdge * 0.02; // 2% of shorter edge
+
+    double x = width - metrics.width - edgePadding;
+    double y = height - edgePadding;
+
     switch (options.watermarkPosition) {
       case 'topLeft':
-        x = 20;
-        y = fontSize + 20;
+        x = edgePadding;
+        y = fontSize + edgePadding;
+        break;
+      case 'topCenter':
+        x = (width - metrics.width) / 2;
+        y = fontSize + edgePadding;
         break;
       case 'topRight':
-        x = width - metrics.width - 20;
-        y = fontSize + 20;
+        x = width - metrics.width - edgePadding;
+        y = fontSize + edgePadding;
+        break;
+      case 'middleLeft':
+        x = edgePadding;
+        y = (height + fontSize) / 2;
+        break;
+      case 'middleCenter':
+        x = (width - metrics.width) / 2;
+        y = (height + fontSize) / 2;
+        break;
+      case 'middleRight':
+        x = width - metrics.width - edgePadding;
+        y = (height + fontSize) / 2;
         break;
       case 'bottomLeft':
-        x = 20;
-        y = height - 20;
+        x = edgePadding;
+        y = height - edgePadding;
+        break;
+      case 'bottomCenter':
+        x = (width - metrics.width) / 2;
+        y = height - edgePadding;
         break;
       case 'bottomRight':
       default:
-        x = width - metrics.width - 20;
-        y = height - 20;
+        x = width - metrics.width - edgePadding;
+        y = height - edgePadding;
         break;
     }
     ctx.strokeText(text, x, y);

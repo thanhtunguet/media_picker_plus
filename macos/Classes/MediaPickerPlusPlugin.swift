@@ -764,8 +764,18 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         position: String,
         margin: CGFloat
     ) -> CGRect {
-        // Ensure margin doesn't exceed available space
-        let safeMargin = min(margin, min(containerSize.width, containerSize.height) * 0.05)
+        // Calculate 2% padding based on shorter edge for non-center positions
+        let shorterEdge = min(containerSize.width, containerSize.height)
+        let edgePadding = shorterEdge * 0.02 // 2% of shorter edge
+        
+        // Use edge padding for non-center positions, no padding for center positions
+        let safeMargin: CGFloat
+        switch position {
+        case "middleCenter":
+            safeMargin = 0 // No padding for center position
+        default:
+            safeMargin = max(edgePadding, min(margin, shorterEdge * 0.05)) // Use 2% edge padding
+        }
         
         // Ensure text size doesn't exceed container bounds
         let maxWidth = containerSize.width - (2 * safeMargin)
@@ -781,19 +791,19 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         case "topLeft":
             rect = CGRect(x: safeMargin, y: containerSize.height - adjustedTextSize.height - safeMargin, width: adjustedTextSize.width, height: adjustedTextSize.height)
         case "topCenter":
-            rect = CGRect(x: (containerSize.width - adjustedTextSize.width) / 2, y: containerSize.height - adjustedTextSize.height - safeMargin, width: adjustedTextSize.width, height: adjustedTextSize.height)
+            rect = CGRect(x: (containerSize.width - adjustedTextSize.width) / 2, y: containerSize.height - adjustedTextSize.height - edgePadding, width: adjustedTextSize.width, height: adjustedTextSize.height)
         case "topRight":
             rect = CGRect(x: containerSize.width - adjustedTextSize.width - safeMargin, y: containerSize.height - adjustedTextSize.height - safeMargin, width: adjustedTextSize.width, height: adjustedTextSize.height)
         case "middleLeft":
-            rect = CGRect(x: safeMargin, y: (containerSize.height - adjustedTextSize.height) / 2, width: adjustedTextSize.width, height: adjustedTextSize.height)
+            rect = CGRect(x: edgePadding, y: (containerSize.height - adjustedTextSize.height) / 2, width: adjustedTextSize.width, height: adjustedTextSize.height)
         case "middleCenter":
             rect = CGRect(x: (containerSize.width - adjustedTextSize.width) / 2, y: (containerSize.height - adjustedTextSize.height) / 2, width: adjustedTextSize.width, height: adjustedTextSize.height)
         case "middleRight":
-            rect = CGRect(x: containerSize.width - adjustedTextSize.width - safeMargin, y: (containerSize.height - adjustedTextSize.height) / 2, width: adjustedTextSize.width, height: adjustedTextSize.height)
+            rect = CGRect(x: containerSize.width - adjustedTextSize.width - edgePadding, y: (containerSize.height - adjustedTextSize.height) / 2, width: adjustedTextSize.width, height: adjustedTextSize.height)
         case "bottomLeft":
             rect = CGRect(x: safeMargin, y: safeMargin, width: adjustedTextSize.width, height: adjustedTextSize.height)
         case "bottomCenter":
-            rect = CGRect(x: (containerSize.width - adjustedTextSize.width) / 2, y: safeMargin, width: adjustedTextSize.width, height: adjustedTextSize.height)
+            rect = CGRect(x: (containerSize.width - adjustedTextSize.width) / 2, y: edgePadding, width: adjustedTextSize.width, height: adjustedTextSize.height)
         default: // bottomRight
             rect = CGRect(x: containerSize.width - adjustedTextSize.width - safeMargin, y: safeMargin, width: adjustedTextSize.width, height: adjustedTextSize.height)
         }
@@ -851,7 +861,8 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         
         // Calculate position with bounds checking
         let imageSize = image.size
-        let margin: CGFloat = max(20, imageSize.width * 0.02) // Dynamic margin based on image size
+        let shorterEdge = min(imageSize.width, imageSize.height)
+        let margin: CGFloat = shorterEdge * 0.02 // 2% of shorter edge for consistent padding
         let textRect = calculateWatermarkRect(for: textSize, in: imageSize, position: position, margin: margin)
         
         print("Watermark rect: \(textRect) for image size: \(imageSize)")
@@ -917,7 +928,8 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         let calculatedTextSize = tempString.size()
         let textSize = CGSize(width: calculatedTextSize.width + 20, height: calculatedTextSize.height + 10) // Add padding
         
-        let margin: CGFloat = max(20, videoSize.width * 0.02) // Dynamic margin based on video size
+        let shorterEdge = min(videoSize.width, videoSize.height)
+        let margin: CGFloat = shorterEdge * 0.02 // 2% of shorter edge for consistent padding
         
         // Calculate position with bounds checking
         let textRect = calculateWatermarkRect(for: textSize, in: videoSize, position: position, margin: margin)
@@ -1218,7 +1230,8 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             let calculatedTextSize = tempString.size()
             let textSize = CGSize(width: calculatedTextSize.width + 20, height: calculatedTextSize.height + 10)
             
-            let margin: CGFloat = max(20, finalVideoSize.width * 0.02)
+            let shorterEdge = min(finalVideoSize.width, finalVideoSize.height)
+            let margin: CGFloat = shorterEdge * 0.02 // 2% of shorter edge for consistent padding
             let textRect = calculateWatermarkRect(for: textSize, in: finalVideoSize, position: position, margin: margin)
             textLayer.frame = textRect
             

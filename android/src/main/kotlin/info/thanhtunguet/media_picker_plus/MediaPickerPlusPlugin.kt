@@ -737,7 +737,11 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         paint.getTextBounds(text, 0, text.length, bounds)
         val textWidth = bounds.width()
         val textHeight = bounds.height()
-        val padding = 20f
+        
+        // Calculate 2% padding based on shorter edge for consistent positioning
+        val shorterEdge = minOf(bitmap.width, bitmap.height)
+        val edgePadding = shorterEdge * 0.02f // 2% of shorter edge
+        
         val position = if (positionStr == "auto") {
             if (bitmap.width > bitmap.height) {
                 WatermarkPosition.BOTTOM_RIGHT
@@ -751,19 +755,19 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         val y: Float
         when (position) {
             WatermarkPosition.TOP_LEFT -> {
-                x = padding
-                y = textHeight + padding
+                x = edgePadding
+                y = textHeight + edgePadding
             }
             WatermarkPosition.TOP_CENTER -> {
                 x = (bitmap.width - textWidth) / 2f
-                y = textHeight + padding
+                y = textHeight + edgePadding
             }
             WatermarkPosition.TOP_RIGHT -> {
-                x = bitmap.width - textWidth - padding
-                y = textHeight + padding
+                x = bitmap.width - textWidth - edgePadding
+                y = textHeight + edgePadding
             }
             WatermarkPosition.MIDDLE_LEFT -> {
-                x = padding
+                x = edgePadding
                 y = bitmap.height / 2f + textHeight / 2f
             }
             WatermarkPosition.CENTER -> {
@@ -771,20 +775,20 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 y = bitmap.height / 2f + textHeight / 2f
             }
             WatermarkPosition.MIDDLE_RIGHT -> {
-                x = bitmap.width - textWidth - padding
+                x = bitmap.width - textWidth - edgePadding
                 y = bitmap.height / 2f + textHeight / 2f
             }
             WatermarkPosition.BOTTOM_LEFT -> {
-                x = padding
-                y = bitmap.height - padding
+                x = edgePadding
+                y = bitmap.height - edgePadding
             }
             WatermarkPosition.BOTTOM_CENTER -> {
                 x = (bitmap.width - textWidth) / 2f
-                y = bitmap.height - padding
+                y = bitmap.height - edgePadding
             }
             WatermarkPosition.BOTTOM_RIGHT -> {
-                x = bitmap.width - textWidth - padding
-                y = bitmap.height - padding
+                x = bitmap.width - textWidth - edgePadding
+                y = bitmap.height - edgePadding
             }
         }
         canvas.drawText(text, x, y, strokePaint)
@@ -876,6 +880,8 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         paint.getTextBounds(text, 0, text.length, bounds)
         val textWidth = bounds.width()
         val textHeight = bounds.height()
+        
+        // Use standard padding for watermark bitmap creation (internal spacing)
         val padding = 20
         
         Log.d("MediaPickerPlus", "Text dimensions: ${textWidth}x${textHeight}, padding: $padding")
@@ -1128,18 +1134,20 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         watermarkWidth: Int,
         watermarkHeight: Int
     ): Pair<Int, Int> {
-        val padding = 20
+        // Calculate 2% padding based on shorter edge for consistent positioning
+        val shorterEdge = minOf(videoWidth, videoHeight)
+        val edgePadding = (shorterEdge * 0.02f).toInt() // 2% of shorter edge
         
         return when (position) {
-            WatermarkPosition.TOP_LEFT -> Pair(padding, padding)
-            WatermarkPosition.TOP_CENTER -> Pair((videoWidth - watermarkWidth) / 2, padding)
-            WatermarkPosition.TOP_RIGHT -> Pair(videoWidth - watermarkWidth - padding, padding)
-            WatermarkPosition.MIDDLE_LEFT -> Pair(padding, (videoHeight - watermarkHeight) / 2)
+            WatermarkPosition.TOP_LEFT -> Pair(edgePadding, edgePadding)
+            WatermarkPosition.TOP_CENTER -> Pair((videoWidth - watermarkWidth) / 2, edgePadding)
+            WatermarkPosition.TOP_RIGHT -> Pair(videoWidth - watermarkWidth - edgePadding, edgePadding)
+            WatermarkPosition.MIDDLE_LEFT -> Pair(edgePadding, (videoHeight - watermarkHeight) / 2)
             WatermarkPosition.CENTER -> Pair((videoWidth - watermarkWidth) / 2, (videoHeight - watermarkHeight) / 2)
-            WatermarkPosition.MIDDLE_RIGHT -> Pair(videoWidth - watermarkWidth - padding, (videoHeight - watermarkHeight) / 2)
-            WatermarkPosition.BOTTOM_LEFT -> Pair(padding, videoHeight - watermarkHeight - padding)
-            WatermarkPosition.BOTTOM_CENTER -> Pair((videoWidth - watermarkWidth) / 2, videoHeight - watermarkHeight - padding)
-            WatermarkPosition.BOTTOM_RIGHT -> Pair(videoWidth - watermarkWidth - padding, videoHeight - watermarkHeight - padding)
+            WatermarkPosition.MIDDLE_RIGHT -> Pair(videoWidth - watermarkWidth - edgePadding, (videoHeight - watermarkHeight) / 2)
+            WatermarkPosition.BOTTOM_LEFT -> Pair(edgePadding, videoHeight - watermarkHeight - edgePadding)
+            WatermarkPosition.BOTTOM_CENTER -> Pair((videoWidth - watermarkWidth) / 2, videoHeight - watermarkHeight - edgePadding)
+            WatermarkPosition.BOTTOM_RIGHT -> Pair(videoWidth - watermarkWidth - edgePadding, videoHeight - watermarkHeight - edgePadding)
         }
     }
     
