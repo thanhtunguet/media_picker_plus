@@ -389,521 +389,453 @@ platform :osx, '11.0'
 - **Production**: HTTPS required for camera and microphone access
 - **Mobile browsers**: May have different permission behaviors
 
-## 🎯 Usage
+## 📖 Usage
 
-### Basic Import
+### Import the package
 
 ```dart
 import 'package:media_picker_plus/media_picker_plus.dart';
 ```
 
-### Image Operations
+### Permission Handling
+
+Before using any media picking functionality, it's recommended to check and request permissions:
+
+```dart
+// Check camera permission
+bool hasCameraPermission = await MediaPickerPlus.hasCameraPermission();
+if (!hasCameraPermission) {
+  bool granted = await MediaPickerPlus.requestCameraPermission();
+  if (!granted) {
+    // Handle permission denied
+    return;
+  }
+}
+
+// Check gallery permission
+bool hasGalleryPermission = await MediaPickerPlus.hasGalleryPermission();
+if (!hasGalleryPermission) {
+  bool granted = await MediaPickerPlus.requestGalleryPermission();
+  if (!granted) {
+    // Handle permission denied
+    return;
+  }
+}
+```
+
+### Basic Image Picking
 
 #### Pick Image from Gallery
 
 ```dart
-final String? imagePath = await MediaPickerPlus.pickImage(
-  context: context, // Optional: enables interactive cropping UI when freeform cropping
-  options: const MediaOptions(
-    imageQuality: 85,
-    maxWidth: 1920,
-    maxHeight: 1080,
-    watermark: '© My App 2024',
-    watermarkPosition: WatermarkPosition.bottomRight,
-    watermarkFontSize: 24,
-  ),
-);
+// Simple image picking
+String? imagePath = await MediaPickerPlus.pickImage();
 
-if (imagePath != null) {
-  // Use the processed image
-  File imageFile = File(imagePath);
-}
-```
-
-#### Capture Photo
-
-```dart
-final String? photoPath = await MediaPickerPlus.capturePhoto(
-  context: context, // Optional: enables interactive cropping UI when freeform cropping
+// With custom options
+String? imagePath = await MediaPickerPlus.pickImage(
   options: const MediaOptions(
     imageQuality: 90,
-    maxWidth: 2560,
-    maxHeight: 1440,
-    watermark: 'Captured with My App',
-    watermarkPosition: WatermarkPosition.bottomCenter,
-  ),
-);
-```
-
-#### Pick Multiple Images
-
-```dart
-final List<String>? imagePaths = await MediaPickerPlus.pickMultipleImages(
-  options: const MediaOptions(
-    imageQuality: 80,
     maxWidth: 1920,
     maxHeight: 1080,
-    watermark: 'Batch Process',
-    watermarkPosition: WatermarkPosition.topLeft,
   ),
 );
 ```
 
-### Video Operations
+#### Capture Photo with Camera
+
+```dart
+// Simple photo capture
+String? imagePath = await MediaPickerPlus.capturePhoto();
+
+// With custom options
+String? imagePath = await MediaPickerPlus.capturePhoto(
+  options: const MediaOptions(
+    imageQuality: 85,
+    maxWidth: 1600,
+    maxHeight: 1200,
+  ),
+);
+```
+
+### Basic Video Handling
 
 #### Pick Video from Gallery
 
 ```dart
-final String? videoPath = await MediaPickerPlus.pickVideo(
+// Simple video picking
+String? videoPath = await MediaPickerPlus.pickVideo();
+
+// With duration limit
+String? videoPath = await MediaPickerPlus.pickVideo(
   options: const MediaOptions(
-    maxWidth: 1920,
-    maxHeight: 1080,
-    watermark: '🎥 My Video App',
-    watermarkPosition: WatermarkPosition.topRight,
-    watermarkFontSize: 28,
     maxDuration: Duration(minutes: 5),
   ),
 );
 ```
 
-#### Record Video
+#### Record Video with Camera
 
 ```dart
-final String? recordedPath = await MediaPickerPlus.recordVideo(
+// Simple video recording
+String? videoPath = await MediaPickerPlus.recordVideo();
+
+// With custom options
+String? videoPath = await MediaPickerPlus.recordVideo(
   options: const MediaOptions(
-    maxWidth: 1920,
-    maxHeight: 1080,
-    watermark: 'Live Recording',
-    watermarkPosition: WatermarkPosition.middleCenter,
     maxDuration: Duration(minutes: 2),
   ),
 );
 ```
 
-### Standalone Watermarking
+### Multiple Media Selection
 
-The plugin provides dedicated methods to add watermarks to existing media files without going through the media picker workflow. These methods are perfect for post-processing or batch operations on your existing media library.
-
-#### Add Watermark to Existing Image
+#### Pick Multiple Images
 
 ```dart
-// Add watermark to an existing image file
-final String? watermarkedImagePath = await MediaPickerPlus.addWatermarkToImage(
-  '/path/to/your/image.jpg',
+List<String>? imagePaths = await MediaPickerPlus.pickMultipleImages();
+
+// With custom options
+List<String>? imagePaths = await MediaPickerPlus.pickMultipleImages(
   options: const MediaOptions(
-    watermark: '© MyApp 2025',
-    watermarkPosition: WatermarkPosition.bottomRight,
-    watermarkFontSize: 32,
-    imageQuality: 90, // Output quality
-  ),
-);
-
-if (watermarkedImagePath != null) {
-  // Use the watermarked image
-  File watermarkedFile = File(watermarkedImagePath);
-}
-```
-
-#### Add Watermark to Existing Video
-
-```dart
-// Add watermark to an existing video file
-final String? watermarkedVideoPath = await MediaPickerPlus.addWatermarkToVideo(
-  '/path/to/your/video.mp4',
-  options: const MediaOptions(
-    watermark: '🎬 MyApp Productions',
-    watermarkPosition: WatermarkPosition.topLeft,
-    watermarkFontSize: 28,
-  ),
-);
-
-if (watermarkedVideoPath != null) {
-  // Use the watermarked video
-  File watermarkedFile = File(watermarkedVideoPath);
-}
-```
-
-#### Batch Watermarking Example
-
-```dart
-// Process multiple images with the same watermark
-Future<List<String>> batchWatermarkImages(List<String> imagePaths) async {
-  final List<String> watermarkedPaths = [];
-  
-  const watermarkOptions = MediaOptions(
-    watermark: 'Batch Processed ${DateTime.now().year}',
-    watermarkPosition: WatermarkPosition.bottomCenter,
-    watermarkFontSize: 24,
-    imageQuality: 85,
-  );
-  
-  for (final imagePath in imagePaths) {
-    try {
-      final watermarkedPath = await MediaPickerPlus.addWatermarkToImage(
-        imagePath,
-        options: watermarkOptions,
-      );
-      if (watermarkedPath != null) {
-        watermarkedPaths.add(watermarkedPath);
-      }
-    } catch (e) {
-      print('Failed to watermark $imagePath: $e');
-    }
-  }
-  
-  return watermarkedPaths;
-}
-```
-
-#### Platform Support for Standalone Watermarking
-
-| Feature | Android | iOS | macOS | Web |
-|---------|:-------:|:---:|:-----:|:---:|
-| **Image Watermarking** | ✅ | ✅ | ✅ | ✅ |
-| **Video Watermarking** | ✅ | ✅ | ✅ | ✅* |
-
-*Web video watermarking requires FFmpeg.js to be included in your project.
-
-#### Error Handling for Watermarking
-
-```dart
-try {
-  final watermarkedPath = await MediaPickerPlus.addWatermarkToImage(
-    '/path/to/image.jpg',
-    options: const MediaOptions(
-      watermark: 'Test Watermark',
-      watermarkPosition: WatermarkPosition.bottomRight,
-    ),
-  );
-  
-  if (watermarkedPath != null) {
-    // Success - use the watermarked file
-    print('Watermarked image saved to: $watermarkedPath');
-  }
-} catch (e) {
-  // Handle specific errors
-  if (e.toString().contains('file does not exist')) {
-    print('Source file not found');
-  } else if (e.toString().contains('watermark text is required')) {
-    print('Please provide watermark text');
-  } else {
-    print('Watermarking failed: $e');
-  }
-}
-```
-
-### Cropping Operations
-
-The plugin supports advanced cropping functionality for both images and videos with various aspect ratio presets and freeform cropping. When using freeform cropping with a `BuildContext`, an interactive cropping UI allows manual selection of the crop area.
-
-#### Basic Cropping
-
-```dart
-// Square cropping (1:1)
-final String? imagePath = await MediaPickerPlus.pickImage(
-  options: const MediaOptions(
-    cropOptions: CropOptions.square, // Predefined square crop
-    imageQuality: 85,
-    watermark: 'Cropped Image',
+    imageQuality: 80,
+    maxWidth: 1280,
+    maxHeight: 1280,
   ),
 );
 ```
 
-#### Aspect Ratio Cropping
+#### Pick Multiple Videos
 
 ```dart
-// Portrait crop (3:4)
-final String? portraitImage = await MediaPickerPlus.pickImage(
-  options: const MediaOptions(
-    cropOptions: CropOptions.portrait,
-    imageQuality: 90,
-  ),
-);
+List<String>? videoPaths = await MediaPickerPlus.pickMultipleVideos();
 
-// Landscape crop (4:3)
-final String? landscapeImage = await MediaPickerPlus.pickImage(
+// With duration limits
+List<String>? videoPaths = await MediaPickerPlus.pickMultipleVideos(
   options: const MediaOptions(
-    cropOptions: CropOptions.landscape,
-    imageQuality: 90,
-  ),
-);
-
-// Widescreen crop (16:9)
-final String? widescreenVideo = await MediaPickerPlus.pickVideo(
-  options: const MediaOptions(
-    cropOptions: CropOptions.widescreen,
-    watermark: 'Widescreen Video',
+    maxDuration: Duration(minutes: 3),
   ),
 );
 ```
 
-#### Custom Aspect Ratio
-
-```dart
-// Custom aspect ratio (e.g., 5:4)
-final String? customCropImage = await MediaPickerPlus.pickImage(
-  options: const MediaOptions(
-    cropOptions: CropOptions(
-      enableCrop: true,
-      aspectRatio: 5.0 / 4.0,
-      lockAspectRatio: true,
-      showGrid: true,
-    ),
-  ),
-);
-```
-
-#### Freeform Cropping with Interactive UI
-
-```dart
-// Freeform cropping with interactive UI (requires BuildContext)
-final String? freeformImage = await MediaPickerPlus.pickImage(
-  context: context, // Required for interactive cropping UI
-  options: const MediaOptions(
-    cropOptions: CropOptions(
-      enableCrop: true,
-      freeform: true,
-      showGrid: true,
-      lockAspectRatio: false,
-    ),
-  ),
-);
-```
-
-**Note:** When `freeform: true` is used with a `BuildContext`, an interactive cropping UI will appear allowing users to manually adjust the crop area with:
-- Draggable corner handles for resizing
-- Touch-to-move the entire crop area
-- Real-time aspect ratio controls
-- Visual grid overlay for better alignment
-- Zoom and pan support for precise cropping
-
-#### Specific Crop Rectangle
-
-```dart
-// Crop specific area (normalized coordinates 0.0 - 1.0)
-final String? specificCropImage = await MediaPickerPlus.pickImage(
-  options: const MediaOptions(
-    cropOptions: CropOptions(
-      enableCrop: true,
-      cropRect: CropRect(
-        x: 0.1,      // 10% from left
-        y: 0.1,      // 10% from top
-        width: 0.8,  // 80% of original width
-        height: 0.8, // 80% of original height
-      ),
-    ),
-  ),
-);
-```
-
-#### Video Cropping
-
-```dart
-// Crop recorded video to square format
-final String? croppedVideo = await MediaPickerPlus.recordVideo(
-  options: const MediaOptions(
-    cropOptions: CropOptions.square,
-    maxDuration: Duration(minutes: 1),
-    watermark: 'Square Video',
-    watermarkPosition: WatermarkPosition.topLeft,
-  ),
-);
-```
-
-## 🎛️ Interactive Cropping UI
-
-When using freeform cropping with a `BuildContext`, the plugin displays a full-screen interactive cropping interface with the following features:
-
-### Features
-- **Manual Selection**: Drag corner handles to resize the crop area
-- **Move Crop Area**: Touch and drag to move the entire crop area
-- **Aspect Ratio Controls**: Quick buttons for common ratios (1:1, 4:3, 3:4, 16:9)
-- **Visual Grid Overlay**: Rule of thirds grid for better composition
-- **Zoom & Pan**: InteractiveViewer for precise crop selection
-- **Real-time Preview**: See crop dimensions and percentage coverage
-- **Responsive Design**: Adapts to different screen sizes and orientations
-
-### Usage
-```dart
-// Interactive cropping requires a BuildContext
-final String? croppedImage = await MediaPickerPlus.pickImage(
-  context: context, // This enables the interactive UI
-  options: const MediaOptions(
-    cropOptions: CropOptions(
-      enableCrop: true,
-      freeform: true, // This triggers the interactive UI
-      showGrid: true,
-      lockAspectRatio: false,
-    ),
-  ),
-);
-```
-
-### UI Components
-- **App Bar**: Cancel/confirm buttons with reset option
-- **Crop Controls**: Aspect ratio selection chips
-- **Crop Area**: Interactive image with overlay and handles
-- **Bottom Actions**: Cancel and confirm buttons for easy access
-
-The interactive UI is displayed as a full-screen modal that guides users through the cropping process with intuitive touch controls and visual feedback.
-
-**Testing/Advanced:** `CropUI` also supports injecting a pre-decoded `ui.Image` via `initialImage` (skips loading from `imagePath`).
-
-### File Operations
+### File Picking
 
 #### Pick Single File
 
 ```dart
-final String? filePath = await MediaPickerPlus.pickFile(
-  allowedExtensions: ['.pdf', '.doc', '.docx', '.txt'],
+// Pick any file
+String? filePath = await MediaPickerPlus.pickFile();
+
+// Pick specific file types
+String? pdfPath = await MediaPickerPlus.pickFile(
+  allowedExtensions: ['pdf', 'doc', 'docx'],
 );
 ```
 
 #### Pick Multiple Files
 
 ```dart
-final List<String>? filePaths = await MediaPickerPlus.pickMultipleFiles(
-  allowedExtensions: ['.pdf', '.doc', '.docx', '.txt', '.csv', '.xlsx'],
+// Pick multiple files
+List<String>? filePaths = await MediaPickerPlus.pickMultipleFiles();
+
+// Pick multiple files with specific extensions
+List<String>? imagePaths = await MediaPickerPlus.pickMultipleFiles(
+  allowedExtensions: ['jpg', 'png', 'gif', 'bmp'],
 );
 ```
 
-### Permission Management
+### Advanced Image Cropping
+
+#### Interactive Cropping
+
+For interactive cropping with a built-in UI, provide a `BuildContext`:
 
 ```dart
-// Check permissions
-bool hasCameraPermission = await MediaPickerPlus.hasCameraPermission();
-bool hasGalleryPermission = await MediaPickerPlus.hasGalleryPermission();
+// Enable interactive cropping with square aspect ratio
+String? croppedImage = await MediaPickerPlus.pickImage(
+  context: context,
+  options: MediaOptions(
+    cropOptions: CropOptions.square, // 1:1 aspect ratio
+  ),
+);
 
-// Request permissions
-if (!hasCameraPermission) {
-  hasCameraPermission = await MediaPickerPlus.requestCameraPermission();
-}
+// Enable interactive cropping with custom aspect ratio
+String? croppedImage = await MediaPickerPlus.capturePhoto(
+  context: context,
+  options: const MediaOptions(
+    cropOptions: CropOptions(
+      enableCrop: true,
+      aspectRatio: 16.0 / 9.0, // Widescreen
+      lockAspectRatio: true,
+      showGrid: true,
+    ),
+  ),
+);
 
-if (!hasGalleryPermission) {
-  hasGalleryPermission = await MediaPickerPlus.requestGalleryPermission();
-}
+// Freeform cropping (no aspect ratio constraints)
+String? croppedImage = await MediaPickerPlus.pickImage(
+  context: context,
+  options: const MediaOptions(
+    cropOptions: CropOptions(
+      enableCrop: true,
+      freeform: true,
+      showGrid: true,
+    ),
+  ),
+);
 ```
 
-## 🛠️ MediaOptions Configuration
-
-The `MediaOptions` class provides comprehensive control over media processing:
+#### Pre-defined Crop Ratios
 
 ```dart
-const MediaOptions({
-  int imageQuality = 80,           // Image quality (0-100)
-  int? maxWidth = 1280,            // Maximum width in pixels
-  int? maxHeight = 1280,           // Maximum height in pixels
-  String? watermark,               // Watermark text
-  double? watermarkFontSize = 30,  // Watermark font size
-  String? watermarkPosition = WatermarkPosition.bottomRight,
-  Duration? maxDuration = const Duration(seconds: 60), // Max video duration
-  CropOptions? cropOptions,        // Cropping configuration
-})
+// Square crop (1:1)
+String? squareImage = await MediaPickerPlus.pickImage(
+  context: context,
+  options: const MediaOptions(cropOptions: CropOptions.square),
+);
+
+// Portrait crop (3:4)
+String? portraitImage = await MediaPickerPlus.pickImage(
+  context: context,
+  options: const MediaOptions(cropOptions: CropOptions.portrait),
+);
+
+// Landscape crop (4:3)
+String? landscapeImage = await MediaPickerPlus.pickImage(
+  context: context,
+  options: const MediaOptions(cropOptions: CropOptions.landscape),
+);
+
+// Widescreen crop (16:9)
+String? widescreenImage = await MediaPickerPlus.pickImage(
+  context: context,
+  options: const MediaOptions(cropOptions: CropOptions.widescreen),
+);
 ```
 
-### CropOptions Configuration
+#### Programmatic Cropping
 
 ```dart
-const CropOptions({
-  bool enableCrop = false,         // Enable/disable cropping
-  double? aspectRatio,             // Target aspect ratio (width/height)
-  bool freeform = true,            // Allow freeform cropping
-  bool showGrid = true,            // Show crop grid overlay
-  bool lockAspectRatio = false,    // Lock aspect ratio during cropping
-  CropRect? cropRect,              // Specific crop rectangle
-})
+// Define crop area manually (values are normalized 0.0-1.0)
+String? croppedImage = await MediaPickerPlus.pickImage(
+  options: const MediaOptions(
+    cropOptions: CropOptions(
+      enableCrop: true,
+      cropRect: CropRect(
+        x: 0.1,      // 10% from left
+        y: 0.1,      // 10% from top
+        width: 0.8,  // 80% of image width
+        height: 0.8, // 80% of image height
+      ),
+    ),
+  ),
+);
 ```
 
-### CropRect Configuration
+### Watermarking
+
+#### Image Watermarking
 
 ```dart
-const CropRect({
-  required double x,               // X position (0.0 - 1.0, normalized)
-  required double y,               // Y position (0.0 - 1.0, normalized)
-  required double width,           // Width (0.0 - 1.0, normalized)
-  required double height,          // Height (0.0 - 1.0, normalized)
-})
+// Add watermark during image picking
+String? watermarkedImage = await MediaPickerPlus.pickImage(
+  options: const MediaOptions(
+    watermark: "© 2024 MyApp",
+    watermarkPosition: WatermarkPosition.bottomRight,
+    watermarkFontSizePercentage: 5.0, // 5% of shorter edge
+  ),
+);
+
+// Add watermark to existing image
+String? watermarkedImage = await MediaPickerPlus.addWatermarkToImage(
+  existingImagePath,
+  options: const MediaOptions(
+    watermark: "© 2024 MyApp",
+    watermarkPosition: WatermarkPosition.bottomLeft,
+    watermarkFontSize: 24.0, // Fixed font size
+  ),
+);
 ```
 
-### Predefined Crop Presets
+#### Video Watermarking
 
 ```dart
-// Available preset configurations
-CropOptions.square      // 1:1 aspect ratio
-CropOptions.portrait    // 3:4 aspect ratio
-CropOptions.landscape   // 4:3 aspect ratio
-CropOptions.widescreen  // 16:9 aspect ratio
+// Add watermark during video recording
+String? watermarkedVideo = await MediaPickerPlus.recordVideo(
+  options: const MediaOptions(
+    watermark: "© 2024 MyApp",
+    watermarkPosition: WatermarkPosition.topRight,
+    watermarkFontSizePercentage: 3.0,
+  ),
+);
+
+// Add watermark to existing video
+String? watermarkedVideo = await MediaPickerPlus.addWatermarkToVideo(
+  existingVideoPath,
+  options: const MediaOptions(
+    watermark: "© 2024 MyApp",
+    watermarkPosition: WatermarkPosition.bottomCenter,
+    watermarkFontSizePercentage: 4.0,
+  ),
+);
 ```
 
-### Watermark Positions
+#### Watermark Positions
 
 ```dart
-class WatermarkPosition {
-  static const String topLeft = 'topLeft';
-  static const String topCenter = 'topCenter';
-  static const String topRight = 'topRight';
-  static const String middleLeft = 'middleLeft';
-  static const String middleCenter = 'middleCenter';
-  static const String middleRight = 'middleRight';
-  static const String bottomLeft = 'bottomLeft';
-  static const String bottomCenter = 'bottomCenter';
-  static const String bottomRight = 'bottomRight';
-}
+// Available watermark positions
+WatermarkPosition.topLeft
+WatermarkPosition.topCenter
+WatermarkPosition.topRight
+WatermarkPosition.middleLeft
+WatermarkPosition.middleCenter
+WatermarkPosition.middleRight
+WatermarkPosition.bottomLeft
+WatermarkPosition.bottomCenter
+WatermarkPosition.bottomRight
 ```
 
-## 🔍 Advanced Usage
+### Complete MediaOptions Configuration
+
+```dart
+const MediaOptions(
+  // Image quality (0-100, higher = better quality)
+  imageQuality: 90,
+  
+  // Maximum dimensions (pixels)
+  maxWidth: 1920,
+  maxHeight: 1080,
+  
+  // Video duration limit
+  maxDuration: Duration(minutes: 5),
+  
+  // Watermark settings
+  watermark: "© 2024 MyApp",
+  watermarkPosition: WatermarkPosition.bottomRight,
+  
+  // Font size options (use one or the other)
+  watermarkFontSize: 24.0, // Fixed pixel size
+  watermarkFontSizePercentage: 4.0, // Percentage of shorter edge
+  
+  // Cropping options
+  cropOptions: CropOptions(
+    enableCrop: true,
+    aspectRatio: 16.0 / 9.0,
+    lockAspectRatio: true,
+    freeform: false,
+    showGrid: true,
+    cropRect: CropRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8),
+  ),
+)
+```
 
 ### Error Handling
 
 ```dart
 try {
-  final String? imagePath = await MediaPickerPlus.pickImage();
+  String? imagePath = await MediaPickerPlus.pickImage();
   if (imagePath != null) {
-    // Process the image
+    // Process the selected image
+    print('Image selected: $imagePath');
   } else {
-    // User cancelled the operation
+    // User cancelled the picker
+    print('No image selected');
   }
 } catch (e) {
-  // Handle errors (permission denied, etc.)
-  print('Error: $e');
+  // Handle errors (permission denied, camera not available, etc.)
+  print('Error picking image: $e');
 }
 ```
 
-### Conditional Feature Usage
+### Complete Example
 
 ```dart
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:media_picker_plus/media_picker_plus.dart';
 
-if (kIsWeb) {
-  // Web-specific implementation
-} else if (Platform.isAndroid) {
-  // Android-specific implementation
-} else if (Platform.isIOS) {
-  // iOS-specific implementation
-} else if (Platform.isMacOS) {
-  // macOS-specific implementation
+class MediaPickerExample extends StatefulWidget {
+  @override
+  _MediaPickerExampleState createState() => _MediaPickerExampleState();
+}
+
+class _MediaPickerExampleState extends State<MediaPickerExample> {
+  String? _selectedImagePath;
+
+  Future<void> _pickImageWithCropping() async {
+    try {
+      // Check permissions first
+      bool hasPermission = await MediaPickerPlus.hasGalleryPermission();
+      if (!hasPermission) {
+        bool granted = await MediaPickerPlus.requestGalleryPermission();
+        if (!granted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gallery permission denied')),
+          );
+          return;
+        }
+      }
+
+      // Pick image with interactive cropping and watermark
+      String? imagePath = await MediaPickerPlus.pickImage(
+        context: context,
+        options: const MediaOptions(
+          imageQuality: 90,
+          maxWidth: 1920,
+          maxHeight: 1080,
+          watermark: "© 2024 MyApp",
+          watermarkPosition: WatermarkPosition.bottomRight,
+          watermarkFontSizePercentage: 4.0,
+          cropOptions: CropOptions(
+            enableCrop: true,
+            freeform: true,
+            showGrid: true,
+          ),
+        ),
+      );
+
+      if (imagePath != null) {
+        setState(() {
+          _selectedImagePath = imagePath;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Media Picker Plus Example'),
+      ),
+      body: Column(
+        children: [
+          ElevatedButton(
+            onPressed: _pickImageWithCropping,
+            child: Text('Pick & Crop Image'),
+          ),
+          if (_selectedImagePath != null)
+            Expanded(
+              child: Image.file(File(_selectedImagePath!)),
+            ),
+        ],
+      ),
+    );
+  }
 }
 ```
 
-## 🎨 Example App
+### Tips and Best Practices
 
-Check out the comprehensive example app included in the `example/` directory:
-
-```bash
-cd example
-flutter run
-```
-
-The example demonstrates:
-- All media picking operations
-- Advanced cropping with multiple presets
-- Interactive cropping UI for freeform selection
-- Advanced watermarking features
-- Multiple selection capabilities
-- File picking with filtering
-- Permission management
-- Cross-platform compatibility
+1. **Always check permissions** before using camera or gallery features
+2. **Use appropriate image quality** settings to balance file size and quality
+3. **Set reasonable maximum dimensions** to prevent memory issues
+4. **Provide user feedback** during media processing operations
+5. **Handle null returns** gracefully (user cancellation)
+6. **Use percentage-based watermark font sizes** for consistent appearance across different media sizes
+7. **Test interactive cropping UI** on different screen sizes and orientations
 
 ## 🔐 Privacy and Security
 
