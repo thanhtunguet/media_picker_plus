@@ -141,6 +141,21 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  void _openFullscreen() {
+    if (_mediaPath == null) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FullscreenMediaViewer(
+          mediaPath: _mediaPath!,
+          isVideo: _isVideo,
+          videoController: _videoController,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,21 +168,30 @@ class _MyAppState extends State<MyApp> {
               if (_mediaPath != null)
                 Column(
                   children: [
-                    SizedBox(
-                      height: 300,
-                      width: double.infinity,
-                      child: _isVideo
-                          ? AspectRatio(
-                              aspectRatio: _videoController!.value.aspectRatio,
-                              child: VideoPlayer(_videoController!),
-                            )
-                          : Image.file(
-                              File(_mediaPath!),
-                              fit: BoxFit.contain,
-                            ),
+                    GestureDetector(
+                      onTap: () => _openFullscreen(),
+                      child: SizedBox(
+                        height: 300,
+                        width: double.infinity,
+                        child: _isVideo
+                            ? AspectRatio(
+                                aspectRatio:
+                                    _videoController!.value.aspectRatio,
+                                child: VideoPlayer(_videoController!),
+                              )
+                            : Image.file(
+                                File(_mediaPath!),
+                                fit: BoxFit.contain,
+                              ),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text("Path: $_mediaPath"),
+                    const SizedBox(height: 4),
+                    const Text(
+                      "Tap to view fullscreen",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                   ],
                 )
               else
@@ -282,6 +306,57 @@ class CustomCameraPage extends StatelessWidget {
           // Actually, for SingleCaptureRequest, 'path' is the property.
           Navigator.pop(context, mediaCapture.captureRequest.path);
         },
+      ),
+    );
+  }
+}
+
+class FullscreenMediaViewer extends StatefulWidget {
+  final String mediaPath;
+  final bool isVideo;
+  final VideoPlayerController? videoController;
+
+  const FullscreenMediaViewer({
+    super.key,
+    required this.mediaPath,
+    required this.isVideo,
+    this.videoController,
+  });
+
+  @override
+  State<FullscreenMediaViewer> createState() => _FullscreenMediaViewerState();
+}
+
+class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          widget.isVideo ? 'Video Viewer' : 'Image Viewer',
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: widget.isVideo
+              ? (widget.videoController != null &&
+                      widget.videoController!.value.isInitialized)
+                  ? AspectRatio(
+                      aspectRatio: widget.videoController!.value.aspectRatio,
+                      child: VideoPlayer(widget.videoController!),
+                    )
+                  : const CircularProgressIndicator()
+              : Image.file(
+                  File(widget.mediaPath),
+                  fit: BoxFit.contain,
+                ),
+        ),
       ),
     );
   }
