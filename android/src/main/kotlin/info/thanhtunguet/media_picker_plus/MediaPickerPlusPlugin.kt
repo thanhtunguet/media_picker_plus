@@ -871,7 +871,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         
         val paint = Paint().apply {
             color = Color.WHITE
-            alpha = 255  // Make it fully opaque for testing
+            alpha = 255
             textSize = fontSize
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
@@ -888,14 +888,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         
         val watermarkBitmap = Bitmap.createBitmap(textWidth + padding * 2, textHeight + padding * 2, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(watermarkBitmap)
-        
-        // Add a semi-transparent background to make the watermark more visible
-        val backgroundPaint = Paint().apply {
-            color = Color.BLACK
-            alpha = 128
-        }
-        canvas.drawRect(0f, 0f, watermarkBitmap.width.toFloat(), watermarkBitmap.height.toFloat(), backgroundPaint)
-        
+
         val strokePaint = Paint(paint).apply {
             style = Paint.Style.STROKE
             strokeWidth = 3f  // Make stroke thicker

@@ -39,6 +39,7 @@ Goal: bring macOS and Web implementations up to feature parity with Android/iOS.
   - Changed from libx264 encoder (with unsupported preset options) to mpeg4 encoder with quality parameter
   - Resolved "Unrecognized option 'preset'" error
   - Added camera capture URI fallback when the output file is empty
+  - Removed semi-transparent background from video watermark bitmap
   - Updated README.md platform support table to show Android video watermarking as ✅
   - Verification: Android video watermarking now working for both gallery-picked and camera-recorded videos
 
