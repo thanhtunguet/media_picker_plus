@@ -32,6 +32,15 @@ Goal: bring macOS and Web implementations up to feature parity with Android/iOS.
   - Implement video processing using WebRTC/MediaRecorder APIs
   - Verification: `README.md` describes Canvas-based processing and shows Web capabilities.
 
+## Android Fixes
+- [x] **Fix Android video watermarking**
+  - Verified FFmpeg-kit integration exists and is properly configured
+  - Fixed FFmpeg command incompatibility with ffmpeg-kit-https variant
+  - Changed from libx264 encoder (with unsupported preset options) to mpeg4 encoder with quality parameter
+  - Resolved "Unrecognized option 'preset'" error
+  - Added camera capture URI fallback when the output file is empty
+  - Updated README.md platform support table to show Android video watermarking as ✅
+  - Verification: Android video watermarking now working for both gallery-picked and camera-recorded videos
+
 ## Next Session Priorities (Actionable)
-1. Verify Android video watermarking status (README notes it’s under development)
-2. Expand automated testing coverage (see Phase 2)
+1. Expand automated testing coverage (see Phase 2)

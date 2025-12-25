@@ -44,9 +44,7 @@ This plugin is ideal for developers building:
 | Watermark image |    ✅    |  ✅  |  ✅  |   ✅   |
 | Pick video      |    ✅    |  ✅  |  ✅  |   ✅   |
 | Capture video   |    ✅    |  ✅  |  ✅  |   ✅   |
-| Watermark video |    ❌    |  ✅  |  ✅  |   ✅   |
-
-> Note: Video watermarking on Android is currently under development. Contributions are welcome!
+| Watermark video |    ✅    |  ✅  |  ✅  |   ✅   |
 
 
 ## 📋 Requirements

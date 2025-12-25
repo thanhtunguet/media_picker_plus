@@ -6,6 +6,8 @@
 
 ### Fixed
 - **Watermark font consistency**: Fixed video watermarks to match photo watermark styling on iOS and macOS. Video watermarks now use attributed strings with black stroke/outline (strokeWidth: -2), creating consistent white text with black outline across both images and videos.
+- **Android video watermarking**: Fixed FFmpeg command incompatibility with ffmpeg-kit-https variant. Changed from libx264 encoder with preset options to mpeg4 encoder with quality parameter (-q:v 5), resolving "Unrecognized option 'preset'" error that prevented video watermarking on Android.
+- **Android captured video watermarking**: Added fallback to resolve recorded video paths from camera content URIs when the app-provided file is empty, ensuring watermarking runs for camera captures.
 
 ## 0.3.0-rc.5
 

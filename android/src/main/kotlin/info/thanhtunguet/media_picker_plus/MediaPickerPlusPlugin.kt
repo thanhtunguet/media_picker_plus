@@ -1266,7 +1266,9 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         }
         
         // Build complete FFmpeg command
-        return "-i $inputVideo -i $watermarkImage -filter_complex \"$filterComplex\" -c:a copy -c:v libx264 -preset fast -crf 23 -y $output"
+        // Note: Removed -preset fast as it's not supported in ffmpeg-kit-https variant
+        // Using mpeg4 encoder instead of libx264 for better compatibility
+        return "-i $inputVideo -i $watermarkImage -filter_complex \"$filterComplex\" -c:a copy -c:v mpeg4 -q:v 5 -y $output"
     }
 
     private fun applyCropToBitmap(bitmap: Bitmap, cropOptions: HashMap<String, Any>): Bitmap {
@@ -1429,12 +1431,21 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     return true
                 }
                 REQUEST_VIDEO_CAPTURE -> {
-                    currentMediaPath?.let { path ->
-                        val processedPath = processVideo(path)
-                        pendingResult?.success(processedPath)
-                        pendingResult = null
-                        currentMediaPath = null
+                    val capturedPath = currentMediaPath?.let { path ->
+                        val file = File(path)
+                        if (file.exists() && file.length() > 0L) path else null
+                    } ?: data?.data?.let { uri ->
+                        getFilePathFromUri(uri)
                     }
+
+                    if (capturedPath != null) {
+                        val processedPath = processVideo(capturedPath)
+                        pendingResult?.success(processedPath)
+                    } else {
+                        pendingResult?.error("NO_FILE", "No video file was captured", null)
+                    }
+                    pendingResult = null
+                    currentMediaPath = null
                     return true
                 }
                 REQUEST_PICK_IMAGE -> {
