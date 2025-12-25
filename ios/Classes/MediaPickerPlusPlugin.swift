@@ -825,14 +825,14 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                     x: videoSize.width - textSize.width - padding,
                     y: videoSize.height - textSize.height - padding)
             }
-
-            // Create text layer
+            
+            // Create attributed string with stroke for consistent styling with image watermarks
+            let attributedString = NSAttributedString(string: text, attributes: attributes)
+            
+            // Create text layer with attributed string
             let textLayer = CATextLayer()
-            textLayer.string = text
-            textLayer.font = CTFontCreateWithName(
-                UIFont.boldSystemFont(ofSize: fontSize).fontName as CFString, fontSize, nil)
+            textLayer.string = attributedString
             textLayer.fontSize = fontSize
-            textLayer.foregroundColor = UIColor.white.cgColor
             textLayer.alignmentMode = .center
             textLayer.backgroundColor = UIColor.clear.cgColor
             textLayer.frame = CGRect(origin: textPosition, size: textSize)
@@ -1420,17 +1420,17 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                 x: videoSize.width - textSize.width - padding,
                 y: videoSize.height - textSize.height - padding)
         }
-
-        // Create text layer
-        let textLayer = CATextLayer()
-        textLayer.string = text
-        textLayer.font = CTFontCreateWithName(
-            UIFont.boldSystemFont(ofSize: fontSize).fontName as CFString, fontSize, nil)
-        textLayer.fontSize = fontSize
-        textLayer.foregroundColor = UIColor.white.cgColor
-        textLayer.alignmentMode = .center
-        textLayer.backgroundColor = UIColor.clear.cgColor
-        textLayer.frame = CGRect(origin: textPosition, size: textSize)
+            
+            // Create attributed string with stroke for consistent styling with image watermarks
+            let attributedString = NSAttributedString(string: text, attributes: attributes)
+            
+            // Create text layer with attributed string
+            let textLayer = CATextLayer()
+            textLayer.string = attributedString
+            textLayer.fontSize = fontSize
+            textLayer.alignmentMode = .center
+            textLayer.backgroundColor = UIColor.clear.cgColor
+            textLayer.frame = CGRect(origin: textPosition, size: textSize)
 
         // Create parent layer
         let parentLayer = CALayer()

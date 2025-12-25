@@ -913,20 +913,23 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         // Calculate optimal font size for video
         let optimalFontSize = calculateOptimalFontSize(for: videoSize, requestedSize: fontSize, text: text)
         
-        // Create text layer with calculated font size
-        let textLayer = CATextLayer()
-        textLayer.string = text
-        textLayer.fontSize = optimalFontSize
-        textLayer.foregroundColor = NSColor.white.cgColor
-        textLayer.alignmentMode = .center
-        
-        // Calculate text size based on actual font size
-        let tempAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: optimalFontSize)
+        // Create text layer with attributed string for stroke support
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: optimalFontSize),
+            .foregroundColor: NSColor.white,
+            .strokeColor: NSColor.black,
+            .strokeWidth: -2
         ]
-        let tempString = NSAttributedString(string: text, attributes: tempAttributes)
-        let calculatedTextSize = tempString.size()
+        
+        let attributedString = NSAttributedString(string: text, attributes: attributes)
+        let calculatedTextSize = attributedString.size()
         let textSize = CGSize(width: calculatedTextSize.width + 20, height: calculatedTextSize.height + 10) // Add padding
+        
+        let textLayer = CATextLayer()
+        textLayer.string = attributedString
+        textLayer.fontSize = optimalFontSize
+        textLayer.alignmentMode = .center
+        textLayer.backgroundColor = NSColor.clear.cgColor
         
         let shorterEdge = min(videoSize.width, videoSize.height)
         let margin: CGFloat = shorterEdge * 0.02 // 2% of shorter edge for consistent padding
@@ -1215,20 +1218,23 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             // Calculate optimal font size for video
             let optimalFontSize = calculateOptimalFontSize(for: finalVideoSize, requestedSize: fontSize, text: watermarkText)
             
-            // Create text layer with calculated font size
-            let textLayer = CATextLayer()
-            textLayer.string = watermarkText
-            textLayer.fontSize = optimalFontSize
-            textLayer.foregroundColor = NSColor.white.cgColor
-            textLayer.alignmentMode = .center
-            
-            // Calculate text size based on actual font size
-            let tempAttributes: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: optimalFontSize)
+            // Create attributed string with stroke for consistent styling with image watermarks
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: optimalFontSize),
+                .foregroundColor: NSColor.white,
+                .strokeColor: NSColor.black,
+                .strokeWidth: -2
             ]
-            let tempString = NSAttributedString(string: watermarkText, attributes: tempAttributes)
-            let calculatedTextSize = tempString.size()
+            
+            let attributedString = NSAttributedString(string: watermarkText, attributes: attributes)
+            let calculatedTextSize = attributedString.size()
             let textSize = CGSize(width: calculatedTextSize.width + 20, height: calculatedTextSize.height + 10)
+            
+            let textLayer = CATextLayer()
+            textLayer.string = attributedString
+            textLayer.fontSize = optimalFontSize
+            textLayer.alignmentMode = .center
+            textLayer.backgroundColor = NSColor.clear.cgColor
             
             let shorterEdge = min(finalVideoSize.width, finalVideoSize.height)
             let margin: CGFloat = shorterEdge * 0.02 // 2% of shorter edge for consistent padding
