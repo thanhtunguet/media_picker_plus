@@ -2,6 +2,9 @@ PODS:
   - FlutterMacOS (1.0.0)
   - media_picker_plus (0.0.1):
     - FlutterMacOS
+  - path_provider_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
   - video_player_avfoundation (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -9,6 +12,7 @@ PODS:
 DEPENDENCIES:
   - FlutterMacOS (from `Flutter/ephemeral`)
   - media_picker_plus (from `Flutter/ephemeral/.symlinks/plugins/media_picker_plus/macos`)
+  - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
   - video_player_avfoundation (from `Flutter/ephemeral/.symlinks/plugins/video_player_avfoundation/darwin`)
 
 EXTERNAL SOURCES:
@@ -16,12 +20,15 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral
   media_picker_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/media_picker_plus/macos
+  path_provider_foundation:
+    :path: Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin
   video_player_avfoundation:
     :path: Flutter/ephemeral/.symlinks/plugins/video_player_avfoundation/darwin
 
 SPEC CHECKSUMS:
-  FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
-  media_picker_plus: 26909f42f333ea0bc5d8c34e0eecf3d2d7208cd8
+  FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
+  media_picker_plus: 5049ff3e4cb9b2bca162b31deb2a1a9843bd32c9
+  path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
   video_player_avfoundation: 2cef49524dd1f16c5300b9cd6efd9611ce03639b
 
 PODFILE CHECKSUM: c2e95c8c0fe03c5c57e438583cae4cc732296009

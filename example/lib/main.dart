@@ -35,6 +35,13 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _requestPermissions() async {
+    // Skip permission requests on macOS and desktop platforms
+    // Desktop platforms handle permissions through system settings
+    // and Info.plist/manifest configuration
+    if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+      return;
+    }
+
     await [
       Permission.camera,
       Permission.microphone,

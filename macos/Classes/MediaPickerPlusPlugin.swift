@@ -1138,11 +1138,17 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         cropOptions: [String: Any]?,
         completion: @escaping (URL?) -> Void
     ) {
+        print("Processing video from: \(inputURL.path)")
+        print("Watermark text: \(watermarkText ?? "none")")
+        print("Video file exists: \(FileManager.default.fileExists(atPath: inputURL.path))")
+        
         let asset = AVAsset(url: inputURL)
         let composition = AVMutableComposition()
         
+        print("Loading video tracks...")
         guard let videoTrack = asset.tracks(withMediaType: .video).first,
               let compositionVideoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            print("Failed to load video track or create composition track")
             completion(nil)
             return
         }
@@ -1272,8 +1278,19 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             DispatchQueue.main.async {
                 switch exportSession.status {
                 case .completed:
+                    print("Video export completed successfully to: \(outputURL.path)")
                     completion(outputURL)
+                case.failed:
+                    print("Video export failed with error: \(exportSession.error?.localizedDescription ?? "Unknown error")")
+                    if let error = exportSession.error {
+                        print("Error details: \(error)")
+                    }
+                    completion(nil)
+                case .cancelled:
+                    print("Video export was cancelled")
+                    completion(nil)
                 default:
+                    print("Video export status: \(exportSession.status.rawValue)")
                     completion(nil)
                 }
             }
