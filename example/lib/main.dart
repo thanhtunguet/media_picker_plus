@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:camerawesome/camerawesome_plugin.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_picker_plus/media_picker_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -35,13 +36,19 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _requestPermissions() async {
-    // Skip permission requests on macOS and desktop platforms
-    // Desktop platforms handle permissions through system settings
-    // and Info.plist/manifest configuration
-    if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+    // Permission handling is platform-specific:
+    // - Web: Browser handles permissions automatically via native dialogs when
+    //        getUserMedia() or file picker is triggered. No pre-request needed.
+    //        Permission.photos, Permission.camera, and Permission.microphone are
+    //        NOT supported by permission_handler on web.
+    // - Desktop (macOS/Windows/Linux): Permissions are configured through system
+    //        settings and Info.plist/manifest configuration, not runtime requests.
+    // - Mobile (Android/iOS): Requires runtime permission requests.
+    if (kIsWeb || Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
       return;
     }
 
+    // Request permissions only on mobile platforms (Android/iOS)
     await [
       Permission.camera,
       Permission.microphone,
@@ -163,6 +170,21 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  String _getPathDescription(String path) {
+    if (kIsWeb) {
+      if (path.startsWith('data:image')) {
+        return 'Image (data URL)';
+      } else if (path.startsWith('data:video')) {
+        return 'Video (data URL)';
+      } else if (path.startsWith('blob:')) {
+        return 'Media (blob URL)';
+      }
+      return 'Media (web)';
+    }
+    // For native platforms, show the file path
+    return 'Path: $path';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -186,14 +208,14 @@ class _MyAppState extends State<MyApp> {
                                     _videoController!.value.aspectRatio,
                                 child: VideoPlayer(_videoController!),
                               )
-                            : Image.file(
-                                File(_mediaPath!),
-                                fit: BoxFit.contain,
-                              ),
+                            : _buildImage(_mediaPath!, BoxFit.contain),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text("Path: $_mediaPath"),
+                    Text(
+                      _getPathDescription(_mediaPath!),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                     const SizedBox(height: 4),
                     const Text(
                       "Tap to view fullscreen",
@@ -359,12 +381,52 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
                       child: VideoPlayer(widget.videoController!),
                     )
                   : const CircularProgressIndicator()
-              : Image.file(
-                  File(widget.mediaPath),
-                  fit: BoxFit.contain,
-                ),
+              : _buildImage(widget.mediaPath, BoxFit.contain),
         ),
       ),
+    );
+  }
+}
+
+/// Helper function to display images on both web and native platforms.
+/// On web, media paths are data URLs (base64) or blob URLs, so we use Image.network().
+/// On native platforms, media paths are file paths, so we use Image.file().
+Widget _buildImage(String path, BoxFit fit) {
+  if (kIsWeb || path.startsWith('data:') || path.startsWith('blob:')) {
+    // Web: Use Image.network for data URLs and blob URLs
+    return Image.network(
+      path,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        return const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error, color: Colors.red, size: 48),
+              SizedBox(height: 8),
+              Text('Failed to load image'),
+            ],
+          ),
+        );
+      },
+    );
+  } else {
+    // Native platforms: Use Image.file for file paths
+    return Image.file(
+      File(path),
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        return const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error, color: Colors.red, size: 48),
+              SizedBox(height: 8),
+              Text('Failed to load image'),
+            ],
+          ),
+        );
+      },
     );
   }
 }
