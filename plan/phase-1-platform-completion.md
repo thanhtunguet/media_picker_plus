@@ -40,6 +40,7 @@ Goal: bring macOS and Web implementations up to feature parity with Android/iOS.
   - Resolved "Unrecognized option 'preset'" error
   - Added camera capture URI fallback when the output file is empty
   - Removed semi-transparent background from video watermark bitmap
+  - Adjusted watermark positioning for rotated portrait videos so right-edge placements remain visible
   - Updated README.md platform support table to show Android video watermarking as ✅
   - Verification: Android video watermarking now working for both gallery-picked and camera-recorded videos
 

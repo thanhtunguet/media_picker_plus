@@ -999,11 +999,16 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             
             // Calculate watermark position
             val positionEnum = WatermarkPosition.fromString(position)
+            val (effectiveWidth, effectiveHeight) = if (rotation == 90 || rotation == 270) {
+                Pair(targetHeight, targetWidth)
+            } else {
+                Pair(targetWidth, targetHeight)
+            }
             val (watermarkX, watermarkY) = calculateWatermarkPosition(
-                positionEnum, 
-                targetWidth, 
-                targetHeight, 
-                watermarkBitmap.width, 
+                positionEnum,
+                effectiveWidth,
+                effectiveHeight,
+                watermarkBitmap.width,
                 watermarkBitmap.height
             )
             

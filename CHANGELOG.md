@@ -9,6 +9,7 @@
 - **Android video watermarking**: Fixed FFmpeg command incompatibility with ffmpeg-kit-https variant. Changed from libx264 encoder with preset options to mpeg4 encoder with quality parameter (-q:v 5), resolving "Unrecognized option 'preset'" error that prevented video watermarking on Android.
 - **Android captured video watermarking**: Added fallback to resolve recorded video paths from camera content URIs when the app-provided file is empty, ensuring watermarking runs for camera captures.
 - **Android video watermark styling**: Removed the semi-transparent background from video watermark bitmaps so Android video watermarks match photo styling and iOS appearance.
+- **Android video watermark positioning**: Adjusted watermark coordinates for rotated portrait videos so right-side placements stay visible.
 
 ## 0.3.0-rc.5
 
