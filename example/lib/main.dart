@@ -117,14 +117,29 @@ class _MyAppState extends State<MyApp> {
 
   void _setVideo(String path) {
     _videoController?.dispose();
-    _videoController = VideoPlayerController.file(File(path))
-      ..initialize().then((_) {
-        setState(() {
-          _mediaPath = path;
-          _isVideo = true;
-          _videoController!.play();
+
+    // Use appropriate VideoPlayerController based on platform
+    if (kIsWeb || path.startsWith('data:') || path.startsWith('blob:')) {
+      // Web: Use network controller for data/blob URLs
+      _videoController = VideoPlayerController.networkUrl(Uri.parse(path))
+        ..initialize().then((_) {
+          setState(() {
+            _mediaPath = path;
+            _isVideo = true;
+            _videoController!.play();
+          });
         });
-      });
+    } else {
+      // Native platforms: Use file controller
+      _videoController = VideoPlayerController.file(File(path))
+        ..initialize().then((_) {
+          setState(() {
+            _mediaPath = path;
+            _isVideo = true;
+            _videoController!.play();
+          });
+        });
+    }
   }
 
   Future<void> _openCustomCamera() async {

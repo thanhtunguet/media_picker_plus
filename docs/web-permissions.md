@@ -347,6 +347,153 @@ if (imagePath != null) {
    - Native → `Image.file()` for file paths
 4. **Error Handling**: Provides graceful fallback for load failures
 
+## Video Playback on Web vs Native Platforms
+
+### The Problem
+
+Similar to images, video playback requires different approaches on web vs native:
+- **Web**: Videos are blob URLs or data URLs
+- **Native**: Videos are file paths
+
+Using `VideoPlayerController.file()` on web will cause an error:
+```
+DartError: Unsupported operation: Platform._operatingSystem
+```
+
+### The Solution
+
+Use platform-aware video player initialization:
+
+```dart
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:video_player/video_player.dart';
+
+void _setVideo(String path) {
+  _videoController?.dispose();
+  
+  // Use appropriate VideoPlayerController based on platform
+  if (kIsWeb || path.startsWith('data:') || path.startsWith('blob:')) {
+    // Web: Use network controller for data/blob URLs
+    _videoController = VideoPlayerController.networkUrl(Uri.parse(path))
+      ..initialize().then((_) {
+        setState(() {
+          _mediaPath = path;
+          _isVideo = true;
+          _videoController!.play();
+        });
+      });
+  } else {
+    // Native platforms: Use file controller
+    _videoController = VideoPlayerController.file(File(path))
+      ..initialize().then((_) {
+        setState(() {
+          _mediaPath = path;
+          _isVideo = true;
+          _videoController!.play();
+        });
+      });
+  }
+}
+```
+
+### Usage Example
+
+```dart
+String? videoPath = await MediaPickerPlus.pickVideo();
+if (videoPath != null) {
+  // This works on all platforms
+  _setVideo(videoPath);
+  
+  // ❌ DON'T do this - will crash on web:
+  // VideoPlayerController.file(File(videoPath))
+  
+  // ❌ DON'T do this - won't work on native:
+  // VideoPlayerController.networkUrl(Uri.parse(videoPath))
+}
+```
+
+### Why This Pattern Works
+
+1. **Platform Detection**: Uses `kIsWeb` and URL pattern matching
+2. **Correct Controller**:
+   - Web → `VideoPlayerController.networkUrl()` for URLs
+   - Native → `VideoPlayerController.file()` for file paths
+3. **Error Prevention**: Avoids Platform API calls on web
+4. **Consistent Behavior**: Same user experience across platforms
+
+## Video Watermarking on Web (Optional Feature)
+
+### Important Note
+
+**Video watermarking on web is OPTIONAL** and requires additional setup. By default, videos will be returned without watermarks on web.
+
+### Expected Behavior
+
+When you try to add watermarks to videos on web, you'll see this log message:
+```
+[MediaPickerPlusWeb] Video watermarking failed: Error: ffmpeg.js is not loaded. Returning original video.
+```
+
+**This is expected and correct behavior!** The plugin gracefully falls back to returning the unwatermarked video.
+
+### How It Works
+
+```dart
+// From media_picker_plus_web.dart
+Future<String?> _processVideoFileWithWatermark(
+    web.File file, MediaOptions options) async {
+  if (options.watermark == null || options.watermark!.isEmpty) {
+    // No watermark requested
+    return _createVideoObjectURL(file);
+  }
+
+  // Check if watermarking function exists
+  final addWatermarkToVideo =
+      globalThis.getProperty('addWatermarkToVideo'.toJS);
+  if (addWatermarkToVideo.isUndefined || addWatermarkToVideo.isNull) {
+    // FFmpeg.js not loaded - return video without watermark
+    _log('Warning: Video watermarking not available on web. Returning video without watermark.');
+    return _createVideoObjectURL(file);
+  }
+  
+  // If FFmpeg.js is loaded, process watermark
+  // ... watermarking code ...
+}
+```
+
+### Why Is This Optional?
+
+1. **Large Bundle Size**: FFmpeg.js adds ~20-30MB to your web app
+2. **Loading Time**: 5-15 seconds initial load time
+3. **Network Dependency**: Requires internet for initial load
+4. **Complexity**: Requires additional JavaScript setup
+5. **Limited Use Case**: Many apps don't need video watermarks on web
+
+### Platform Support Summary
+
+| Feature | Android | iOS | macOS | Web |
+|---------|---------|-----|-------|-----|
+| Image Watermarking | ✅ Built-in | ✅ Built-in | ✅ Built-in | ✅ Built-in |
+| Video Watermarking | ✅ Built-in (FFmpegKit) | ✅ Built-in | ✅ Built-in | ⚠️ Optional (FFmpeg.js) |
+
+### Enabling Video Watermarking on Web (Advanced)
+
+If you **really need** video watermarking on web, see the complete setup guide in [`doc/web.md`](../doc/web.md). The setup involves:
+
+1. Adding FFmpeg.js script tags to `web/index.html`
+2. Creating a custom watermarking JavaScript function
+3. Handling the ~20MB+ download size
+4. Dealing with slower performance
+
+**For most apps**: Just skip video watermarking on web. Users can still:
+- ✅ Pick videos from gallery
+- ✅ Record videos with camera
+- ✅ Play videos in the app
+- ✅ Upload videos to servers
+
+Watermarking can be done server-side if needed!
+
 ## References
 
 1. **MDN Web Docs:**
