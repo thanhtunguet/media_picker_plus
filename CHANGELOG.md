@@ -1,4 +1,4 @@
-## Unreleased
+## 1.0.0
 
 ### Added
 - Comprehensive example app (`example/lib/main.dart`) demonstrating permissions, picking, cropping, watermarking, and `camerawesome` integration.
