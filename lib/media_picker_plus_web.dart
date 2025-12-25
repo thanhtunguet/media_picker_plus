@@ -8,6 +8,7 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
+import 'package:media_picker_plus/web_camera_preview.dart';
 import 'package:web/web.dart' as web;
 
 import 'crop_options.dart';
@@ -203,25 +204,33 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
         return await _captureFromCameraFileInput(MediaType.image, options);
       }
 
-      // Step 2: Create video element for preview
-      //  Note: In a real implementation with UI, this would show in an overlay
-      //  For now we'll create a hidden video element just to capture from
+      // Step 2: Show camera preview UI and wait for user to capture
+      _log('Showing camera preview UI');
+      final preview = WebCameraPreview();
+      final shouldCapture = await preview.show(stream: stream, isVideo: false);
+
+      if (shouldCapture != true) {
+        // User cancelled
+        _log('User cancelled photo capture');
+        return null;
+      }
+
+      // Step 3: Create video element for capturing
       videoElement =
           web.document.createElement('video') as web.HTMLVideoElement;
       videoElement.srcObject = stream;
       videoElement.autoplay = true;
       videoElement.playsInline = true;
-      videoElement.style.display =
-          'none'; // Hidden for now, would be visible in UI overlay
+      videoElement.style.display = 'none';
 
       if (web.document.body != null) {
         web.document.body!.appendChild(videoElement);
       }
 
       // Wait for video to be ready
-      await Future.delayed(const Duration(milliseconds: 1000));
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      // Step 3: Capture photo
+      // Step 4: Capture photo
       web.Blob? photoBlob;
 
       // Try ImageCapture API first (best quality)
@@ -243,7 +252,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
         return await _captureFromCameraFileInput(MediaType.image, options);
       }
 
-      // Step 4: Process image (resize, crop, watermark)
+      //  Step 5: Process image (resize, crop, watermark)
       // Create a temporary File-like object from the blob for processing
       final file = web.File([photoBlob].toJS, 'camera_photo.jpg',
           web.FilePropertyBag(type: 'image/jpeg'));
@@ -265,7 +274,6 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
   /// Record video using modern Camera API
   Future<String?> _recordVideoWithCameraAPI(MediaOptions options) async {
     web.MediaStream? stream;
-    web.HTMLVideoElement? videoElement;
     _MediaRecorderHelper? recorder;
 
     try {
@@ -280,25 +288,11 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
         return await _captureFromCameraFileInput(MediaType.video, options);
       }
 
-      // Step 2: Create video element for preview
-      // Note: In a real implementation with UI, this would show in an overlay
-      videoElement =
-          web.document.createElement('video') as web.HTMLVideoElement;
-      videoElement.srcObject = stream;
-      videoElement.autoplay = true;
-      videoElement.playsInline = true;
-      videoElement.muted = true; // Mute preview to avoid feedback
-      videoElement.style.display =
-          'none'; // Hidden for now, would be visible in UI overlay
+      // Step 2: Show camera preview UI and wait for user to start recording
+      _log('Showing camera preview UI for video');
+      final preview = WebCameraPreview();
 
-      if (web.document.body != null) {
-        web.document.body!.appendChild(videoElement);
-      }
-
-      // Wait for video to be ready
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Step 3: Start recording
+      // Start recording when user clicks record button
       recorder = _MediaRecorderHelper();
       final started = await recorder.startRecording(stream);
 
@@ -307,18 +301,17 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
         return await _captureFromCameraFileInput(MediaType.video, options);
       }
 
-      _log('Recording started... (simulating 5 second recording)');
+      // Show preview with recording indicator
+      final shouldStop = await preview.show(stream: stream, isVideo: true);
 
-      // Note: In a real implementation with UI, this would wait for user to click stop
-      // For now, record for a fixed duration or until max duration
-      final maxDuration = options.maxDuration ?? const Duration(seconds: 30);
-      final recordDuration = maxDuration.inSeconds > 30
-          ? const Duration(seconds: 30)
-          : maxDuration;
+      if (shouldStop != true) {
+        // User cancelled before stopping
+        _log('User cancelled video recording');
+        recorder.stopRecording(); // Make sure to stop the recorder
+        return null;
+      }
 
-      await Future.delayed(recordDuration);
-
-      // Step 4: Stop recording and get blob
+      // Step 3: Stop recording and get blob
       final videoBlob = await recorder.stopRecording();
 
       if (videoBlob == null) {
@@ -328,7 +321,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
 
       _log('Recording stopped, blob size: ${videoBlob.size} bytes');
 
-      // Step 5: Process video (watermark if requested)
+      // Step 4: Process video (watermark if requested)
       if (options.watermark != null && options.watermark!.isNotEmpty) {
         _log('Processing video with watermark...');
         // Convert blob to File for processing
@@ -356,11 +349,10 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       _log('Error in camera API video recording: $e');
       return await _captureFromCameraFileInput(MediaType.video, options);
     } finally {
-      // Step 6: Cleanup
+      // Step 5: Cleanup
       if (stream != null) {
         _stopMediaStream(stream);
       }
-      videoElement?.remove();
     }
   }
 
@@ -1209,27 +1201,6 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     } catch (e) {
       _log('Error stopping media stream: $e');
     }
-  }
-
-  /// Convert Blob to Data URL
-  Future<String> _blobToDataUrl(web.Blob blob) async {
-    final completer = Completer<String>();
-    final reader = web.FileReader();
-
-    reader.addEventListener(
-        'load',
-        (web.Event event) {
-          completer.complete(reader.result as String);
-        }.toJS);
-
-    reader.addEventListener(
-        'error',
-        (web.Event event) {
-          completer.completeError('Failed to read blob');
-        }.toJS);
-
-    reader.readAsDataURL(blob);
-    return await completer.future;
   }
 }
 

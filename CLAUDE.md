@@ -18,3 +18,4 @@
   - Mark it `[x]` in its phase file (or move it to Phase 0 if it’s a milestone-level completion).
   - Keep task descriptions stable; append sub-bullets for notes/decisions instead of rewriting history.
 - Add your changes to `@CHANGELOG.md` in `Unreleased section`. We will use them as release notes for new version.
+- Update docs in `doc` folder (Please notice that the folder name is in singular form)
