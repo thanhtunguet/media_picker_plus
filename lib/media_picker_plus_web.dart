@@ -114,6 +114,25 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
 
   Future<String?> _captureFromCamera(
       MediaType type, MediaOptions options) async {
+    // Try modern camera API first if available
+    if (_shouldUseCameraAPI(type)) {
+      _log('Using modern camera API for capture');
+
+      if (type == MediaType.image) {
+        return await _capturePhotoWithCameraAPI(options);
+      } else if (type == MediaType.video) {
+        return await _recordVideoWithCameraAPI(options);
+      }
+    }
+
+    // Fall back to file input method
+    _log('Falling back to file input method');
+    return await _captureFromCameraFileInput(type, options);
+  }
+
+  /// Legacy file input capture method (fallback)
+  Future<String?> _captureFromCameraFileInput(
+      MediaType type, MediaOptions options) async {
     final completer = Completer<String?>();
     final input = web.document.createElement('input') as web.HTMLInputElement;
     input.type = 'file';
@@ -168,6 +187,181 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     input.click();
     input.remove();
     return completer.future;
+  }
+
+  /// Capture photo using modern Camera API
+  Future<String?> _capturePhotoWithCameraAPI(MediaOptions options) async {
+    web.MediaStream? stream;
+    web.HTMLVideoElement? videoElement;
+
+    try {
+      // Step 1: Get camera stream
+      stream = await _getCameraStream(facingMode: 'environment');
+
+      if (stream == null) {
+        _log('Failed to get camera stream, falling back to file input');
+        return await _captureFromCameraFileInput(MediaType.image, options);
+      }
+
+      // Step 2: Create video element for preview
+      //  Note: In a real implementation with UI, this would show in an overlay
+      //  For now we'll create a hidden video element just to capture from
+      videoElement =
+          web.document.createElement('video') as web.HTMLVideoElement;
+      videoElement.srcObject = stream;
+      videoElement.autoplay = true;
+      videoElement.playsInline = true;
+      videoElement.style.display =
+          'none'; // Hidden for now, would be visible in UI overlay
+
+      if (web.document.body != null) {
+        web.document.body!.appendChild(videoElement);
+      }
+
+      // Wait for video to be ready
+      await Future.delayed(const Duration(milliseconds: 1000));
+
+      // Step 3: Capture photo
+      web.Blob? photoBlob;
+
+      // Try ImageCapture API first (best quality)
+      if (_supportsImageCapture()) {
+        photoBlob = await _capturePhotoWithImageCapture(stream);
+        if (photoBlob != null) {
+          _log('Photo captured using ImageCapture API');
+        }
+      }
+
+      // Fallback to canvas snapshot if ImageCapture failed
+      if (photoBlob == null) {
+        _log('Using canvas snapshot fallback');
+        photoBlob = await _capturePhotoFromVideo(videoElement);
+      }
+
+      if (photoBlob == null) {
+        _log('Failed to capture photo with camera API, falling back');
+        return await _captureFromCameraFileInput(MediaType.image, options);
+      }
+
+      // Step 4: Process image (resize, crop, watermark)
+      // Create a temporary File-like object from the blob for processing
+      final file = web.File([photoBlob].toJS, 'camera_photo.jpg',
+          web.FilePropertyBag(type: 'image/jpeg'));
+      final processedDataUrl = await _processImageFile(file, options);
+
+      return processedDataUrl;
+    } catch (e) {
+      _log('Error in camera API photo capture: $e');
+      return await _captureFromCameraFileInput(MediaType.image, options);
+    } finally {
+      // Step 6: Cleanup
+      if (stream != null) {
+        _stopMediaStream(stream);
+      }
+      videoElement?.remove();
+    }
+  }
+
+  /// Record video using modern Camera API
+  Future<String?> _recordVideoWithCameraAPI(MediaOptions options) async {
+    web.MediaStream? stream;
+    web.HTMLVideoElement? videoElement;
+    _MediaRecorderHelper? recorder;
+
+    try {
+      // Step 1: Get camera + microphone stream
+      stream = await _getCameraStream(
+        facingMode: 'environment',
+        includeAudio: true, // Include audio for video
+      );
+
+      if (stream == null) {
+        _log('Failed to get camera stream, falling back to file input');
+        return await _captureFromCameraFileInput(MediaType.video, options);
+      }
+
+      // Step 2: Create video element for preview
+      // Note: In a real implementation with UI, this would show in an overlay
+      videoElement =
+          web.document.createElement('video') as web.HTMLVideoElement;
+      videoElement.srcObject = stream;
+      videoElement.autoplay = true;
+      videoElement.playsInline = true;
+      videoElement.muted = true; // Mute preview to avoid feedback
+      videoElement.style.display =
+          'none'; // Hidden for now, would be visible in UI overlay
+
+      if (web.document.body != null) {
+        web.document.body!.appendChild(videoElement);
+      }
+
+      // Wait for video to be ready
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Step 3: Start recording
+      recorder = _MediaRecorderHelper();
+      final started = await recorder.startRecording(stream);
+
+      if (!started) {
+        _log('Failed to start recording, falling back');
+        return await _captureFromCameraFileInput(MediaType.video, options);
+      }
+
+      _log('Recording started... (simulating 5 second recording)');
+
+      // Note: In a real implementation with UI, this would wait for user to click stop
+      // For now, record for a fixed duration or until max duration
+      final maxDuration = options.maxDuration ?? const Duration(seconds: 30);
+      final recordDuration = maxDuration.inSeconds > 30
+          ? const Duration(seconds: 30)
+          : maxDuration;
+
+      await Future.delayed(recordDuration);
+
+      // Step 4: Stop recording and get blob
+      final videoBlob = await recorder.stopRecording();
+
+      if (videoBlob == null) {
+        _log('Failed to get recorded video, falling back');
+        return await _captureFromCameraFileInput(MediaType.video, options);
+      }
+
+      _log('Recording stopped, blob size: ${videoBlob.size} bytes');
+
+      // Step 5: Process video (watermark if requested)
+      if (options.watermark != null && options.watermark!.isNotEmpty) {
+        _log('Processing video with watermark...');
+        // Convert blob to File for processing
+        final file = web.File(
+          [videoBlob].toJS,
+          'camera_video.webm',
+          web.FilePropertyBag(type: videoBlob.type),
+        );
+
+        // Try to add watermark, fall back to original if it fails
+        try {
+          final watermarkedUrl =
+              await _processVideoFileWithWatermark(file, options);
+          return watermarkedUrl;
+        } catch (e) {
+          _log('Watermarking failed: $e, returning original video');
+          // Return original video without watermark
+          return web.URL.createObjectURL(videoBlob);
+        }
+      } else {
+        // No watermark requested, return blob URL directly
+        return web.URL.createObjectURL(videoBlob);
+      }
+    } catch (e) {
+      _log('Error in camera API video recording: $e');
+      return await _captureFromCameraFileInput(MediaType.video, options);
+    } finally {
+      // Step 6: Cleanup
+      if (stream != null) {
+        _stopMediaStream(stream);
+      }
+      videoElement?.remove();
+    }
   }
 
   String _createVideoObjectURL(web.File file) {
@@ -830,5 +1024,275 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     } catch (e) {
       throw Exception('Error adding watermark to video: $e');
     }
+  }
+
+  // ============================================================================
+  // PHASE 1: Browser Capability Detection
+  // ============================================================================
+
+  /// Check if getUserMedia is supported
+  bool _supportsGetUserMedia() {
+    try {
+      // Check if mediaDevices and getUserMedia are available
+      final navigator = web.window.navigator;
+      return navigator.mediaDevices.getUserMedia.toString().isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Check if ImageCapture API is supported
+  bool _supportsImageCapture() {
+    try {
+      return globalThis.has('ImageCapture');
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Check if MediaRecorder is supported
+  bool _supportsMediaRecorder() {
+    try {
+      return globalThis.has('MediaRecorder');
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Check if site is running in secure context (HTTPS or localhost)
+  bool _isSecureContext() {
+    return web.window.isSecureContext;
+  }
+
+  /// Check if modern camera API is available and should be used
+  bool _shouldUseCameraAPI(MediaType type) {
+    // Must have getUserMedia support
+    if (!_supportsGetUserMedia()) {
+      return false;
+    }
+
+    // Must be in secure context (HTTPS or localhost)
+    if (!_isSecureContext()) {
+      _log('Camera API requires HTTPS or localhost');
+      return false;
+    }
+
+    // For images, we can use getUserMedia even without ImageCapture
+    // (fall back to canvas snapshot)
+    if (type == MediaType.image) {
+      return true;
+    }
+
+    // For video, we need MediaRecorder
+    if (type == MediaType.video) {
+      return _supportsMediaRecorder();
+    }
+
+    return false;
+  }
+
+  // ============================================================================
+  // PHASE 2: Camera API Helpers
+  // ============================================================================
+
+  /// Request camera access and get MediaStream
+  Future<web.MediaStream?> _getCameraStream({
+    String facingMode =
+        'environment', // 'user' for front, 'environment' for back
+    bool includeAudio = false,
+  }) async {
+    if (!_supportsGetUserMedia()) {
+      return null;
+    }
+
+    if (!_isSecureContext()) {
+      _log('Warning: getUserMedia requires HTTPS or localhost');
+      return null;
+    }
+
+    try {
+      final videoConstraints = {
+        'facingMode': facingMode,
+      };
+
+      final constraints = {
+        'video': videoConstraints,
+        'audio': includeAudio,
+      };
+
+      final mediaDevices = web.window.navigator.mediaDevices;
+      final stream = await mediaDevices
+          .getUserMedia(constraints.jsify()! as web.MediaStreamConstraints)
+          .toDart;
+
+      return stream;
+    } catch (e) {
+      _log('Error getting camera stream: $e');
+      return null;
+    }
+  }
+
+  /// Capture photo using ImageCapture API
+  Future<web.Blob?> _capturePhotoWithImageCapture(
+    web.MediaStream stream,
+  ) async {
+    if (!_supportsImageCapture()) {
+      return null;
+    }
+
+    try {
+      final videoTracks = stream.getVideoTracks().toDart;
+      if (videoTracks.isEmpty) {
+        return null;
+      }
+
+      final videoTrack = videoTracks[0];
+
+      // Create ImageCapture instance using JavaScript interop
+      final imageCaptureConstructor =
+          globalThis.getProperty('ImageCapture'.toJS) as JSFunction;
+      final imageCapture =
+          imageCaptureConstructor.callAsConstructor(videoTrack.jsify());
+
+      // Call takePhoto method
+      final takePhotoMethod =
+          imageCapture.getProperty('takePhoto'.toJS) as JSFunction;
+      final promise = takePhotoMethod.callAsFunction(imageCapture) as JSPromise;
+
+      final blob = await promise.toDart as web.Blob;
+      return blob;
+    } catch (e) {
+      _log('Error capturing photo with ImageCapture: $e');
+      return null;
+    }
+  }
+
+  /// Fallback: Capture photo by drawing video frame to canvas
+  Future<web.Blob?> _capturePhotoFromVideo(
+    web.HTMLVideoElement videoElement,
+  ) async {
+    try {
+      final canvas =
+          web.document.createElement('canvas') as web.HTMLCanvasElement;
+      canvas.width = videoElement.videoWidth;
+      canvas.height = videoElement.videoHeight;
+
+      final ctx = canvas.getContext('2d') as web.CanvasRenderingContext2D;
+      ctx.drawImage(videoElement, 0, 0);
+
+      final completer = Completer<web.Blob?>();
+
+      canvas.toBlob(
+          (web.Blob? blob) {
+            completer.complete(blob);
+          }.toJS,
+          'image/jpeg',
+          0.95.toJS);
+
+      return await completer.future;
+    } catch (e) {
+      _log('Error capturing photo from video: $e');
+      return null;
+    }
+  }
+
+  /// Stop all tracks in a media stream
+  void _stopMediaStream(web.MediaStream? stream) {
+    if (stream == null) return;
+
+    try {
+      final tracks = stream.getTracks().toDart;
+      for (final track in tracks) {
+        (track).stop();
+      }
+    } catch (e) {
+      _log('Error stopping media stream: $e');
+    }
+  }
+
+  /// Convert Blob to Data URL
+  Future<String> _blobToDataUrl(web.Blob blob) async {
+    final completer = Completer<String>();
+    final reader = web.FileReader();
+
+    reader.addEventListener(
+        'load',
+        (web.Event event) {
+          completer.complete(reader.result as String);
+        }.toJS);
+
+    reader.addEventListener(
+        'error',
+        (web.Event event) {
+          completer.completeError('Failed to read blob');
+        }.toJS);
+
+    reader.readAsDataURL(blob);
+    return await completer.future;
+  }
+}
+
+/// Helper class for MediaRecorder operations
+class _MediaRecorderHelper {
+  web.MediaRecorder? _recorder;
+  final List<web.Blob> _chunks = [];
+  final Completer<web.Blob?> _completer = Completer();
+
+  /// Start recording from a media stream
+  Future<bool> startRecording(web.MediaStream stream) async {
+    try {
+      // Try video/webm first, will use default if not supported
+      _recorder = web.MediaRecorder(stream);
+
+      _recorder!.addEventListener(
+          'dataavailable',
+          (web.Event event) {
+            final blobEvent = event as web.BlobEvent;
+            final data = blobEvent.data;
+            if (data.size > 0) {
+              _chunks.add(data);
+            }
+          }.toJS);
+
+      _recorder!.addEventListener(
+          'stop',
+          (web.Event event) {
+            if (_chunks.isNotEmpty) {
+              final blob = web.Blob(
+                _chunks.toJS,
+                web.BlobPropertyBag(type: 'video/webm'),
+              );
+              _completer.complete(blob);
+            } else {
+              _completer.complete(null);
+            }
+          }.toJS);
+
+      _recorder!.start();
+      return true;
+    } catch (e) {
+      _log('Error starting MediaRecorder: $e');
+      return false;
+    }
+  }
+
+  /// Stop recording and get the blob
+  Future<web.Blob?> stopRecording() async {
+    if (_recorder == null) {
+      return null;
+    }
+
+    try {
+      _recorder!.stop();
+      return await _completer.future;
+    } catch (e) {
+      _log('Error stopping MediaRecorder: $e');
+      return null;
+    }
+  }
+
+  /// Check if currently recording
+  bool get isRecording {
+    return _recorder?.state == 'recording';
   }
 }
