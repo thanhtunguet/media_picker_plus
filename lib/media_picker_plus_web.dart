@@ -1020,144 +1020,163 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
 
   @override
   Future<String?> getThumbnail(
-      String videoPath, {
-      double timeInSeconds = 1.0,
-      MediaOptions? options,
-    }) async {
+    String videoPath, {
+    double timeInSeconds = 1.0,
+    MediaOptions? options,
+  }) async {
     try {
       _log('Extracting thumbnail from video: $videoPath at ${timeInSeconds}s');
-      
+
       // Create a video element to load the video
       final video = web.document.createElement('video') as web.HTMLVideoElement;
       video.src = videoPath;
       video.crossOrigin = 'anonymous';
       video.muted = true; // Required for autoplay in some browsers
-      
+
       final completer = Completer<String?>();
-      
+
       // Wait for video metadata to be loaded
-      video.addEventListener('loadedmetadata', (web.Event event) async {
-        try {
-          final duration = video.duration;
-          _log('Video duration: ${duration}s');
-          
-          // Ensure the time is within video duration
-          final actualTime = timeInSeconds.clamp(0.0, duration - 0.1);
-          video.currentTime = actualTime;
-          
-          // Wait for the video to seek to the specified time
-          video.addEventListener('seeked', (web.Event event) async {
+      video.addEventListener(
+          'loadedmetadata',
+          (web.Event event) async {
             try {
-              // Create a canvas to draw the video frame
-              final canvas = web.document.createElement('canvas') as web.HTMLCanvasElement;
-              final context = canvas.getContext('2d') as web.CanvasRenderingContext2D;
-              
-              // Set canvas dimensions
-              var canvasWidth = video.videoWidth;
-              var canvasHeight = video.videoHeight;
-              
-              // Apply resize options if provided
-              if (options != null) {
-                final maxWidth = options.maxWidth;
-                final maxHeight = options.maxHeight;
-                
-                if (maxWidth != null && maxHeight != null && 
-                    (canvasWidth > maxWidth || canvasHeight > maxHeight)) {
-                  final aspectRatio = canvasWidth / canvasHeight;
-                  
-                  if (canvasWidth > canvasHeight) {
-                    canvasWidth = maxWidth;
-                    canvasHeight = (maxWidth / aspectRatio).round();
-                    if (canvasHeight > maxHeight) {
-                      canvasHeight = maxHeight;
-                      canvasWidth = (maxHeight * aspectRatio).round();
+              final duration = video.duration;
+              _log('Video duration: ${duration}s');
+
+              // Ensure the time is within video duration
+              final actualTime = timeInSeconds.clamp(0.0, duration - 0.1);
+              video.currentTime = actualTime;
+
+              // Wait for the video to seek to the specified time
+              video.addEventListener(
+                  'seeked',
+                  (web.Event event) async {
+                    try {
+                      // Create a canvas to draw the video frame
+                      final canvas = web.document.createElement('canvas')
+                          as web.HTMLCanvasElement;
+                      final context = canvas.getContext('2d')
+                          as web.CanvasRenderingContext2D;
+
+                      // Set canvas dimensions
+                      var canvasWidth = video.videoWidth;
+                      var canvasHeight = video.videoHeight;
+
+                      // Apply resize options if provided
+                      if (options != null) {
+                        final maxWidth = options.maxWidth;
+                        final maxHeight = options.maxHeight;
+
+                        if (maxWidth != null &&
+                            maxHeight != null &&
+                            (canvasWidth > maxWidth ||
+                                canvasHeight > maxHeight)) {
+                          final aspectRatio = canvasWidth / canvasHeight;
+
+                          if (canvasWidth > canvasHeight) {
+                            canvasWidth = maxWidth;
+                            canvasHeight = (maxWidth / aspectRatio).round();
+                            if (canvasHeight > maxHeight) {
+                              canvasHeight = maxHeight;
+                              canvasWidth = (maxHeight * aspectRatio).round();
+                            }
+                          } else {
+                            canvasHeight = maxHeight;
+                            canvasWidth = (maxHeight * aspectRatio).round();
+                            if (canvasWidth > maxWidth) {
+                              canvasWidth = maxWidth;
+                              canvasHeight = (maxWidth / aspectRatio).round();
+                            }
+                          }
+                        }
+                      }
+
+                      canvas.width = canvasWidth;
+                      canvas.height = canvasHeight;
+
+                      // Draw the current video frame to canvas
+                      context.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+
+                      // Apply watermark if specified
+                      if (options?.watermark != null &&
+                          options!.watermark!.isNotEmpty) {
+                        _addWatermarkToCanvas(context, options.watermark!,
+                            canvasWidth, canvasHeight, options);
+                      }
+
+                      // Convert canvas to blob
+                      final quality = options?.imageQuality ?? 80;
+                      final qualityValue = quality / 100.0;
+
+                      canvas.toBlob(
+                          (web.Blob? blob) {
+                            if (blob != null) {
+                              final url = web.URL.createObjectURL(blob);
+                              _log('Thumbnail extracted successfully: $url');
+                              completer.complete(url);
+                            } else {
+                              completer.completeError(
+                                  'Failed to create blob from canvas');
+                            }
+                          }.toJS,
+                          'image/jpeg',
+                          qualityValue.toJS);
+                    } catch (e) {
+                      completer.completeError('Error drawing video frame: $e');
                     }
-                  } else {
-                    canvasHeight = maxHeight;
-                    canvasWidth = (maxHeight * aspectRatio).round();
-                    if (canvasWidth > maxWidth) {
-                      canvasWidth = maxWidth;
-                      canvasHeight = (maxWidth / aspectRatio).round();
-                    }
-                  }
-                }
-              }
-              
-              canvas.width = canvasWidth;
-              canvas.height = canvasHeight;
-              
-              // Draw the current video frame to canvas
-              context.drawImage(video, 0, 0, canvasWidth, canvasHeight);
-              
-              // Apply watermark if specified
-              if (options?.watermark != null && options!.watermark!.isNotEmpty) {
-                _addWatermarkToCanvas(context, options.watermark!, canvasWidth, canvasHeight, options);
-              }
-              
-              // Convert canvas to blob
-              final quality = options?.imageQuality ?? 80;
-              final qualityValue = quality / 100.0;
-              
-              canvas.toBlob((web.Blob? blob) {
-                if (blob != null) {
-                  final url = web.URL.createObjectURL(blob);
-                  _log('Thumbnail extracted successfully: $url');
-                  completer.complete(url);
-                } else {
-                  completer.completeError('Failed to create blob from canvas');
-                }
-              }.toJS, 'image/jpeg', qualityValue.toJS);
-              
+                  }.toJS);
+
+              // Trigger seek to the specified time
+              video.currentTime = actualTime;
             } catch (e) {
-              completer.completeError('Error drawing video frame: $e');
+              completer.completeError('Error seeking video: $e');
             }
           }.toJS);
-          
-          // Trigger seek to the specified time
-          video.currentTime = actualTime;
-          
-        } catch (e) {
-          completer.completeError('Error seeking video: $e');
-        }
-      }.toJS);
-      
-      video.addEventListener('error', (web.Event event) {
-        completer.completeError('Error loading video: ${video.error?.message ?? "Unknown error"}');
-      }.toJS);
-      
+
+      video.addEventListener(
+          'error',
+          (web.Event event) {
+            completer.completeError(
+                'Error loading video: ${video.error?.message ?? "Unknown error"}');
+          }.toJS);
+
       // Start loading the video
       video.load();
-      
+
       return await completer.future;
-      
     } catch (e) {
       throw Exception('Error extracting thumbnail: $e');
     }
   }
-  
+
   /// Add watermark to canvas
-  void _addWatermarkToCanvas(web.CanvasRenderingContext2D context, String text, 
+  void _addWatermarkToCanvas(web.CanvasRenderingContext2D context, String text,
       int canvasWidth, int canvasHeight, MediaOptions options) {
     try {
       // Calculate font size
-      final fontSize = _calculateWatermarkFontSize(options, canvasWidth, canvasHeight, defaultSize: 30.0);
-      
+      final fontSize = _calculateWatermarkFontSize(
+          options, canvasWidth, canvasHeight,
+          defaultSize: 30.0);
+
       // Set font properties
       context.font = '${fontSize}px Arial';
       context.fillStyle = 'white';
       context.strokeStyle = 'black';
       context.lineWidth = 2;
       context.textBaseline = 'bottom';
-      
+
       // Measure text dimensions
       final textMetrics = context.measureText(text);
       final textWidth = textMetrics.width;
       final textHeight = fontSize;
-      
+
       // Calculate position
       final position = options.watermarkPosition ?? 'bottomRight';
-      final padding = (canvasWidth.compareTo(canvasHeight) < 0 ? canvasWidth : canvasHeight) * 0.02;
-      
+      final padding = (canvasWidth.compareTo(canvasHeight) < 0
+              ? canvasWidth
+              : canvasHeight) *
+          0.02;
+
       double x, y;
       switch (position.toLowerCase()) {
         case 'topleft':
@@ -1198,11 +1217,10 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
           y = canvasHeight - padding;
           break;
       }
-      
+
       // Draw text with stroke (outline) and fill
       context.strokeText(text, x, y);
       context.fillText(text, x, y);
-      
     } catch (e) {
       _log('Error adding watermark to canvas: $e');
     }

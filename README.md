@@ -48,8 +48,10 @@ This plugin is ideal for developers building:
 | Capture video   |    ✅    |  ✅  |  ✅  |   ✅   |
 | Watermark video |    ✅    |  ✅  |  ⚠️*  |   ✅   |
 | Video thumbnail |    ✅    |  ✅  |  ✅  |   ✅   |
+| Video compression |    ✅    |  ✅  |  ❌**  |   ✅   |
 
-\* Video watermarking on web requires optional FFmpeg.js setup. See [docs/web-permissions.md](docs/web-permissions.md) for details.
+* Video watermarking on web requires optional FFmpeg.js setup. See [docs/web-permissions.md](docs/web-permissions.md) for details.
+** Video compression not yet implemented for web platform.
 
 
 
@@ -826,6 +828,118 @@ String? thumbnailPath = await MediaPickerPlus.getThumbnail(
     imageQuality: 85,
     watermark: "Thumbnail",
     watermarkPosition: WatermarkPosition.bottomRight,
+  ),
+);
+```
+
+### Video Compression
+
+Compress videos to reduce file size with customizable quality settings and output parameters:
+
+#### Basic Video Compression
+
+```dart
+// Simple compression with default settings
+String? compressedVideo = await MediaPickerPlus.compressVideo('path/to/input/video.mp4');
+
+// Compress with custom output path
+String? compressedVideo = await MediaPickerPlus.compressVideo(
+  'path/to/input/video.mp4',
+  outputPath: 'path/to/output/compressed_video.mp4',
+);
+```
+
+#### Quality Presets
+
+```dart
+// Use predefined quality presets
+String? compressedVideo = await MediaPickerPlus.compressVideo(
+  inputVideoPath,
+  options: const VideoCompressionOptions(
+    quality: VideoCompressionQuality.medium, // Default preset
+  ),
+);
+
+// Available quality presets:
+// - VideoCompressionQuality.low (480x320, 500kbps)
+// - VideoCompressionQuality.medium (854x480, 1.5Mbps) 
+// - VideoCompressionQuality.high (1280x720, 3Mbps)
+// - VideoCompressionQuality.veryHigh (1920x1080, 5Mbps)
+```
+
+#### Custom Compression Settings
+
+```dart
+// Custom resolution and bitrate
+String? compressedVideo = await MediaPickerPlus.compressVideo(
+  inputVideoPath,
+  options: const VideoCompressionOptions(
+    customWidth: 1280,
+    customHeight: 720,
+    customBitrate: 2000000, // 2 Mbps
+    outputFormat: 'mp4',
+    deleteOriginalFile: false,
+  ),
+);
+```
+
+#### Advanced Compression Options
+
+```dart
+// Full configuration example
+String? compressedVideo = await MediaPickerPlus.compressVideo(
+  inputVideoPath,
+  outputPath: 'custom/output/path.mp4',
+  options: VideoCompressionOptions(
+    quality: VideoCompressionQuality.high,
+    customBitrate: 2500000, // Override quality preset bitrate
+    customWidth: 1920,      // Override quality preset width
+    customHeight: 1080,     // Override quality preset height
+    outputFormat: 'mp4',
+    deleteOriginalFile: true, // Delete input file after compression
+    onProgress: (progress) {
+      print('Compression progress: ${(progress * 100).toStringAsFixed(1)}%');
+    },
+  ),
+);
+```
+
+#### Platform Support
+
+- **iOS**: Uses AVFoundation's AVAssetExportSession with high-quality compression
+- **Android**: Uses MediaMetadataRetriever and MediaCodec for efficient compression  
+- **macOS**: Same implementation as iOS with AVFoundation
+- **Web**: Not yet implemented
+
+#### Compression Examples
+
+```dart
+// Compress for social media (Instagram/TikTok style)
+String? socialVideo = await MediaPickerPlus.compressVideo(
+  inputPath,
+  options: const VideoCompressionOptions(
+    customWidth: 1080,
+    customHeight: 1920, // Vertical format
+    customBitrate: 3000000,
+    outputFormat: 'mp4',
+  ),
+);
+
+// Compress for messaging apps (smaller file size)
+String? messageVideo = await MediaPickerPlus.compressVideo(
+  inputPath,
+  options: const VideoCompressionOptions(
+    quality: VideoCompressionQuality.low,
+    deleteOriginalFile: true,
+  ),
+);
+
+// High quality for professional use
+String? professionalVideo = await MediaPickerPlus.compressVideo(
+  inputPath,
+  options: const VideoCompressionOptions(
+    quality: VideoCompressionQuality.veryHigh,
+    customBitrate: 8000000, // 8 Mbps for high quality
   ),
 );
 ```

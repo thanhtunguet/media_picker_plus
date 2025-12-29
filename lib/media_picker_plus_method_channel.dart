@@ -218,6 +218,26 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     }
   }
 
+  @override
+  Future<String?> compressVideo(
+    String inputPath, {
+    String? outputPath,
+    required dynamic options,
+  }) async {
+    try {
+      final result = await methodChannel.invokeMethod<String>('compressVideo', {
+        'inputPath': inputPath,
+        'outputPath': outputPath,
+        'options': options is Map<String, dynamic>
+            ? options
+            : (options as dynamic)?.toMap(),
+      });
+      return result;
+    } on PlatformException catch (e) {
+      throw Exception('Error compressing video: ${e.message}');
+    }
+  }
+
   /// Helper method to safely convert various types to boolean
   /// This handles cases where native platforms might return different types
   bool _convertToBool(dynamic value) {

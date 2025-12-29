@@ -66,6 +66,15 @@ class MockMediaPickerPlusPlatform
       {double timeInSeconds = 1.0, MediaOptions? options}) {
     return Future.value('thumbnail_$videoPath');
   }
+
+  @override
+  Future<String?> compressVideo(
+    String inputPath, {
+    String? outputPath,
+    required dynamic options,
+  }) {
+    return Future.value('compressed_$inputPath');
+  }
 }
 
 void main() {

@@ -201,6 +201,17 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             let options = args["options"] as? [String: Any] ?? [:]
             addWatermarkToExistingVideo(videoPath: videoPath, options: options, result: result)
 
+        case "compressVideo":
+            guard let args = call.arguments as? [String: Any],
+                  let inputPath = args["inputPath"] as? String else {
+                result(MediaPickerPlusError.invalidArgs())
+                return
+            }
+            
+            let outputPath = args["outputPath"] as? String
+            let options = args["options"] as? [String: Any] ?? [:]
+            compressVideo(inputPath: inputPath, outputPath: outputPath, options: options, result: result)
+
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -1638,6 +1649,115 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             result(watermarkedPath)
         } else {
             result(FlutterError(code: "PROCESSING_FAILED", message: "Failed to add watermark to video", details: nil))
+        }
+    }
+    
+    private func compressVideo(inputPath: String, outputPath: String?, options: [String: Any], result: @escaping FlutterResult) {
+        // Validate input video path
+        guard FileManager.default.fileExists(atPath: inputPath) else {
+            result(FlutterError(code: "INVALID_VIDEO", message: "Input video file does not exist", details: nil))
+            return
+        }
+        
+        // Generate output path if not provided
+        let outputVideoPath: String
+        if let customOutput = outputPath {
+            outputVideoPath = customOutput
+        } else {
+            let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
+            let timestamp = Int(Date().timeIntervalSince1970)
+            outputVideoPath = "\(documentsPath)/compressed_video_\(timestamp).mp4"
+        }
+        
+        // Parse compression options
+        let targetBitrate = options["targetBitrate"] as? Int ?? 1500000 // 1.5 Mbps default
+        let targetWidth = options["targetWidth"] as? Int ?? 854
+        let targetHeight = options["targetHeight"] as? Int ?? 480
+        let deleteOriginal = options["deleteOriginalFile"] as? Bool ?? false
+        
+        let inputURL = URL(fileURLWithPath: inputPath)
+        let outputURL = URL(fileURLWithPath: outputVideoPath)
+        
+        // Remove existing output file if it exists
+        if FileManager.default.fileExists(atPath: outputVideoPath) {
+            try? FileManager.default.removeItem(at: outputURL)
+        }
+        
+        // Create AVAsset from input video
+        let asset = AVAsset(url: inputURL)
+        
+        // Create export session
+        guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetMediumQuality) else {
+            result(FlutterError(code: "EXPORT_SESSION_FAILED", message: "Failed to create export session", details: nil))
+            return
+        }
+        
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = .mp4
+        exportSession.shouldOptimizeForNetworkUse = true
+        
+        // Configure video composition for resolution and bitrate
+        let videoTrack = asset.tracks(withMediaType: .video).first
+        if let videoTrack = videoTrack {
+            let composition = AVMutableComposition()
+            let compositionVideoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
+            
+            let timeRange = CMTimeRange(start: .zero, duration: asset.duration)
+            do {
+                try compositionVideoTrack?.insertTimeRange(timeRange, of: videoTrack, at: .zero)
+            } catch {
+                result(FlutterError(code: "COMPOSITION_FAILED", message: "Failed to create video composition", details: nil))
+                return
+            }
+            
+            // Set up video composition with target resolution
+            let videoComposition = AVMutableVideoComposition()
+            videoComposition.renderSize = CGSize(width: targetWidth, height: targetHeight)
+            videoComposition.frameDuration = CMTime(value: 1, timescale: 30) // 30 FPS
+            
+            let instruction = AVMutableVideoCompositionInstruction()
+            instruction.timeRange = timeRange
+            
+            let transformer = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack!)
+            let naturalSize = videoTrack.naturalSize
+            let scaleX = CGFloat(targetWidth) / naturalSize.width
+            let scaleY = CGFloat(targetHeight) / naturalSize.height
+            let scale = min(scaleX, scaleY)
+            
+            var transform = CGAffineTransform(scaleX: scale, y: scale)
+            let translateX = (CGFloat(targetWidth) - naturalSize.width * scale) / 2
+            let translateY = (CGFloat(targetHeight) - naturalSize.height * scale) / 2
+            transform = transform.translatedBy(x: translateX, y: translateY)
+            
+            transformer.setTransform(transform, at: .zero)
+            instruction.layerInstructions = [transformer]
+            videoComposition.instructions = [instruction]
+            
+            exportSession.videoComposition = videoComposition
+        }
+        
+        // Perform the export
+        exportSession.exportAsynchronously {
+            DispatchQueue.main.async {
+                switch exportSession.status {
+                case .completed:
+                    // Delete original file if requested
+                    if deleteOriginal {
+                        try? FileManager.default.removeItem(at: inputURL)
+                    }
+                    result(outputVideoPath)
+                    
+                case .failed:
+                    let errorMessage = exportSession.error?.localizedDescription ?? "Unknown export error"
+                    result(FlutterError(code: "EXPORT_FAILED", message: "Video compression failed: \(errorMessage)", details: nil))
+                    
+                case .cancelled:
+                    result(FlutterError(code: "EXPORT_CANCELLED", message: "Video compression was cancelled", details: nil))
+                    
+                default:
+                    result(FlutterError(code: "EXPORT_UNKNOWN", message: "Unknown export status", details: nil))
+                }
+            }
         }
     }
 }

@@ -29,6 +29,10 @@ class _MyAppState extends State<MyApp> {
   final TextEditingController _thumbnailTimeController =
       TextEditingController(text: "1.0");
 
+  // Video compression state
+  String? _compressedVideoPath;
+  bool _isCompressing = false;
+
   final TextEditingController _watermarkController =
       TextEditingController(text: "Media Picker Plus");
   String _watermarkPosition = WatermarkPosition.bottomRight;
@@ -228,6 +232,41 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  Future<void> _compressVideo() async {
+    if (_mediaPath == null || !_isVideo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a video first')),
+      );
+      return;
+    }
+
+    setState(() => _isCompressing = true);
+
+    try {
+      final compressedVideo = await MediaPickerPlus.compressVideo(
+        _mediaPath!,
+        options: const VideoCompressionOptions(
+          quality: VideoCompressionQuality.medium,
+        ),
+      );
+
+      if (compressedVideo != null) {
+        setState(() {
+          _compressedVideoPath = compressedVideo;
+          _isCompressing = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Video compressed successfully!')),
+        );
+      }
+    } catch (e) {
+      setState(() => _isCompressing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Compression failed: $e')),
+      );
+    }
+  }
+
   void _openFullscreen() {
     if (_mediaPath == null) return;
 
@@ -387,6 +426,39 @@ class _MyAppState extends State<MyApp> {
                   Text(
                     _getPathDescription(_thumbnailPath!),
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                const Divider(),
+
+                // Video compression section
+                const Text(
+                  "Video Compression",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  onPressed: _isCompressing ? null : _compressVideo,
+                  icon: _isCompressing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.compress),
+                  label: Text(
+                      _isCompressing ? "Compressing..." : "Compress Video"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                if (_compressedVideoPath != null) ...[
+                  const SizedBox(height: 10),
+                  const Text("✅ Video compressed successfully!"),
+                  ElevatedButton(
+                    onPressed: () => _setVideo(_compressedVideoPath!),
+                    child: const Text("Use Compressed Video"),
                   ),
                 ],
                 const SizedBox(height: 20),

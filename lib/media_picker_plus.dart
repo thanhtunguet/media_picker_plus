@@ -7,8 +7,10 @@ import 'package:media_picker_plus/media_type.dart';
 
 import 'crop_helper.dart';
 import 'media_picker_plus_platform_interface.dart';
+import 'video_compression_options.dart';
 
 export 'media_options.dart';
+export 'video_compression_options.dart';
 export 'media_source.dart';
 export 'media_type.dart';
 export 'watermark_position.dart';
@@ -157,6 +159,26 @@ class MediaPickerPlus {
     return MediaPickerPlusPlatform.instance.getThumbnail(
       videoPath,
       timeInSeconds: timeInSeconds,
+      options: options,
+    );
+  }
+
+  /// Compress a video file
+  ///
+  /// [inputPath] path to the input video file
+  /// [outputPath] optional path for the compressed video file. If not provided,
+  ///             a path will be generated automatically
+  /// [options] compression options including quality, bitrate, resolution, etc.
+  ///
+  /// Returns the path to the compressed video file
+  static Future<String?> compressVideo(
+    String inputPath, {
+    String? outputPath,
+    VideoCompressionOptions options = const VideoCompressionOptions(),
+  }) async {
+    return MediaPickerPlusPlatform.instance.compressVideo(
+      inputPath,
+      outputPath: outputPath,
       options: options,
     );
   }
