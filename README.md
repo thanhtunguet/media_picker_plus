@@ -856,15 +856,21 @@ String? compressedVideo = await MediaPickerPlus.compressVideo(
 String? compressedVideo = await MediaPickerPlus.compressVideo(
   inputVideoPath,
   options: const VideoCompressionOptions(
-    quality: VideoCompressionQuality.medium, // Default preset
+    quality: VideoCompressionQuality.p720, // Default preset (720p HD)
   ),
 );
 
 // Available quality presets:
-// - VideoCompressionQuality.low (480x320, 500kbps)
-// - VideoCompressionQuality.medium (854x480, 1.5Mbps) 
-// - VideoCompressionQuality.high (1280x720, 3Mbps)
-// - VideoCompressionQuality.veryHigh (1920x1080, 5Mbps)
+// - VideoCompressionQuality.p360 (360p, 400kbps) - Mobile/basic quality
+// - VideoCompressionQuality.p480 (480p, 800kbps) - Standard definition
+// - VideoCompressionQuality.p640 (640p, 1.2Mbps) - Quarter HD
+// - VideoCompressionQuality.p720 (720p, 2Mbps) - High definition (default)
+// - VideoCompressionQuality.p1080 (1080p, 4Mbps) - Full HD
+// - VideoCompressionQuality.p1280 (1280p, 6Mbps) - HD Plus
+// - VideoCompressionQuality.p1440 (1440p, 8Mbps) - Quad HD
+// - VideoCompressionQuality.p1920 (1920p, 12Mbps) - High resolution
+// - VideoCompressionQuality.k2 (2K, 10Mbps) - Cinema standard
+// - VideoCompressionQuality.original (No compression) - Preserve original
 ```
 
 #### Custom Compression Settings
@@ -891,7 +897,7 @@ String? compressedVideo = await MediaPickerPlus.compressVideo(
   inputVideoPath,
   outputPath: 'custom/output/path.mp4',
   options: VideoCompressionOptions(
-    quality: VideoCompressionQuality.high,
+    quality: VideoCompressionQuality.p1080,
     customBitrate: 2500000, // Override quality preset bitrate
     customWidth: 1920,      // Override quality preset width
     customHeight: 1080,     // Override quality preset height
@@ -929,7 +935,7 @@ String? socialVideo = await MediaPickerPlus.compressVideo(
 String? messageVideo = await MediaPickerPlus.compressVideo(
   inputPath,
   options: const VideoCompressionOptions(
-    quality: VideoCompressionQuality.low,
+    quality: VideoCompressionQuality.p480, // Standard definition
     deleteOriginalFile: true,
   ),
 );
@@ -938,8 +944,8 @@ String? messageVideo = await MediaPickerPlus.compressVideo(
 String? professionalVideo = await MediaPickerPlus.compressVideo(
   inputPath,
   options: const VideoCompressionOptions(
-    quality: VideoCompressionQuality.veryHigh,
-    customBitrate: 8000000, // 8 Mbps for high quality
+    quality: VideoCompressionQuality.p1440, // Quad HD
+    customBitrate: 10000000, // 10 Mbps for high quality
   ),
 );
 ```

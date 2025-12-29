@@ -246,7 +246,7 @@ class _MyAppState extends State<MyApp> {
       final compressedVideo = await MediaPickerPlus.compressVideo(
         _mediaPath!,
         options: const VideoCompressionOptions(
-          quality: VideoCompressionQuality.medium,
+          quality: VideoCompressionQuality.p720,
         ),
       );
 

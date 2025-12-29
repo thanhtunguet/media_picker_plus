@@ -5,6 +5,7 @@ import 'media_options.dart';
 import 'media_picker_plus_platform_interface.dart';
 import 'media_source.dart';
 import 'media_type.dart';
+import 'video_compression_options.dart';
 
 /// An implementation of [MediaPickerPlusPlatform] that uses method channels.
 class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
@@ -225,12 +226,37 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     required dynamic options,
   }) async {
     try {
+      Map<String, dynamic> optionsMap;
+
+      if (options is Map<String, dynamic>) {
+        optionsMap = options;
+      } else if (options is VideoCompressionOptions) {
+        // Get video dimensions first to calculate target resolution
+        try {
+          final videoInfo =
+              await methodChannel.invokeMethod<Map>('getVideoInfo', {
+            'videoPath': inputPath,
+          });
+
+          final originalWidth = videoInfo?['width'] as int? ?? 1920;
+          final originalHeight = videoInfo?['height'] as int? ?? 1080;
+
+          optionsMap = options.toMap(
+            originalWidth: originalWidth,
+            originalHeight: originalHeight,
+          );
+        } catch (e) {
+          // Fallback to default map if getting video info fails
+          optionsMap = options.toMap();
+        }
+      } else {
+        optionsMap = (options as dynamic)?.toMap() ?? {};
+      }
+
       final result = await methodChannel.invokeMethod<String>('compressVideo', {
         'inputPath': inputPath,
         'outputPath': outputPath,
-        'options': options is Map<String, dynamic>
-            ? options
-            : (options as dynamic)?.toMap(),
+        'options': optionsMap,
       });
       return result;
     } on PlatformException catch (e) {
