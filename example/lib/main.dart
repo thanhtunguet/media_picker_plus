@@ -24,6 +24,11 @@ class _MyAppState extends State<MyApp> {
   bool _isVideo = false;
   VideoPlayerController? _videoController;
 
+  // Thumbnail related state
+  String? _thumbnailPath;
+  final TextEditingController _thumbnailTimeController =
+      TextEditingController(text: "1.0");
+
   final TextEditingController _watermarkController =
       TextEditingController(text: "Media Picker Plus");
   String _watermarkPosition = WatermarkPosition.bottomRight;
@@ -170,6 +175,59 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  Future<void> _extractThumbnail() async {
+    if (_mediaPath == null || !_isVideo) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a video first')),
+        );
+      }
+      return;
+    }
+
+    try {
+      // Parse the time input
+      final timeInSeconds =
+          double.tryParse(_thumbnailTimeController.text) ?? 1.0;
+
+      final thumbnail = await MediaPickerPlus.getThumbnail(
+        _mediaPath!,
+        timeInSeconds: timeInSeconds,
+        options: MediaOptions(
+          maxWidth: 300,
+          maxHeight: 300,
+          imageQuality: 85,
+          watermark: _watermarkController.text.isNotEmpty
+              ? _watermarkController.text
+              : null,
+          watermarkPosition: _watermarkPosition,
+        ),
+      );
+
+      if (!mounted) return;
+
+      if (thumbnail != null) {
+        setState(() {
+          _thumbnailPath = thumbnail;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Thumbnail extracted at ${timeInSeconds}s')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to extract thumbnail')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error extracting thumbnail: $e')),
+        );
+      }
+    }
+  }
+
   void _openFullscreen() {
     if (_mediaPath == null) return;
 
@@ -277,6 +335,64 @@ class _MyAppState extends State<MyApp> {
                 value: _enableCrop,
                 onChanged: (v) => setState(() => _enableCrop = v),
               ),
+              const SizedBox(height: 20),
+
+              // Thumbnail extraction section
+              if (_isVideo && _mediaPath != null) ...[
+                const Divider(),
+                const Text(
+                  "Video Thumbnail Extraction",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _thumbnailTimeController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Time in seconds",
+                    border: OutlineInputBorder(),
+                    helperText: "Extract thumbnail at this time",
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  onPressed: _extractThumbnail,
+                  icon: const Icon(Icons.image),
+                  label: const Text("Extract Thumbnail"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                if (_thumbnailPath != null) ...[
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Generated Thumbnail:",
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 150,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: _buildImage(_thumbnailPath!, BoxFit.contain),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _getPathDescription(_thumbnailPath!),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                const Divider(),
+              ],
+
               const SizedBox(height: 20),
               Wrap(
                 spacing: 10,

@@ -58,6 +58,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private var pendingResult: Result? = null
     private var currentMediaPath: String? = null
     private var mediaOptions: HashMap<String, Any>? = null
+    private var currentMediaAction: (() -> Unit)? = null
 
     // Request codes
     private val REQUEST_IMAGE_CAPTURE = 1001
@@ -180,7 +181,17 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                                 )
                             }
                         } else {
-                            requestGalleryPermission()
+                            // Store the action to execute after permission is granted
+                            currentMediaAction = when (type) {
+                                "image" -> ({ pickImageFromGallery() })
+                                "video" -> ({ pickVideoFromGallery() })
+                                else -> null
+                            }
+                            if (currentMediaAction != null) {
+                                requestGalleryPermission()
+                            } else {
+                                result.error("INVALID_TYPE", "Invalid media type specified", null)
+                            }
                         }
                     }
 
@@ -196,7 +207,17 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                                 )
                             }
                         } else {
-                            requestCameraPermission()
+                            // Store the action to execute after permission is granted
+                            currentMediaAction = when (type) {
+                                "image" -> ({ capturePhoto() })
+                                "video" -> ({ recordVideoWithPermissions() })
+                                else -> null
+                            }
+                            if (currentMediaAction != null) {
+                                requestCameraPermission()
+                            } else {
+                                result.error("INVALID_TYPE", "Invalid media type specified", null)
+                            }
                         }
                     }
 
@@ -278,6 +299,19 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 }
                 
                 addWatermarkToExistingVideo(videoPath, options ?: HashMap(), result)
+            }
+            
+            "getThumbnail" -> {
+                val videoPath = call.argument<String>("videoPath")
+                val timeInSeconds = call.argument<Double>("timeInSeconds") ?: 1.0
+                val options = call.argument<HashMap<String, Any>>("options")
+                
+                if (videoPath == null) {
+                    result.error("INVALID_ARGUMENTS", "Video path is required", null)
+                    return
+                }
+                
+                extractThumbnail(videoPath, timeInSeconds, options, result)
             }
 
             else -> result.notImplemented()
@@ -1607,18 +1641,32 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         when (requestCode) {
             REQUEST_CAMERA_PERMISSION -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    pendingResult?.success(true)
+                    // For standalone permission requests (not part of media picking)
+                    if (pendingResult != null && (mediaOptions == null || currentMediaAction == null)) {
+                        pendingResult?.success(true)
+                    }
+                    // For media picking, continue with the action
+                    currentMediaAction?.invoke()
                 } else {
-                    pendingResult?.success(false)
+                    pendingResult?.error("PERMISSION_DENIED", "Camera permission denied", null)
                 }
+                pendingResult = null
+                currentMediaAction = null
                 return true
             }
             REQUEST_GALLERY_PERMISSION -> {
                 if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                    pendingResult?.success(true)
+                    // For standalone permission requests (not part of media picking)
+                    if (pendingResult != null && (mediaOptions == null || currentMediaAction == null)) {
+                        pendingResult?.success(true)
+                    }
+                    // For media picking, continue with the action
+                    currentMediaAction?.invoke()
                 } else {
-                    pendingResult?.success(false)
+                    pendingResult?.error("PERMISSION_DENIED", "Gallery permission denied", null)
                 }
+                pendingResult = null
+                currentMediaAction = null
                 return true
             }
             REQUEST_MICROPHONE_PERMISSION -> {
@@ -1796,6 +1844,174 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         } catch (e: Exception) {
             Log.e("MediaPickerPlus", "Error adding watermark to video: ${e.message}", e)
             result.error("WATERMARK_ERROR", "Error adding watermark to video: ${e.message}", null)
+        }
+    }
+    
+    private fun extractThumbnail(videoPath: String, timeInSeconds: Double, options: HashMap<String, Any>?, result: Result) {
+        try {
+            // Validate input video path
+            val inputFile = File(videoPath)
+            if (!inputFile.exists()) {
+                result.error("FILE_NOT_FOUND", "Video file not found", null)
+                return
+            }
+
+            // Create output file for thumbnail
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val thumbnailFileName = "thumbnail_${timeStamp}.jpg"
+            val outputFile = File(context.cacheDir, thumbnailFileName)
+
+            // Extract thumbnail using FFmpeg
+            val success = extractThumbnailWithFFmpeg(videoPath, outputFile.absolutePath, timeInSeconds, options)
+
+            if (success) {
+                // Apply image processing options if provided by temporarily setting mediaOptions
+                val originalMediaOptions = mediaOptions
+                mediaOptions = options
+                val processedPath = if (options != null && options.isNotEmpty()) {
+                    processImage(outputFile.absolutePath)
+                } else {
+                    outputFile.absolutePath
+                }
+                mediaOptions = originalMediaOptions
+                result.success(processedPath)
+            } else {
+                result.error("EXTRACTION_ERROR", "Failed to extract thumbnail from video", null)
+            }
+        } catch (e: Exception) {
+            Log.e("MediaPickerPlus", "Error extracting thumbnail: ${e.message}", e)
+            result.error("EXTRACTION_ERROR", "Error extracting thumbnail: ${e.message}", null)
+        }
+    }
+    
+    private fun extractThumbnailWithFFmpeg(inputPath: String, outputPath: String, timeInSeconds: Double, options: HashMap<String, Any>?): Boolean {
+        return try {
+            Log.d("MediaPickerPlus", "Extracting thumbnail with FFmpeg")
+            Log.d("MediaPickerPlus", "Input: $inputPath")
+            Log.d("MediaPickerPlus", "Output: $outputPath")
+            Log.d("MediaPickerPlus", "Time: ${timeInSeconds}s")
+            
+            // Verify input file exists
+            val inputFile = File(inputPath)
+            if (!inputFile.exists() || !inputFile.canRead()) {
+                Log.e("MediaPickerPlus", "Input file does not exist or cannot be read: $inputPath")
+                return false
+            }
+            
+            Log.d("MediaPickerPlus", "Input file size: ${inputFile.length()} bytes")
+            
+            // Create output directory if it doesn't exist
+            val outputFile = File(outputPath)
+            outputFile.parentFile?.mkdirs()
+            
+            // Get video metadata
+            val retriever = MediaMetadataRetriever()
+            var duration = 0L
+            var width = 0
+            var height = 0
+            
+            try {
+                retriever.setDataSource(inputPath)
+                duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
+                width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
+                height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
+                
+                Log.d("MediaPickerPlus", "Video properties: ${width}x${height}, duration: ${duration}ms")
+            } finally {
+                retriever.release()
+            }
+            
+            // Ensure the time is within video duration
+            val maxTimeInSeconds = if (duration > 0) duration / 1000.0 else Double.MAX_VALUE
+            val actualTimeInSeconds = minOf(timeInSeconds, maxTimeInSeconds - 0.1) // Leave small buffer
+            
+            // Calculate target dimensions if resize options are provided
+            var targetWidth = width
+            var targetHeight = height
+            if (options != null) {
+                val maxWidth = options["maxWidth"] as? Int ?: width
+                val maxHeight = options["maxHeight"] as? Int ?: height
+                
+                if (maxWidth > 0 && maxHeight > 0 && (width > maxWidth || height > maxHeight)) {
+                    val (newWidth, newHeight) = calculateTargetDimensions(width, height, maxWidth, maxHeight)
+                    targetWidth = newWidth
+                    targetHeight = newHeight
+                }
+            }
+            
+            // Build FFmpeg command for thumbnail extraction
+            val inputVideo = "\"$inputPath\""
+            val output = "\"$outputPath\""
+            val timeStr = String.format(Locale.US, "%.2f", actualTimeInSeconds)
+            
+            // Build the FFmpeg command
+            // -ss: seek to specific time
+            // -i: input file
+            // -vframes 1: extract only one frame
+            // -q:v 2: high quality for JPEG output (scale 2-31, where 2 is highest quality)
+            // -vf scale: resize if needed
+            val scaleFilter = if (targetWidth != width || targetHeight != height) {
+                "-vf scale=${targetWidth}:${targetHeight}"
+            } else {
+                ""
+            }
+            
+            val command = "-ss $timeStr -i $inputVideo $scaleFilter -vframes 1 -q:v 2 -y $output"
+            
+            Log.d("MediaPickerPlus", "FFmpeg command: $command")
+            
+            // Execute FFmpeg command
+            val latch = CountDownLatch(1)
+            var success = false
+            var errorMessage = ""
+            
+            val session = FFmpegKit.executeAsync(command,
+                { session ->
+                    val returnCode = session.returnCode
+                    if (ReturnCode.isSuccess(returnCode)) {
+                        Log.d("MediaPickerPlus", "FFmpeg thumbnail extraction completed successfully")
+                        success = true
+                    } else {
+                        Log.e("MediaPickerPlus", "FFmpeg failed with return code: $returnCode")
+                        errorMessage = "FFmpeg thumbnail extraction failed with code: $returnCode"
+                    }
+                    latch.countDown()
+                },
+                { log ->
+                    Log.d("MediaPickerPlus", "FFmpeg log: ${log.message}")
+                },
+                { statistics ->
+                    // Statistics callback for progress tracking (not really needed for single frame)
+                    Log.d("MediaPickerPlus", "FFmpeg statistics: time=${statistics.time}ms, size=${statistics.size}")
+                }
+            )
+            
+            // Wait for completion with timeout
+            val completed = latch.await(30, TimeUnit.SECONDS)
+            
+            if (!completed) {
+                Log.e("MediaPickerPlus", "FFmpeg thumbnail extraction timed out")
+                session.cancel()
+                return false
+            }
+            
+            if (!success) {
+                Log.e("MediaPickerPlus", "FFmpeg thumbnail extraction failed: $errorMessage")
+                return false
+            }
+            
+            // Verify output file was created
+            if (!outputFile.exists() || outputFile.length() == 0L) {
+                Log.e("MediaPickerPlus", "Thumbnail output file was not created or is empty")
+                return false
+            }
+            
+            Log.d("MediaPickerPlus", "FFmpeg thumbnail extraction completed successfully. Output file size: ${outputFile.length()} bytes")
+            return true
+            
+        } catch (e: Exception) {
+            Log.e("MediaPickerPlus", "Error in FFmpeg thumbnail extraction: ${e.message}", e)
+            false
         }
     }
 }

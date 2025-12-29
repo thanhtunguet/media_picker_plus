@@ -141,4 +141,23 @@ class MediaPickerPlus {
     return MediaPickerPlusPlatform.instance
         .addWatermarkToVideo(videoPath, options);
   }
+
+  /// Extract a thumbnail image from a video file
+  ///
+  /// [videoPath] is the path to the video file
+  /// [timeInSeconds] is the time in seconds to extract the thumbnail from (default: 1.0)
+  /// [options] optional MediaOptions for processing the thumbnail (resizing, quality, etc.)
+  ///
+  /// Returns the path to the generated thumbnail image file
+  static Future<String?> getThumbnail(
+    String videoPath, {
+    double timeInSeconds = 1.0,
+    MediaOptions? options,
+  }) async {
+    return MediaPickerPlusPlatform.instance.getThumbnail(
+      videoPath,
+      timeInSeconds: timeInSeconds,
+      options: options,
+    );
+  }
 }

@@ -61,6 +61,12 @@ class MockMediaPickerPlusPlatform
   Future<String?> addWatermarkToVideo(String videoPath, MediaOptions options) {
     return Future.value('watermarked_$videoPath');
   }
+
+  @override
+  Future<String?> getThumbnail(String videoPath,
+      {double timeInSeconds = 1.0, MediaOptions? options}) {
+    return Future.value('thumbnail_$videoPath');
+  }
 }
 
 void main() {

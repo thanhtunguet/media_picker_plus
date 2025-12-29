@@ -60,6 +60,12 @@ class MockMediaPickerPlusPlatform
   Future<String?> addWatermarkToVideo(String videoPath, MediaOptions options) {
     return Future.value('watermarked_$videoPath');
   }
+
+  @override
+  Future<String?> getThumbnail(String videoPath,
+      {double timeInSeconds = 1.0, MediaOptions? options}) {
+    return Future.value('thumbnail_$videoPath');
+  }
 }
 
 void main() {
@@ -201,6 +207,26 @@ void main() {
         options: options,
       );
       expect(result, 'watermarked_test_video.mp4');
+    });
+
+    test('getThumbnail returns thumbnail path', () async {
+      final result = await MediaPickerPlus.getThumbnail('test_video.mp4');
+      expect(result, 'thumbnail_test_video.mp4');
+    });
+
+    test('getThumbnail with custom time and options', () async {
+      const options = MediaOptions(
+        maxWidth: 300,
+        maxHeight: 300,
+        imageQuality: 85,
+        watermark: 'Thumbnail',
+      );
+      final result = await MediaPickerPlus.getThumbnail(
+        'test_video.mp4',
+        timeInSeconds: 5.0,
+        options: options,
+      );
+      expect(result, 'thumbnail_test_video.mp4');
     });
   });
 

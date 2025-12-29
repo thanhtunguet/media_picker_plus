@@ -200,6 +200,24 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     }
   }
 
+  @override
+  Future<String?> getThumbnail(
+    String videoPath, {
+    double timeInSeconds = 1.0,
+    MediaOptions? options,
+  }) async {
+    try {
+      final result = await methodChannel.invokeMethod<String>('getThumbnail', {
+        'videoPath': videoPath,
+        'timeInSeconds': timeInSeconds,
+        'options': options?.toMap(),
+      });
+      return result;
+    } on PlatformException catch (e) {
+      throw Exception('Error extracting thumbnail: ${e.message}');
+    }
+  }
+
   /// Helper method to safely convert various types to boolean
   /// This handles cases where native platforms might return different types
   bool _convertToBool(dynamic value) {

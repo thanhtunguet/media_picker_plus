@@ -80,4 +80,9 @@ abstract class MediaPickerPlusPlatform extends PlatformInterface {
   Future<String?> addWatermarkToVideo(String videoPath, MediaOptions options) {
     throw UnimplementedError('addWatermarkToVideo() has not been implemented.');
   }
+
+  Future<String?> getThumbnail(String videoPath,
+      {double timeInSeconds = 1.0, MediaOptions? options}) {
+    throw UnimplementedError('getThumbnail() has not been implemented.');
+  }
 }

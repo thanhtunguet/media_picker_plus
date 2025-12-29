@@ -47,6 +47,7 @@ This plugin is ideal for developers building:
 | Pick video      |    ✅    |  ✅  |  ✅  |   ✅   |
 | Capture video   |    ✅    |  ✅  |  ✅  |   ✅   |
 | Watermark video |    ✅    |  ✅  |  ⚠️*  |   ✅   |
+| Video thumbnail |    ✅    |  ✅  |  ✅  |   ✅   |
 
 \* Video watermarking on web requires optional FFmpeg.js setup. See [docs/web-permissions.md](docs/web-permissions.md) for details.
 
@@ -797,6 +798,34 @@ String? watermarkedVideo = await MediaPickerPlus.addWatermarkToVideo(
     watermark: "© 2024 MyApp",
     watermarkPosition: WatermarkPosition.bottomCenter,
     watermarkFontSizePercentage: 4.0,
+  ),
+);
+```
+
+### Video Thumbnail Extraction
+
+Extract thumbnail images from video files at specified times:
+
+```dart
+// Extract thumbnail at 1 second (default)
+String? thumbnailPath = await MediaPickerPlus.getThumbnail(videoPath);
+
+// Extract thumbnail at specific time
+String? thumbnailPath = await MediaPickerPlus.getThumbnail(
+  videoPath,
+  timeInSeconds: 5.0, // Extract at 5 seconds
+);
+
+// Extract with processing options
+String? thumbnailPath = await MediaPickerPlus.getThumbnail(
+  videoPath,
+  timeInSeconds: 2.5,
+  options: const MediaOptions(
+    maxWidth: 300,
+    maxHeight: 300,
+    imageQuality: 85,
+    watermark: "Thumbnail",
+    watermarkPosition: WatermarkPosition.bottomRight,
   ),
 );
 ```
