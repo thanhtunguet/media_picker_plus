@@ -400,8 +400,8 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
           completer.complete({'width': 1280, 'height': 720});
         }.toJS);
 
-    if (videoSource is web.File) {
-      video.src = web.URL.createObjectURL(videoSource);
+    if (videoSource.runtimeType.toString().contains('File')) {
+      video.src = web.URL.createObjectURL(videoSource as web.File);
     } else if (videoSource is String) {
       video.src = videoSource;
     }
@@ -448,7 +448,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
         position.toJS,
         fontSize.toJS,
       ) as JSPromise;
-      final url = await promise.toDart as String;
+      final url = (await promise.toDart as JSAny).dartify() as String;
       return url;
     } catch (e) {
       // Fallback to original video without watermark if processing fails
@@ -511,7 +511,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
                       canvas.toDataURL('image/jpeg', quality as dynamic);
                   completer.complete(dataUrl);
                 }.toJS);
-            img.src = reader.result as String;
+            img.src = (reader.result as JSAny).dartify() as String;
           } catch (e) {
             completer.completeError(e);
           }
@@ -543,8 +543,8 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     ctx.font = '${fontSize}px Arial';
     ctx.textBaseline = 'bottom';
     ctx.globalAlpha = 0.7;
-    ctx.fillStyle = 'white' as dynamic;
-    ctx.strokeStyle = 'black' as dynamic;
+    ctx.fillStyle = 'white'.toJS;
+    ctx.strokeStyle = 'black'.toJS;
     ctx.lineWidth = 2;
     final metrics = ctx.measureText(text);
 
@@ -1008,7 +1008,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
           position.toJS,
           fontSize.toJS,
         ) as JSPromise;
-        final url = await promise.toDart as String;
+        final url = (await promise.toDart as JSAny).dartify() as String;
         return url;
       } catch (e) {
         throw Exception('Failed to add watermark to video: $e');
@@ -1038,7 +1038,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       // Wait for video metadata to be loaded
       video.addEventListener(
           'loadedmetadata',
-          (web.Event event) async {
+          (web.Event event) {
             try {
               final duration = video.duration;
               _log('Video duration: ${duration}s');
@@ -1050,7 +1050,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
               // Wait for the video to seek to the specified time
               video.addEventListener(
                   'seeked',
-                  (web.Event event) async {
+                  (web.Event event) {
                     try {
                       // Create a canvas to draw the video frame
                       final canvas = web.document.createElement('canvas')
@@ -1160,8 +1160,8 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
 
       // Set font properties
       context.font = '${fontSize}px Arial';
-      context.fillStyle = 'white';
-      context.strokeStyle = 'black';
+      context.fillStyle = 'white'.toJS;
+      context.strokeStyle = 'black'.toJS;
       context.lineWidth = 2;
       context.textBaseline = 'bottom';
 

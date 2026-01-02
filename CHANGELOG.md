@@ -1,3 +1,14 @@
+## 1.1.0-rc.4
+
+### Fixed
+- **WebAssembly compatibility**: Fixed all WebAssembly compatibility issues to enable WASM builds for web platform:
+  - Fixed JS interop type casting issues by replacing unsafe `as JSAny` casts with proper `.toJS` method calls
+  - Converted async event handlers to synchronous ones since WebAssembly doesn't support async functions in JS interop
+  - Fixed canvas context property assignments (`fillStyle`, `strokeStyle`) to use proper JS interop conversion
+  - Replaced unsafe JS interop value casting with proper `(value as JSAny).dartify() as String` conversions
+  - Fixed runtime type checking with JS interop types to avoid platform-inconsistent behavior
+- Web builds now compile successfully with WebAssembly support enabled
+
 ## 1.0.0
 
 ### Added

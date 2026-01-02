@@ -76,7 +76,7 @@ class WebCameraPreview {
     // Cancel button (X)
     _cancelButton =
         web.document.createElement('button') as web.HTMLButtonElement;
-    _cancelButton!.innerHTML = '✕' as JSAny;
+    _cancelButton!.innerHTML = '✕'.toJS;
     _cancelButton!.style.cssText = '''
       background: rgba(255, 255, 255, 0.2);
       border: none;
@@ -125,7 +125,7 @@ class WebCameraPreview {
       _recordingIndicator!.innerHTML = '''
         <span style="width: 8px; height: 8px; background: white; border-radius: 50%; animation: blink 0.8s infinite;"></span>
         <span id="timer">REC 00:00</span>
-      ''' as JSAny;
+      '''.toJS;
     }
 
     // Create bottom controls
@@ -158,7 +158,7 @@ class WebCameraPreview {
       justify-content: center;
       font-size: 32px;
     ''';
-    _captureButton!.innerHTML = (isVideo ? '●' : '📷') as JSAny;
+    _captureButton!.innerHTML = (isVideo ? '●' : '📷').toJS;
 
     bool isRecording = false;
 
@@ -167,7 +167,7 @@ class WebCameraPreview {
         if (!isRecording) {
           // Start recording
           isRecording = true;
-          _captureButton!.innerHTML = '⏹' as JSAny;
+          _captureButton!.innerHTML = '⏹'.toJS;
           _captureButton!.style.background = 'rgba(255, 0, 0, 0.8)';
           _recordingIndicator!.style.display = 'flex';
           _startTimer();
