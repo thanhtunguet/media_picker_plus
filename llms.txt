@@ -1,0 +1,182 @@
+# Media Picker Plus - LLMs.txt
+
+## Project Overview
+
+Media Picker Plus is a comprehensive Flutter plugin for media selection with advanced processing capabilities. It enables picking images, videos, and files from gallery or camera with built-in watermarking, resizing, cropping, and quality control features.
+
+**Official Documentation**: https://thanhtunguet.info/media_picker_plus
+**GitHub Repository**: https://github.com/thanhtunguet/media_picker_plus
+**Pub.dev Package**: https://pub.dev/packages/media_picker_plus
+
+## Architecture
+
+This plugin follows the **Platform Interface Pattern** for cross-platform Flutter plugins:
+
+1. **Public API** (`lib/media_picker_plus.dart`) - Main entry point with static methods
+2. **Platform Interface** (`lib/media_picker_plus_platform_interface.dart`) - Abstract base class
+3. **Method Channel Implementation** (`lib/media_picker_plus_method_channel.dart`) - Default implementation
+4. **Platform-Specific Implementations**:
+   - Android: Kotlin (`android/src/main/kotlin/.../MediaPickerPlusPlugin.kt`)
+   - iOS: Swift (`ios/Classes/MediaPickerPlusPlugin.swift`)
+   - macOS: Swift (`macos/Classes/MediaPickerPlusPlugin.swift`)
+   - Web: Dart (`lib/media_picker_plus_web.dart`)
+
+## Key Files and Their Purposes
+
+### Core Dart Files (lib/)
+
+- **`media_picker_plus.dart`** - Main public API, entry point for users. Contains static methods like `pickImage()`, `pickVideo()`, `capturePhoto()`, etc.
+- **`media_picker_plus_platform_interface.dart`** - Abstract platform interface defining the contract for platform implementations
+- **`media_picker_plus_method_channel.dart`** - Default implementation using Flutter's method channel to communicate with native code
+- **`media_picker_plus_web.dart`** - Web-specific implementation using browser APIs
+- **`media_options.dart`** - Configuration options for media operations (quality, dimensions, watermark, etc.)
+- **`media_source.dart`** - Enum: `gallery` or `camera`
+- **`media_type.dart`** - Enum: `image`, `video`, or `file`
+- **`crop_options.dart`** - Options for image cropping (aspect ratio, freeform, etc.)
+- **`crop_ui.dart`** - Interactive cropping UI widget
+- **`crop_helper.dart`** - Helper functions for cropping operations
+- **`watermark_position.dart`** - Enum for watermark positions (topLeft, bottomRight, etc.)
+- **`video_compression_options.dart`** - Options for video compression
+- **`camera_preview_controller.dart`** - Controller for camera preview functionality
+- **`camera_preview_web.dart`** - Web-specific camera preview
+- **`web_camera_preview.dart`** - Web camera preview widget
+
+### Platform Implementations
+
+- **Android** (`android/src/main/kotlin/.../MediaPickerPlusPlugin.kt`):
+  - Handles permissions (camera, storage, media)
+  - Uses Android Photo Picker (API 33+) or legacy gallery picker
+  - Implements image/video capture, cropping, watermarking, compression
+  - Uses FileProvider for file sharing
+
+- **iOS** (`ios/Classes/MediaPickerPlusPlugin.swift`):
+  - Handles permissions via Info.plist
+  - Uses UIImagePickerController and PHPickerViewController
+  - Implements image/video capture, cropping, watermarking, compression
+  - Uses AVFoundation for video processing
+
+- **macOS** (`macos/Classes/MediaPickerPlusPlugin.swift`):
+  - Similar to iOS implementation
+  - Uses NSOpenPanel for file selection
+  - Camera and media library access
+
+- **Web** (`lib/media_picker_plus_web.dart`):
+  - Uses HTML5 File API and WebRTC for camera
+  - Canvas API for image processing
+  - Optional FFmpeg.js for video watermarking
+  - Returns data URLs or blob URLs (not file paths)
+
+## Important Concepts
+
+### Media Options
+The `MediaOptions` class configures all media operations:
+- Image quality (0-100)
+- Max width/height for resizing
+- Watermark text and position
+- Crop options
+- Video duration limits
+
+### Cropping
+- **Interactive Cropping**: Requires `BuildContext`, shows UI for user to crop manually
+- **Programmatic Cropping**: Uses `CropOptions` with predefined crop rectangles
+- **Aspect Ratios**: Square, portrait, landscape, widescreen, or freeform
+
+### Watermarking
+- Supports images and videos (except Android videos)
+- Positions: 9 positions (top/middle/bottom × left/center/right)
+- Font size: Fixed pixels or percentage of shorter edge
+- Applied during pick/capture or to existing media
+
+### Platform Differences
+
+**Web Platform Considerations**:
+- Returns data URLs or blob URLs, not file paths
+- Use `Image.network()` instead of `Image.file()`
+- Use `VideoPlayerController.networkUrl()` instead of `VideoPlayerController.file()`
+- Check `kIsWeb` before using `Platform` APIs
+- Browser handles permissions automatically
+
+**Android Permissions**:
+- API 22-32: `READ_EXTERNAL_STORAGE`
+- API 33+: Granular permissions (`READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO`, etc.)
+- Uses modern Photo Picker on API 33+
+
+**iOS Permissions**:
+- Requires Info.plist entries: `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSMicrophoneUsageDescription`
+- Uses PHPickerViewController on iOS 14+ for better privacy
+
+## Getting Started
+
+### Installation
+```yaml
+dependencies:
+  media_picker_plus: ^1.1.0-rc.4
+```
+
+### Basic Usage
+```dart
+import 'package:media_picker_plus/media_picker_plus.dart';
+
+// Pick image
+String? imagePath = await MediaPickerPlus.pickImage(
+  source: MediaSource.gallery,
+);
+
+// Capture photo
+String? imagePath = await MediaPickerPlus.pickImage(
+  source: MediaSource.camera,
+);
+```
+
+## Testing
+
+Test files are in `test/` directory:
+- `media_picker_plus_test.dart` - Main plugin tests
+- `media_picker_plus_platform_interface_test.dart` - Platform interface tests
+- `media_picker_plus_method_channel_test.dart` - Method channel tests
+- `media_picker_plus_web_test.dart` - Web implementation tests
+- `crop_options_test.dart` - Crop options tests
+- `crop_ui_test.dart` - Crop UI tests
+
+## Documentation Structure
+
+- **README.md** - Quick start and overview (simplified, points to docs site)
+- **docs/** - Docusaurus documentation site (source in `docs/docs/`)
+- **doc/** - Additional technical documentation:
+  - `android.md` - Android-specific setup and features
+  - `ios.md` - iOS-specific setup and features
+  - `macos.md` - macOS-specific setup and features
+  - `web.md` - Web-specific setup and considerations
+  - `web-permissions.md` - Web permission handling
+  - `web-video-watermarking.md` - Web video watermarking guide
+  - Camera API documentation files
+
+## Development Workflow
+
+1. **Code Structure**: Follow platform interface pattern
+2. **Testing**: Run `flutter test` for unit tests
+3. **Analysis**: Run `flutter analyze` before committing
+4. **Formatting**: Run `dart format` after changes
+5. **Documentation**: Update docs in `docs/docs/` and `doc/` as needed
+
+## Known Limitations
+
+- Video watermarking on Android is NOT implemented
+- Video compression on Web is NOT implemented
+- Video watermarking on Web requires optional FFmpeg.js setup
+
+## Version Information
+
+- Current Version: 1.1.0-rc.4
+- Flutter SDK: >= 2.5.0
+- Dart SDK: >= 2.17.0 < 4.0.0
+
+## CI/CD
+
+- **CI Workflow** (`.github/workflows/ci.yml`): Runs tests, analysis, and platform-specific tests
+- **Publish Workflow** (`.github/workflows/publish.yml`): Publishes to pub.dev on version tags
+- **Docs Workflow** (`.github/workflows/docs.yml`): Builds and deploys Docusaurus docs to GitHub Pages
+
+## Contributing
+
+See README.md for contribution guidelines. Major changes should be discussed via issues first.
