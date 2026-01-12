@@ -31,12 +31,12 @@ if (addWatermarkToVideo.isUndefined || addWatermarkToVideo.isNull) {
 
 ## Platform Support
 
-| Feature | Android | iOS | macOS | Web |
-|---------|---------|-----|-------|-----|
-| Pick videos | ✅ | ✅ | ✅ | ✅ |
-| Record videos | ✅ | ✅ | ✅ | ✅ |
-| Play videos | ✅ | ✅ | ✅ | ✅ |
-| **Image watermarks** | ✅ Built-in | ✅ Built-in | ✅ Built-in | ✅ Built-in |
+| Feature              | Android    | iOS        | macOS      | Web                             |
+| -------------------- | ---------- | ---------- | ---------- | ------------------------------- |
+| Pick videos          | ✅          | ✅          | ✅          | ✅                               |
+| Record videos        | ✅          | ✅          | ✅          | ✅                               |
+| Play videos          | ✅          | ✅          | ✅          | ✅                               |
+| **Image watermarks** | ✅ Built-in | ✅ Built-in | ✅ Built-in | ✅ Built-in                      |
 | **Video watermarks** | ✅ Built-in | ✅ Built-in | ✅ Built-in | ⚠️ Optional (requires FFmpeg.js) |
 
 ## Why Is Video Watermarking Optional on Web?
