@@ -1,6 +1,6 @@
 name: media_picker_plus
 description: A Flutter plugin to pick or capture images and videos with quality control options
-version: 1.1.0-rc.5
+version: 1.1.0-rc.6
 homepage: https://github.com/thanhtunguet/media_picker_plus
 
 environment:

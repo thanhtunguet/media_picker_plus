@@ -1002,17 +1002,6 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         return watermarkBitmap
     }
 
-    private fun calculateMaxLineWidth(text: String, paint: TextPaint): Float {
-        var maxWidth = 0f
-        text.split('\n').forEach { line ->
-            val lineWidth = paint.measureText(line)
-            if (lineWidth > maxWidth) {
-                maxWidth = lineWidth
-            }
-        }
-        return maxWidth
-    }
-
     private fun watermarkVideoWithNativeProcessing(
         inputPath: String,
         outputPath: String,
