@@ -250,6 +250,8 @@ class _MyAppState extends State<MyApp> {
         ),
       );
 
+      if (!mounted) return;
+
       if (compressedVideo != null) {
         setState(() {
           _compressedVideoPath = compressedVideo;
@@ -260,6 +262,7 @@ class _MyAppState extends State<MyApp> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isCompressing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Compression failed: $e')),

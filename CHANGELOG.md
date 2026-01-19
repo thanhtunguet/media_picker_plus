@@ -1,3 +1,8 @@
+## 1.1.0-rc.5
+
+### Fixed
+- Android watermark text now supports line breaks ("\n") consistently across images and videos.
+
 ## 1.1.0-rc.4
 
 ### Fixed

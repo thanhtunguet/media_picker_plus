@@ -46,6 +46,8 @@ Goal: expand features and developer experience after macOS/Web are functional an
   - Unified watermarking positioning and styling
   - [x] Fix iOS image watermark bounds/positioning (prevent bottom-edge overflow vs Android)
     - Use `boundingRect`-based bounds + clamping for more accurate emoji/stroke/descender sizing.
+  - [x] Handle multiline ("\n") watermark text on Android images/videos
+    - Switch to StaticLayout-based rendering for text measurement and drawing.
 
 ### Security & Privacy
 - [ ] **Implement security best practices**

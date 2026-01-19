@@ -26,6 +26,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import android.media.MediaMetadataRetriever
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextPaint
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
 import com.arthenica.ffmpegkit.Session
@@ -48,6 +51,8 @@ import io.flutter.plugin.common.PluginRegistry
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.ceil
+import kotlin.math.max
 import kotlin.math.min
 
 class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
@@ -768,27 +773,38 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     ): Bitmap {
         val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(result)
-        val paint = Paint().apply {
+        val textPaint = TextPaint().apply {
             color = Color.WHITE
             alpha = 200
             textSize = fontSize
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        val strokePaint = Paint(paint).apply {
+        val strokePaint = TextPaint(textPaint).apply {
             style = Paint.Style.STROKE
             strokeWidth = 2f
             color = Color.BLACK
         }
-        val bounds = Rect()
-        paint.getTextBounds(text, 0, text.length, bounds)
-        val textWidth = bounds.width()
-        val textHeight = bounds.height()
-        
+        val maxLineWidth = calculateMaxLineWidth(text, textPaint)
+        val layoutWidth = max(1, ceil(maxLineWidth).toInt())
+        val fillLayout = StaticLayout.Builder.obtain(text, 0, text.length, textPaint, layoutWidth)
+            .setAlignment(Layout.Alignment.ALIGN_CENTER)
+            .setIncludePad(false)
+            .build()
+        val strokeLayout = StaticLayout.Builder.obtain(text, 0, text.length, strokePaint, layoutWidth)
+            .setAlignment(Layout.Alignment.ALIGN_CENTER)
+            .setIncludePad(false)
+            .build()
+        val textWidth = fillLayout.width.toFloat()
+        val textHeight = fillLayout.height.toFloat()
+        val strokeOutset = strokePaint.strokeWidth
+        val measuredWidth = textWidth + strokeOutset * 2
+        val measuredHeight = textHeight + strokeOutset * 2
+
         // Calculate 2% padding based on shorter edge for consistent positioning
         val shorterEdge = minOf(bitmap.width, bitmap.height)
         val edgePadding = shorterEdge * 0.02f // 2% of shorter edge
-        
+
         val position = if (positionStr == "auto") {
             if (bitmap.width > bitmap.height) {
                 WatermarkPosition.BOTTOM_RIGHT
@@ -803,44 +819,63 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         when (position) {
             WatermarkPosition.TOP_LEFT -> {
                 x = edgePadding
-                y = textHeight + edgePadding
+                y = edgePadding
             }
             WatermarkPosition.TOP_CENTER -> {
-                x = (bitmap.width - textWidth) / 2f
-                y = textHeight + edgePadding
+                x = (bitmap.width - measuredWidth) / 2f
+                y = edgePadding
             }
             WatermarkPosition.TOP_RIGHT -> {
-                x = bitmap.width - textWidth - edgePadding
-                y = textHeight + edgePadding
+                x = bitmap.width - measuredWidth - edgePadding
+                y = edgePadding
             }
             WatermarkPosition.MIDDLE_LEFT -> {
                 x = edgePadding
-                y = bitmap.height / 2f + textHeight / 2f
+                y = (bitmap.height - measuredHeight) / 2f
             }
             WatermarkPosition.CENTER -> {
-                x = (bitmap.width - textWidth) / 2f
-                y = bitmap.height / 2f + textHeight / 2f
+                x = (bitmap.width - measuredWidth) / 2f
+                y = (bitmap.height - measuredHeight) / 2f
             }
             WatermarkPosition.MIDDLE_RIGHT -> {
-                x = bitmap.width - textWidth - edgePadding
-                y = bitmap.height / 2f + textHeight / 2f
+                x = bitmap.width - measuredWidth - edgePadding
+                y = (bitmap.height - measuredHeight) / 2f
             }
             WatermarkPosition.BOTTOM_LEFT -> {
                 x = edgePadding
-                y = bitmap.height - edgePadding
+                y = bitmap.height - measuredHeight - edgePadding
             }
             WatermarkPosition.BOTTOM_CENTER -> {
-                x = (bitmap.width - textWidth) / 2f
-                y = bitmap.height - edgePadding
+                x = (bitmap.width - measuredWidth) / 2f
+                y = bitmap.height - measuredHeight - edgePadding
             }
             WatermarkPosition.BOTTOM_RIGHT -> {
-                x = bitmap.width - textWidth - edgePadding
-                y = bitmap.height - edgePadding
+                x = bitmap.width - measuredWidth - edgePadding
+                y = bitmap.height - measuredHeight - edgePadding
             }
         }
-        canvas.drawText(text, x, y, strokePaint)
-        canvas.drawText(text, x, y, paint)
+        val maxX = max(edgePadding, bitmap.width - measuredWidth - edgePadding)
+        val maxY = max(edgePadding, bitmap.height - measuredHeight - edgePadding)
+        val clampedX = x.coerceIn(edgePadding, maxX)
+        val clampedY = y.coerceIn(edgePadding, maxY)
+
+        canvas.save()
+        canvas.translate(clampedX + strokeOutset, clampedY + strokeOutset)
+        strokeLayout.draw(canvas)
+        fillLayout.draw(canvas)
+        canvas.restore()
         return result
+    }
+
+    private fun calculateMaxLineWidth(text: String, paint: TextPaint): Float {
+        var maxWidth = 0f
+        text.split('\n').forEach { line ->
+            val lineWidth = paint.measureText(line)
+            if (lineWidth > maxWidth) {
+                maxWidth = lineWidth
+            }
+        }
+        return maxWidth
     }
 
     private fun processVideo(sourcePath: String): String {
@@ -916,36 +951,66 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private fun createWatermarkBitmap(text: String, fontSize: Float): Bitmap {
         Log.d("MediaPickerPlus", "Creating watermark bitmap with text: '$text', fontSize: $fontSize")
         
-        val paint = Paint().apply {
+        val textPaint = TextPaint().apply {
             color = Color.WHITE
             alpha = 255
             textSize = fontSize
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        val bounds = Rect()
-        paint.getTextBounds(text, 0, text.length, bounds)
-        val textWidth = bounds.width()
-        val textHeight = bounds.height()
-        
-        // Use standard padding for watermark bitmap creation (internal spacing)
-        val padding = 20
-        
-        Log.d("MediaPickerPlus", "Text dimensions: ${textWidth}x${textHeight}, padding: $padding")
-        
-        val watermarkBitmap = Bitmap.createBitmap(textWidth + padding * 2, textHeight + padding * 2, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(watermarkBitmap)
-
-        val strokePaint = Paint(paint).apply {
+        val strokePaint = TextPaint(textPaint).apply {
             style = Paint.Style.STROKE
             strokeWidth = 3f  // Make stroke thicker
             color = Color.BLACK
         }
-        canvas.drawText(text, padding.toFloat(), textHeight + padding / 2f, strokePaint)
-        canvas.drawText(text, padding.toFloat(), textHeight + padding / 2f, paint)
-        
+        val maxLineWidth = calculateMaxLineWidth(text, textPaint)
+        val layoutWidth = max(1, ceil(maxLineWidth).toInt())
+        val fillLayout = StaticLayout.Builder.obtain(text, 0, text.length, textPaint, layoutWidth)
+            .setAlignment(Layout.Alignment.ALIGN_CENTER)
+            .setIncludePad(false)
+            .build()
+        val strokeLayout = StaticLayout.Builder.obtain(text, 0, text.length, strokePaint, layoutWidth)
+            .setAlignment(Layout.Alignment.ALIGN_CENTER)
+            .setIncludePad(false)
+            .build()
+
+        val textWidth = fillLayout.width.toFloat()
+        val textHeight = fillLayout.height.toFloat()
+        val strokeOutset = strokePaint.strokeWidth
+        val measuredWidth = textWidth + strokeOutset * 2
+        val measuredHeight = textHeight + strokeOutset * 2
+
+        // Use standard padding for watermark bitmap creation (internal spacing)
+        val padding = 20f
+
+        Log.d("MediaPickerPlus", "Text dimensions: ${measuredWidth}x${measuredHeight}, padding: $padding")
+
+        val watermarkBitmap = Bitmap.createBitmap(
+            ceil(measuredWidth + padding * 2).toInt(),
+            ceil(measuredHeight + padding * 2).toInt(),
+            Bitmap.Config.ARGB_8888
+        )
+        val canvas = Canvas(watermarkBitmap)
+
+        canvas.save()
+        canvas.translate(padding + strokeOutset, padding + strokeOutset)
+        strokeLayout.draw(canvas)
+        fillLayout.draw(canvas)
+        canvas.restore()
+
         Log.d("MediaPickerPlus", "Watermark bitmap created: ${watermarkBitmap.width}x${watermarkBitmap.height}")
         return watermarkBitmap
+    }
+
+    private fun calculateMaxLineWidth(text: String, paint: TextPaint): Float {
+        var maxWidth = 0f
+        text.split('\n').forEach { line ->
+            val lineWidth = paint.measureText(line)
+            if (lineWidth > maxWidth) {
+                maxWidth = lineWidth
+            }
+        }
+        return maxWidth
     }
 
     private fun watermarkVideoWithNativeProcessing(

@@ -125,7 +125,8 @@ class WebCameraPreview {
       _recordingIndicator!.innerHTML = '''
         <span style="width: 8px; height: 8px; background: white; border-radius: 50%; animation: blink 0.8s infinite;"></span>
         <span id="timer">REC 00:00</span>
-      '''.toJS;
+      '''
+          .toJS;
     }
 
     // Create bottom controls

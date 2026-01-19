@@ -31,12 +31,12 @@ The Android implementation provides comprehensive media picking, camera capture,
 #### Image Processing
 - **Resizing**: Max width/height with aspect ratio preservation
 - **Quality Control**: JPEG compression (75-90% quality levels)
-- **Watermarking**: Text overlay with 9 positioning options
+- **Watermarking**: Text overlay with 9 positioning options (supports multiline "\n")
 - **Cropping**: Interactive manual cropping with aspect ratio control
 - **Format Support**: JPEG, PNG, WebP, GIF
 
 #### Video Processing
-- **Watermarking**: Advanced FFmpeg-based overlay system
+- **Watermarking**: Advanced FFmpeg-based overlay system (supports multiline "\n" text)
 - **Resizing**: Maintains aspect ratio during scaling
 - **Cropping**: Rectangle and aspect ratio-based cropping
 - **Format Support**: MP4, MOV, AVI, MKV
