@@ -1174,6 +1174,8 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             var success = false
             var errorMessage = ""
             
+            val errorLogs = mutableListOf<String>()
+            
             val session = FFmpegKit.executeAsync(command,
                 { session ->
                     val returnCode = session.returnCode
@@ -1181,13 +1183,28 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                         Log.d("MediaPickerPlus", "FFmpeg processing completed successfully")
                         success = true
                     } else {
+                        // Collect error messages from logs
+                        val errorSummary = if (errorLogs.isNotEmpty()) {
+                            errorLogs.takeLast(5).joinToString("\n")
+                        } else {
+                            "Return code: $returnCode"
+                        }
                         Log.e("MediaPickerPlus", "FFmpeg failed with return code: $returnCode")
-                        errorMessage = "FFmpeg processing failed with code: $returnCode"
+                        Log.e("MediaPickerPlus", "FFmpeg error summary: $errorSummary")
+                        errorMessage = "FFmpeg processing failed: $errorSummary"
                     }
                     latch.countDown()
                 },
                 { log ->
-                    Log.d("MediaPickerPlus", "FFmpeg log: ${log.message}")
+                    val message = log.message ?: ""
+                    Log.d("MediaPickerPlus", "FFmpeg log: $message")
+                    // Collect error-related logs
+                    if (message.contains("error", ignoreCase = true) || 
+                        message.contains("failed", ignoreCase = true) ||
+                        message.contains("Error", ignoreCase = true) ||
+                        message.contains("Invalid", ignoreCase = true)) {
+                        errorLogs.add(message)
+                    }
                 },
                 { statistics ->
                     val progress = if (duration > 0) {
@@ -2137,114 +2154,73 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             val outputFileName = "processed_video_${timeStamp}.mp4"
             val outputFile = File(context.cacheDir, outputFileName)
 
-            // Get video dimensions and rotation
-            val retriever = MediaMetadataRetriever()
-            var videoWidth = 1920
-            var videoHeight = 1080
-            var rotation = 0
-            try {
-                retriever.setDataSource(videoPath)
-                videoWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 1920
-                videoHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 1080
-                rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
-                
-                // For rotated videos (90 or 270 degrees), swap width and height
-                // This gives us the effective displayed dimensions after FFmpeg auto-rotates
-                if (rotation == 90 || rotation == 270) {
-                    val temp = videoWidth
-                    videoWidth = videoHeight
-                    videoHeight = temp
-                }
-                
-                Log.d("MediaPickerPlus", "Video dimensions: ${videoWidth}x${videoHeight}, rotation: $rotation")
-            } finally {
-                retriever.release()
-            }
-
-            // Parse options
-            val targetWidth = options["targetWidth"] as? Int ?: options["maxWidth"] as? Int
-            val targetHeight = options["targetHeight"] as? Int ?: options["maxHeight"] as? Int
-            val targetBitrate = options["targetBitrate"] as? Int ?: options["videoBitrate"] as? Int ?: 2000000
             val watermarkText = options["watermark"] as? String
             val watermarkPosition = options["watermarkPosition"] as? String ?: "bottomRight"
             val deleteOriginal = options["deleteOriginalFile"] as? Boolean ?: false
 
-            // Calculate actual output dimensions maintaining aspect ratio
-            var actualWidth = videoWidth
-            var actualHeight = videoHeight
-            
-            if (targetWidth != null && actualWidth > targetWidth) {
-                actualHeight = (actualHeight * (targetWidth.toFloat() / actualWidth)).toInt()
-                actualWidth = targetWidth
-            }
-            if (targetHeight != null && actualHeight > targetHeight) {
-                actualWidth = (actualWidth * (targetHeight.toFloat() / actualHeight)).toInt()
-                actualHeight = targetHeight
-            }
-
-            // Ensure dimensions are even numbers (required for some codecs)
-            val evenWidth = if (actualWidth % 2 == 0) actualWidth else actualWidth - 1
-            val evenHeight = if (actualHeight % 2 == 0) actualHeight else actualHeight - 1
-
-            // Build FFmpeg command
-            val filters = mutableListOf<String>()
-            
-            // Add scale filter if resizing is needed
-            if (evenWidth != videoWidth || evenHeight != videoHeight) {
-                filters.add("scale=$evenWidth:$evenHeight")
-            }
-            
-            // Add watermark filter if watermark is specified
+            // If watermarking is needed, use the existing watermarkVideoWithNativeProcessing function
             if (!watermarkText.isNullOrEmpty()) {
-                val fontSize = calculateWatermarkFontSize(options, evenWidth, evenHeight, 48f).toInt()
-                val (x, y) = getWatermarkPosition(watermarkPosition, evenWidth, evenHeight, fontSize)
-                val escapedText = watermarkText.replace("'", "'\\''").replace(":", "\\:")
-                filters.add("drawtext=text='$escapedText':fontcolor=white:fontsize=$fontSize:x=$x:y=$y:shadowcolor=black:shadowx=2:shadowy=2")
-            }
-
-            val filterString = if (filters.isNotEmpty()) filters.joinToString(",") else null
-
-            // Build FFmpeg command
-            val ffmpegCommand = mutableListOf("-y", "-i", videoPath)
-            
-            if (filterString != null) {
-                ffmpegCommand.addAll(listOf("-vf", filterString))
-            }
-            
-            ffmpegCommand.addAll(listOf(
-                "-c:v", "libx264",
-                "-preset", "medium",
-                "-b:v", targetBitrate.toString(),
-                "-c:a", "aac",
-                "-b:a", "128k",
-                outputFile.absolutePath
-            ))
-
-            // Execute FFmpeg command
-            Thread {
+                // Temporarily store original mediaOptions and set new ones for processing
+                val originalMediaOptions = mediaOptions
+                mediaOptions = options
+                
                 try {
-                    val session = FFmpegKit.execute(ffmpegCommand.joinToString(" "))
-                    val returnCode = session.returnCode
-
-                    runOnUiThread {
-                        if (ReturnCode.isSuccess(returnCode)) {
-                            if (deleteOriginal) {
-                                inputFile.delete()
-                            }
-                            result.success(outputFile.absolutePath)
-                        } else {
-                            val output = session.output ?: "Unknown error"
-                            Log.e("MediaPickerPlus", "FFmpeg video processing failed: $output")
-                            result.error("VIDEO_PROCESSING_ERROR", "FFmpeg video processing failed: $output", null)
+                    // Get video dimensions to calculate font size
+                    val retriever = MediaMetadataRetriever()
+                    var videoWidth = 1920
+                    var videoHeight = 1080
+                    try {
+                        retriever.setDataSource(videoPath)
+                        videoWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 1920
+                        videoHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 1080
+                        val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
+                        
+                        // For rotated videos, swap dimensions for font size calculation
+                        if (rotation == 90 || rotation == 270) {
+                            val temp = videoWidth
+                            videoWidth = videoHeight
+                            videoHeight = temp
                         }
+                    } finally {
+                        retriever.release()
                     }
-                } catch (e: Exception) {
-                    runOnUiThread {
-                        Log.e("MediaPickerPlus", "Error processing video: ${e.message}", e)
-                        result.error("VIDEO_PROCESSING_ERROR", "Error processing video: ${e.message}", null)
-                    }
+                    
+                    // Calculate font size and create watermark bitmap
+                    val fontSize = calculateWatermarkFontSize(options, videoWidth, videoHeight, 48f)
+                    val watermarkBitmap = createWatermarkBitmap(watermarkText, fontSize)
+                    
+                    // Process video using existing watermarkVideoWithNativeProcessing function
+                    Thread {
+                        val success = watermarkVideoWithNativeProcessing(
+                            videoPath,
+                            outputFile.absolutePath,
+                            watermarkBitmap,
+                            watermarkPosition
+                        )
+                        
+                        runOnUiThread {
+                            if (success && outputFile.exists() && outputFile.length() > 0) {
+                                if (deleteOriginal) {
+                                    inputFile.delete()
+                                }
+                                result.success(outputFile.absolutePath)
+                            } else {
+                                Log.e("MediaPickerPlus", "Video watermarking failed")
+                                result.error("VIDEO_PROCESSING_ERROR", "FFmpeg video processing failed", null)
+                            }
+                        }
+                    }.start()
+                    
+                } finally {
+                    // Restore original mediaOptions
+                    mediaOptions = originalMediaOptions
                 }
-            }.start()
+            } else {
+                // No watermarking needed, but resizing/compression might be needed
+                // For now, if no watermark, just return original path
+                // TODO: Implement resizing/compression without watermarking if needed
+                result.success(videoPath)
+            }
 
         } catch (e: Exception) {
             Log.e("MediaPickerPlus", "Error setting up video processing: ${e.message}", e)

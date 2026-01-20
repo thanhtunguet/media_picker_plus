@@ -187,6 +187,34 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  Future<void> _openCustomCameraVideo() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CustomCameraVideoPage(),
+      ),
+    );
+
+    if (result != null && result is String) {
+      // Apply watermark to the captured video
+      // Note: addWatermarkToVideo expects an existing file path.
+      final watermarkFile = await MediaPickerPlus.addWatermarkToVideo(
+        result,
+        options: MediaOptions(
+          watermark: _watermarkController.text,
+          watermarkPosition: _watermarkPosition,
+        ),
+      );
+
+      if (watermarkFile != null) {
+        _setVideo(watermarkFile);
+      } else {
+        // If watermarking fails or watermark is empty, use original video
+        _setVideo(result);
+      }
+    }
+  }
+
   Future<void> _extractThumbnail() async {
     if (_mediaPath == null || !_isVideo) {
       if (mounted) {
@@ -520,7 +548,16 @@ class _MyAppState extends State<MyApp> {
                     ElevatedButton.icon(
                       onPressed: _openCustomCamera,
                       icon: const Icon(Icons.camera),
-                      label: const Text("Camerawesome"),
+                      label: const Text("Camerawesome Photo"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _openCustomCameraVideo,
+                      icon: const Icon(Icons.videocam),
+                      label: const Text("Camerawesome Video"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
                         foregroundColor: Colors.white,
@@ -564,6 +601,35 @@ class CustomCameraPage extends StatelessWidget {
             // If 'filePath' was missing, maybe it's just 'path'.
             // But 'captureRequest' is safer as it's the core object.
             // Actually, for SingleCaptureRequest, 'path' is the property.
+            Navigator.pop(context, mediaCapture.captureRequest.path);
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class CustomCameraVideoPage extends StatelessWidget {
+  const CustomCameraVideoPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: CameraAwesomeBuilder.awesome(
+          saveConfig: SaveConfig.video(
+            pathBuilder: (sensors) async {
+              final Directory extDir = await getTemporaryDirectory();
+              final testDir = await Directory(
+                '${extDir.path}/camerawesome',
+              ).create(recursive: true);
+              final String path =
+                  "${testDir.path}/${DateTime.now().millisecondsSinceEpoch}.mp4";
+              return SingleCaptureRequest(path, sensors.first);
+            },
+          ),
+          onMediaTap: (mediaCapture) {
+            // Return the video file path
             Navigator.pop(context, mediaCapture.captureRequest.path);
           },
         ),
