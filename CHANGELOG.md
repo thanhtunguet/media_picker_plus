@@ -1,5 +1,10 @@
 ## Unreleased
 
+### Fixed
+- **Video rotation on all platforms**: Fixed video rotation issue where videos captured by the camera were incorrectly rotated from portrait to landscape during processing.
+  - **iOS/macOS**: The `applyVideo` method now properly uses the video track's `preferredTransform` matrix instead of a simplified rotation check, ensuring captured videos maintain their original orientation.
+  - **Android**: Fixed dimension calculations to use effective (post-rotation) dimensions. Removed explicit rotation filters from FFmpeg commands since FFmpeg auto-rotates based on metadata. Updated `applyVideo`, `processVideo`, and `watermarkVideoWithNativeProcessing` to correctly handle rotated videos.
+
 ### Changed
 - Example fullscreen image viewer now displays basic image metadata (width, height, and configured quality).
 - Example fullscreen video viewer now displays video metadata (width, height, and quality).

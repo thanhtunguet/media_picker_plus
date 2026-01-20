@@ -930,14 +930,23 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
             val outputVideoFile = File(storageDir, videoFileName)
             
-            // Get video dimensions to calculate font size
+            // Get video dimensions and rotation to calculate font size
             val retriever = MediaMetadataRetriever()
             var videoWidth = 1920  // Default fallback
             var videoHeight = 1080 // Default fallback
+            var rotation = 0
             try {
                 retriever.setDataSource(sourcePath)
                 videoWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 1920
                 videoHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 1080
+                rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
+                
+                // For rotated videos, use effective (post-rotation) dimensions for font size calculation
+                if (rotation == 90 || rotation == 270) {
+                    val temp = videoWidth
+                    videoWidth = videoHeight
+                    videoHeight = temp
+                }
             } finally {
                 retriever.release()
             }
@@ -1074,8 +1083,18 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 retriever.release()
             }
             
-            // Process video using FFmpeg
-            return processVideoWithFFmpeg(inputPath, outputPath, watermarkBitmap, position, width, height, duration, rotation)
+            // Calculate effective dimensions after FFmpeg auto-rotation
+            // For videos with 90 or 270 degree rotation, the output dimensions will be swapped
+            val (effectiveWidth, effectiveHeight) = if (rotation == 90 || rotation == 270) {
+                Pair(height, width)
+            } else {
+                Pair(width, height)
+            }
+            
+            Log.d("MediaPickerPlus", "Effective dimensions after rotation: ${effectiveWidth}x${effectiveHeight}")
+            
+            // Process video using FFmpeg with effective dimensions
+            return processVideoWithFFmpeg(inputPath, outputPath, watermarkBitmap, position, effectiveWidth, effectiveHeight, duration, rotation)
             
         } catch (e: Exception) {
             Log.e("MediaPickerPlus", "Error in FFmpeg video processing: ${e.message}", e)
@@ -1123,16 +1142,12 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             Log.d("MediaPickerPlus", "Target dimensions: ${targetWidth}x${targetHeight}")
             
             // Calculate watermark position
+            // Note: videoWidth and videoHeight are already the effective (post-rotation) dimensions
             val positionEnum = WatermarkPosition.fromString(position)
-            val (effectiveWidth, effectiveHeight) = if (rotation == 90 || rotation == 270) {
-                Pair(targetHeight, targetWidth)
-            } else {
-                Pair(targetWidth, targetHeight)
-            }
             val (watermarkX, watermarkY) = calculateWatermarkPosition(
                 positionEnum,
-                effectiveWidth,
-                effectiveHeight,
+                targetWidth,
+                targetHeight,
                 watermarkBitmap.width,
                 watermarkBitmap.height
             )
@@ -1365,19 +1380,15 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         }
         
         // Add scaling filter
+        // Note: FFmpeg auto-rotates videos by default based on rotation metadata,
+        // so we use the effective (post-rotation) dimensions for scaling.
+        // The targetWidth/targetHeight should already account for rotation.
         val scaleFilter = "scale=$targetWidth:$targetHeight"
         videoFilters.add(scaleFilter)
         
-        // Build rotation filter if needed
-        val rotationFilter = when (rotation) {
-            90 -> "transpose=1"
-            180 -> "transpose=1,transpose=1"
-            270 -> "transpose=2"
-            else -> null
-        }
-        if (rotationFilter != null) {
-            videoFilters.add(rotationFilter)
-        }
+        // Note: We don't add explicit rotation filters because FFmpeg's -autorotate
+        // (enabled by default) handles rotation based on the video's display matrix.
+        // Adding explicit transpose filters would cause double rotation.
         
         // Build overlay filter
         val overlayFilter = "overlay=$watermarkX:$watermarkY"
@@ -2126,14 +2137,26 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             val outputFileName = "processed_video_${timeStamp}.mp4"
             val outputFile = File(context.cacheDir, outputFileName)
 
-            // Get video dimensions
+            // Get video dimensions and rotation
             val retriever = MediaMetadataRetriever()
             var videoWidth = 1920
             var videoHeight = 1080
+            var rotation = 0
             try {
                 retriever.setDataSource(videoPath)
                 videoWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 1920
                 videoHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 1080
+                rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
+                
+                // For rotated videos (90 or 270 degrees), swap width and height
+                // This gives us the effective displayed dimensions after FFmpeg auto-rotates
+                if (rotation == 90 || rotation == 270) {
+                    val temp = videoWidth
+                    videoWidth = videoHeight
+                    videoHeight = temp
+                }
+                
+                Log.d("MediaPickerPlus", "Video dimensions: ${videoWidth}x${videoHeight}, rotation: $rotation")
             } finally {
                 retriever.release()
             }

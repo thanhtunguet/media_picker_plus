@@ -1766,23 +1766,28 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         
         let transformer = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
         
-        // Calculate scale and transform
+        // Calculate the final transform that combines the original video transform with scaling/centering
+        // The video's preferredTransform already contains the rotation needed to display correctly
+        let originalTransform = videoTrack.preferredTransform
+        
+        // Calculate scale factor to fit within target dimensions while maintaining aspect ratio
         let scaleX = CGFloat(targetWidth) / naturalSize.width
         let scaleY = CGFloat(targetHeight) / naturalSize.height
         let scale = min(scaleX, scaleY)
         
-        var transformMatrix = CGAffineTransform(scaleX: scale, y: scale)
+        // Calculate translation to center the scaled video
         let translateX = (CGFloat(targetWidth) - naturalSize.width * scale) / 2
         let translateY = (CGFloat(targetHeight) - naturalSize.height * scale) / 2
-        transformMatrix = transformMatrix.translatedBy(x: translateX / scale, y: translateY / scale)
         
-        // Apply original video rotation
-        if isPortrait {
-            let rotationTransform = CGAffineTransform(rotationAngle: .pi / 2)
-            transformMatrix = rotationTransform.concatenating(transformMatrix)
-        }
+        // Build the final transform by combining original transform with scale and centering
+        // The preferredTransform already contains the rotation and translation needed to display
+        // the video correctly. We concatenate scale and centering on top of it.
+        // Transform order: original (rotate/translate) → scale → center
+        let finalTransform = originalTransform
+            .concatenating(CGAffineTransform(scaleX: scale, y: scale))
+            .concatenating(CGAffineTransform(translationX: translateX, y: translateY))
         
-        transformer.setTransform(transformMatrix, at: .zero)
+        transformer.setTransform(finalTransform, at: .zero)
         instruction.layerInstructions = [transformer]
         videoComposition.instructions = [instruction]
         
