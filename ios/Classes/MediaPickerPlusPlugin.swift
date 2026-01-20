@@ -1801,15 +1801,13 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                 defaultSize: 24.0
             )
             
-            if let watermarkedComposition = addWatermarkToVideoComposition(
+            finalVideoComposition = addWatermarkToVideoComposition(
                 videoComposition: videoComposition,
                 text: watermark,
                 fontSize: fontSize,
                 position: watermarkPosition,
-                renderSize: CGSize(width: targetWidth, height: targetHeight)
-            ) {
-                finalVideoComposition = watermarkedComposition
-            }
+                videoSize: CGSize(width: targetWidth, height: targetHeight)
+            )
         }
         
         // Create export session
