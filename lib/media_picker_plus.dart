@@ -7,7 +7,6 @@ import 'package:media_picker_plus/media_type.dart';
 
 import 'crop_helper.dart';
 import 'media_picker_plus_platform_interface.dart';
-import 'video_compression_options.dart';
 
 export 'media_options.dart';
 export 'video_compression_options.dart';
@@ -131,8 +130,13 @@ class MediaPickerPlus {
     String imagePath, {
     required MediaOptions options,
   }) async {
-    return MediaPickerPlusPlatform.instance
-        .addWatermarkToImage(imagePath, options);
+    // Ensure watermark is provided
+    if (options.watermark == null || options.watermark!.isEmpty) {
+      throw ArgumentError('Watermark text cannot be null or empty');
+    }
+
+    // Use the universal applyImage method to add watermark
+    return MediaPickerPlusPlatform.instance.applyImage(imagePath, options);
   }
 
   /// Add watermark to an existing video file
@@ -163,6 +167,34 @@ class MediaPickerPlus {
     );
   }
 
+  /// Universal image processing method that applies all image transformations:
+  /// - Resizing (within maxWidth and maxHeight)
+  /// - Image quality compression
+  /// - Watermarking
+  /// - Cropping (if enabled in options)
+  static Future<String?> applyImage(
+    String imagePath, {
+    required MediaOptions options,
+  }) async {
+    return MediaPickerPlusPlatform.instance.applyImage(imagePath, options);
+  }
+
+  /// Resize an image to fit within the specified maxWidth and maxHeight
+  /// while maintaining aspect ratio
+  static Future<String?> resizeImage(
+    String imagePath, {
+    required int maxWidth,
+    required int maxHeight,
+    int imageQuality = 80,
+  }) async {
+    final options = MediaOptions(
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
+      imageQuality: imageQuality,
+    );
+    return MediaPickerPlusPlatform.instance.applyImage(imagePath, options);
+  }
+
   /// Compress a video file
   ///
   /// [inputPath] path to the input video file
@@ -174,7 +206,7 @@ class MediaPickerPlus {
   static Future<String?> compressVideo(
     String inputPath, {
     String? outputPath,
-    VideoCompressionOptions options = const VideoCompressionOptions(),
+    required dynamic options,
   }) async {
     return MediaPickerPlusPlatform.instance.compressVideo(
       inputPath,

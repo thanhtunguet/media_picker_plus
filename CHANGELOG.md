@@ -1,3 +1,8 @@
+## Unreleased
+
+### Changed
+- Example fullscreen image viewer now displays basic image metadata (width, height, and configured quality).
+
 ## 1.1.0-rc.5
 
 ### Fixed

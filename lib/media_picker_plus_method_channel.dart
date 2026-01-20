@@ -160,29 +160,32 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
 
   @override
   Future<String?> processImage(String imagePath, MediaOptions options) async {
-    try {
-      final result = await methodChannel.invokeMethod<String>('processImage', {
-        'imagePath': imagePath,
-        'options': options.toMap(),
-      });
-      return result;
-    } on PlatformException catch (e) {
-      throw Exception('Error processing image: ${e.message}');
-    }
+    // Use the universal applyImage method for processing
+    return applyImage(imagePath, options);
   }
 
   @override
   Future<String?> addWatermarkToImage(
       String imagePath, MediaOptions options) async {
+    // Ensure watermark is provided
+    if (options.watermark == null || options.watermark!.isEmpty) {
+      throw ArgumentError('Watermark text cannot be null or empty');
+    }
+
+    // Use the universal applyImage method to add watermark
+    return applyImage(imagePath, options);
+  }
+
+  @override
+  Future<String?> applyImage(String imagePath, MediaOptions options) async {
     try {
-      final result =
-          await methodChannel.invokeMethod<String>('addWatermarkToImage', {
+      final result = await methodChannel.invokeMethod<String>('applyImage', {
         'imagePath': imagePath,
         'options': options.toMap(),
       });
       return result;
     } on PlatformException catch (e) {
-      throw Exception('Error adding watermark to image: ${e.message}');
+      throw Exception('Error applying image transformations: ${e.message}');
     }
   }
 

@@ -859,94 +859,82 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
 
   @override
   Future<String?> processImage(String imagePath, MediaOptions options) async {
-    try {
-      // For web, the imagePath is typically a data URL
-      if (!imagePath.startsWith('data:image')) {
-        return imagePath; // Return as-is if not a data URL
-      }
-
-      // Create an image element to process the data URL
-      final img = web.HTMLImageElement();
-      final completer = Completer<String?>();
-
-      img.onLoad.listen((_) async {
-        try {
-          final canvas = web.HTMLCanvasElement();
-          final ctx = canvas.getContext('2d') as web.CanvasRenderingContext2D;
-
-          // Apply crop options if provided
-          if (options.cropOptions?.enableCrop == true &&
-              options.cropOptions?.cropRect != null) {
-            final cropDimensions =
-                _applyCropToImage(img, ctx, canvas, options.cropOptions!);
-            canvas.width = cropDimensions['width']!;
-            canvas.height = cropDimensions['height']!;
-          } else {
-            // No cropping, use original dimensions
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            ctx.drawImage(img, 0, 0);
-          }
-
-          // Apply watermark if provided
-          if (options.watermark != null && options.watermark!.isNotEmpty) {
-            _drawWatermark(ctx, canvas.width, canvas.height, options);
-          }
-
-          // Convert to data URL with quality settings
-          final dataUrl = canvas.toDataURL('image/jpeg');
-          completer.complete(dataUrl);
-        } catch (e) {
-          completer.complete(imagePath); // Return original on error
-        }
-      });
-
-      img.onError.listen((_) {
-        completer.complete(imagePath); // Return original on error
-      });
-
-      img.src = imagePath;
-      return await completer.future;
-    } catch (e) {
-      return imagePath; // Return original on error
-    }
+    // Use the universal applyImage method for processing
+    return applyImage(imagePath, options);
   }
 
   @override
   Future<String?> addWatermarkToImage(
       String imagePath, MediaOptions options) async {
-    try {
-      // Check if watermark is specified
-      if (options.watermark == null || options.watermark!.isEmpty) {
-        throw Exception('Watermark text is required');
-      }
+    // Ensure watermark is provided
+    if (options.watermark == null || options.watermark!.isEmpty) {
+      throw ArgumentError('Watermark text cannot be null or empty');
+    }
 
-      // For web, the imagePath could be a data URL, blob URL, or object URL
+    // Use the universal applyImage method to add watermark
+    return applyImage(imagePath, options);
+  }
+
+  @override
+  Future<String?> applyImage(String imagePath, MediaOptions options) async {
+    // This is the universal image processing method that applies all transformations:
+    // - Resizing (within maxWidth and maxHeight)
+    // - Image quality compression
+    // - Watermarking
+    // - Cropping (if enabled in options)
+
+    try {
       final img = web.HTMLImageElement();
       final completer = Completer<String?>();
 
       img.onLoad.listen((_) async {
         try {
           final canvas = web.HTMLCanvasElement();
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-
           final ctx = canvas.getContext('2d') as web.CanvasRenderingContext2D;
 
-          // Draw the original image
-          ctx.drawImage(img, 0, 0);
+          // Step 1: Calculate dimensions with resize constraints
+          int targetWidth = img.naturalWidth;
+          int targetHeight = img.naturalHeight;
 
-          // Add watermark
-          _drawWatermark(ctx, canvas.width, canvas.height, options);
+          // Apply resize constraints while maintaining aspect ratio
+          if (options.maxWidth != null && targetWidth > options.maxWidth!) {
+            targetHeight =
+                (targetHeight * (options.maxWidth! / targetWidth)).round();
+            targetWidth = options.maxWidth!;
+          }
+          if (options.maxHeight != null && targetHeight > options.maxHeight!) {
+            targetWidth =
+                (targetWidth * (options.maxHeight! / targetHeight)).round();
+            targetHeight = options.maxHeight!;
+          }
 
-          // Convert to data URL with quality settings
+          // Step 2: Apply cropping if specified
+          if (options.cropOptions?.enableCrop == true) {
+            final croppedDimensions =
+                _applyCropToImage(img, ctx, canvas, options.cropOptions!);
+            targetWidth = croppedDimensions['width'] as int;
+            targetHeight = croppedDimensions['height'] as int;
+          } else {
+            // No cropping, set canvas size and draw image
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            ctx.drawImage(
+                img, 0, 0, targetWidth.toDouble(), targetHeight.toDouble());
+          }
+
+          // Step 3: Apply watermark if provided
+          if (options.watermark != null && options.watermark!.isNotEmpty) {
+            _drawWatermark(ctx, targetWidth, targetHeight, options);
+          }
+
+          // Step 4: Apply image quality and convert to data URL
           final quality =
               (options.imageQuality.clamp(0, 100)).toDouble() / 100.0;
           final dataUrl = canvas.toDataURL('image/jpeg', quality as dynamic);
           completer.complete(dataUrl);
         } catch (e) {
-          completer
-              .completeError(Exception('Failed to add watermark to image: $e'));
+          completer.completeError(
+              Exception('Failed to apply image transformations: $e'));
         }
       });
 
@@ -957,7 +945,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       img.src = imagePath;
       return await completer.future;
     } catch (e) {
-      throw Exception('Error adding watermark to image: $e');
+      throw Exception('Error applying image transformations: $e');
     }
   }
 

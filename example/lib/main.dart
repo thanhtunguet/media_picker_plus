@@ -23,6 +23,7 @@ class _MyAppState extends State<MyApp> {
   String? _mediaPath;
   bool _isVideo = false;
   VideoPlayerController? _videoController;
+  int? _imageQuality;
 
   // Thumbnail related state
   String? _thumbnailPath;
@@ -69,6 +70,7 @@ class _MyAppState extends State<MyApp> {
   Future<void> _pickImage() async {
     final file = await MediaPickerPlus.pickImage(
       options: MediaOptions(
+        imageQuality: 80,
         watermark: _watermarkController.text,
         watermarkPosition: _watermarkPosition,
         cropOptions: CropOptions(enableCrop: _enableCrop),
@@ -79,6 +81,7 @@ class _MyAppState extends State<MyApp> {
       setState(() {
         _mediaPath = file;
         _isVideo = false;
+        _imageQuality = 80;
       });
     }
   }
@@ -86,6 +89,7 @@ class _MyAppState extends State<MyApp> {
   Future<void> _capturePhoto() async {
     final file = await MediaPickerPlus.capturePhoto(
       options: MediaOptions(
+        imageQuality: 80,
         watermark: _watermarkController.text,
         watermarkPosition: _watermarkPosition,
         cropOptions: CropOptions(enableCrop: _enableCrop),
@@ -96,6 +100,7 @@ class _MyAppState extends State<MyApp> {
       setState(() {
         _mediaPath = file;
         _isVideo = false;
+        _imageQuality = 80;
       });
     }
   }
@@ -135,6 +140,7 @@ class _MyAppState extends State<MyApp> {
           setState(() {
             _mediaPath = path;
             _isVideo = true;
+            _imageQuality = null;
             _videoController!.play();
           });
         });
@@ -145,6 +151,7 @@ class _MyAppState extends State<MyApp> {
           setState(() {
             _mediaPath = path;
             _isVideo = true;
+            _imageQuality = null;
             _videoController!.play();
           });
         });
@@ -174,6 +181,7 @@ class _MyAppState extends State<MyApp> {
         setState(() {
           _mediaPath = watermarkFile;
           _isVideo = false;
+          _imageQuality = 80;
         });
       }
     }
@@ -280,6 +288,7 @@ class _MyAppState extends State<MyApp> {
           mediaPath: _mediaPath!,
           isVideo: _isVideo,
           videoController: _videoController,
+          imageQuality: _imageQuality,
         ),
       ),
     );
@@ -304,208 +313,213 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Media Picker Plus Example')),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              if (_mediaPath != null)
-                Column(
-                  children: [
-                    GestureDetector(
-                      onTap: () => _openFullscreen(),
-                      child: SizedBox(
-                        height: 300,
-                        width: double.infinity,
-                        child: _isVideo
-                            ? AspectRatio(
-                                aspectRatio:
-                                    _videoController!.value.aspectRatio,
-                                child: VideoPlayer(_videoController!),
-                              )
-                            : _buildImage(_mediaPath!, BoxFit.contain),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                if (_mediaPath != null)
+                  Column(
+                    children: [
+                      GestureDetector(
+                        onTap: () => _openFullscreen(),
+                        child: SizedBox(
+                          height: 300,
+                          width: double.infinity,
+                          child: _isVideo
+                              ? AspectRatio(
+                                  aspectRatio:
+                                      _videoController!.value.aspectRatio,
+                                  child: VideoPlayer(_videoController!),
+                                )
+                              : _buildImage(_mediaPath!, BoxFit.contain),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _getPathDescription(_mediaPath!),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        "Tap to view fullscreen",
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  )
+                else
+                  const Text("No media selected",
+                      style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _watermarkController,
+                  decoration: const InputDecoration(
+                    labelText: "Watermark Text",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: _watermarkPosition,
+                  decoration: const InputDecoration(
+                    labelText: "Watermark Position",
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    WatermarkPosition.topLeft,
+                    WatermarkPosition.topCenter,
+                    WatermarkPosition.topRight,
+                    WatermarkPosition.middleLeft,
+                    WatermarkPosition.middleCenter,
+                    WatermarkPosition.middleRight,
+                    WatermarkPosition.bottomLeft,
+                    WatermarkPosition.bottomCenter,
+                    WatermarkPosition.bottomRight,
+                  ]
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _watermarkPosition = v);
+                  },
+                ),
+                SwitchListTile(
+                  title: const Text("Enable Cropping (Image Only)"),
+                  value: _enableCrop,
+                  onChanged: (v) => setState(() => _enableCrop = v),
+                ),
+                const SizedBox(height: 20),
+
+                // Thumbnail extraction section
+                if (_isVideo && _mediaPath != null) ...[
+                  const Divider(),
+                  const Text(
+                    "Video Thumbnail Extraction",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _thumbnailTimeController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: "Time in seconds",
+                      border: OutlineInputBorder(),
+                      helperText: "Extract thumbnail at this time",
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    onPressed: _extractThumbnail,
+                    icon: const Icon(Icons.image),
+                    label: const Text("Extract Thumbnail"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  if (_thumbnailPath != null) ...[
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Generated Thumbnail:",
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 150,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: _buildImage(_thumbnailPath!, BoxFit.contain),
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _getPathDescription(_mediaPath!),
+                      _getPathDescription(_thumbnailPath!),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      "Tap to view fullscreen",
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
                   ],
-                )
-              else
-                const Text("No media selected", style: TextStyle(fontSize: 18)),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _watermarkController,
-                decoration: const InputDecoration(
-                  labelText: "Watermark Text",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                initialValue: _watermarkPosition,
-                decoration: const InputDecoration(
-                  labelText: "Watermark Position",
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  WatermarkPosition.topLeft,
-                  WatermarkPosition.topCenter,
-                  WatermarkPosition.topRight,
-                  WatermarkPosition.middleLeft,
-                  WatermarkPosition.middleCenter,
-                  WatermarkPosition.middleRight,
-                  WatermarkPosition.bottomLeft,
-                  WatermarkPosition.bottomCenter,
-                  WatermarkPosition.bottomRight,
-                ]
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) setState(() => _watermarkPosition = v);
-                },
-              ),
-              SwitchListTile(
-                title: const Text("Enable Cropping (Image Only)"),
-                value: _enableCrop,
-                onChanged: (v) => setState(() => _enableCrop = v),
-              ),
-              const SizedBox(height: 20),
+                  const SizedBox(height: 20),
+                  const Divider(),
 
-              // Thumbnail extraction section
-              if (_isVideo && _mediaPath != null) ...[
-                const Divider(),
-                const Text(
-                  "Video Thumbnail Extraction",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _thumbnailTimeController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Time in seconds",
-                    border: OutlineInputBorder(),
-                    helperText: "Extract thumbnail at this time",
-                  ),
-                ),
-                const SizedBox(height: 10),
-                ElevatedButton.icon(
-                  onPressed: _extractThumbnail,
-                  icon: const Icon(Icons.image),
-                  label: const Text("Extract Thumbnail"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-                if (_thumbnailPath != null) ...[
-                  const SizedBox(height: 10),
+                  // Video compression section
                   const Text(
-                    "Generated Thumbnail:",
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    "Video Compression",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 150,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: _buildImage(_thumbnailPath!, BoxFit.contain),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _getPathDescription(_thumbnailPath!),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                const Divider(),
-
-                // Video compression section
-                const Text(
-                  "Video Compression",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                ElevatedButton.icon(
-                  onPressed: _isCompressing ? null : _compressVideo,
-                  icon: _isCompressing
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.compress),
-                  label: Text(
-                      _isCompressing ? "Compressing..." : "Compress Video"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-                if (_compressedVideoPath != null) ...[
                   const SizedBox(height: 10),
-                  const Text("✅ Video compressed successfully!"),
-                  ElevatedButton(
-                    onPressed: () => _setVideo(_compressedVideoPath!),
-                    child: const Text("Use Compressed Video"),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                const Divider(),
-              ],
-
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                alignment: WrapAlignment.center,
-                children: [
                   ElevatedButton.icon(
-                    onPressed: _pickImage,
-                    icon: const Icon(Icons.photo_library),
-                    label: const Text("Pick Image"),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _capturePhoto,
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text("Capture Photo"),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _pickVideo,
-                    icon: const Icon(Icons.video_library),
-                    label: const Text("Pick Video"),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _recordVideo,
-                    icon: const Icon(Icons.videocam),
-                    label: const Text("Record Video"),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _openCustomCamera,
-                    icon: const Icon(Icons.camera),
-                    label: const Text("Camerawesome"),
+                    onPressed: _isCompressing ? null : _compressVideo,
+                    icon: _isCompressing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.compress),
+                    label: Text(
+                        _isCompressing ? "Compressing..." : "Compress Video"),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
+                      backgroundColor: Colors.purple,
                       foregroundColor: Colors.white,
                     ),
                   ),
+                  if (_compressedVideoPath != null) ...[
+                    const SizedBox(height: 10),
+                    const Text("✅ Video compressed successfully!"),
+                    ElevatedButton(
+                      onPressed: () => _setVideo(_compressedVideoPath!),
+                      child: const Text("Use Compressed Video"),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  const Divider(),
                 ],
-              ),
-            ],
+
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text("Pick Image"),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _capturePhoto,
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text("Capture Photo"),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _pickVideo,
+                      icon: const Icon(Icons.video_library),
+                      label: const Text("Pick Video"),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _recordVideo,
+                      icon: const Icon(Icons.videocam),
+                      label: const Text("Record Video"),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _openCustomCamera,
+                      icon: const Icon(Icons.camera),
+                      label: const Text("Camerawesome"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -519,28 +533,30 @@ class CustomCameraPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CameraAwesomeBuilder.awesome(
-        saveConfig: SaveConfig.photo(pathBuilder: (sensors) async {
-          final Directory extDir = await getTemporaryDirectory();
-          final testDir = await Directory(
-            '${extDir.path}/camerawesome',
-          ).create(recursive: true);
-          final String path =
-              "${testDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg";
-          return SingleCaptureRequest(path, sensors.first);
-        }),
-        onMediaTap: (mediaCapture) {
-          // mediaCapture.captureRequest might be the way to go if filePath is missing.
-          // However, let's check if captureRequest exists.
-          // Assuming mediaCapture.captureRequest is of type CaptureRequest
-          // and SingleCaptureRequest has a 'path' property.
-          // Note: Depending on version, it might be 'when' (unlikely) or 'path'.
-          // Let's try casting or accessing likely property.
-          // If 'filePath' was missing, maybe it's just 'path'.
-          // But 'captureRequest' is safer as it's the core object.
-          // Actually, for SingleCaptureRequest, 'path' is the property.
-          Navigator.pop(context, mediaCapture.captureRequest.path);
-        },
+      body: SafeArea(
+        child: CameraAwesomeBuilder.awesome(
+          saveConfig: SaveConfig.photo(pathBuilder: (sensors) async {
+            final Directory extDir = await getTemporaryDirectory();
+            final testDir = await Directory(
+              '${extDir.path}/camerawesome',
+            ).create(recursive: true);
+            final String path =
+                "${testDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg";
+            return SingleCaptureRequest(path, sensors.first);
+          }),
+          onMediaTap: (mediaCapture) {
+            // mediaCapture.captureRequest might be the way to go if filePath is missing.
+            // However, let's check if captureRequest exists.
+            // Assuming mediaCapture.captureRequest is of type CaptureRequest
+            // and SingleCaptureRequest has a 'path' property.
+            // Note: Depending on version, it might be 'when' (unlikely) or 'path'.
+            // Let's try casting or accessing likely property.
+            // If 'filePath' was missing, maybe it's just 'path'.
+            // But 'captureRequest' is safer as it's the core object.
+            // Actually, for SingleCaptureRequest, 'path' is the property.
+            Navigator.pop(context, mediaCapture.captureRequest.path);
+          },
+        ),
       ),
     );
   }
@@ -550,12 +566,14 @@ class FullscreenMediaViewer extends StatefulWidget {
   final String mediaPath;
   final bool isVideo;
   final VideoPlayerController? videoController;
+  final int? imageQuality;
 
   const FullscreenMediaViewer({
     super.key,
     required this.mediaPath,
     required this.isVideo,
     this.videoController,
+    this.imageQuality,
   });
 
   @override
@@ -563,8 +581,61 @@ class FullscreenMediaViewer extends StatefulWidget {
 }
 
 class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
+  int? _imageWidth;
+  int? _imageHeight;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImageMetadata();
+  }
+
+  @override
+  void didUpdateWidget(covariant FullscreenMediaViewer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.mediaPath != widget.mediaPath ||
+        oldWidget.isVideo != widget.isVideo) {
+      _loadImageMetadata();
+    }
+  }
+
+  void _loadImageMetadata() {
+    if (widget.isVideo) return;
+
+    ImageProvider imageProvider;
+    if (kIsWeb ||
+        widget.mediaPath.startsWith('data:') ||
+        widget.mediaPath.startsWith('blob:')) {
+      imageProvider = NetworkImage(widget.mediaPath);
+    } else {
+      imageProvider = FileImage(File(widget.mediaPath));
+    }
+
+    final ImageStream stream =
+        imageProvider.resolve(const ImageConfiguration());
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (ImageInfo info, bool synchronousCall) {
+        setState(() {
+          _imageWidth = info.image.width;
+          _imageHeight = info.image.height;
+        });
+        stream.removeListener(listener);
+      },
+      onError: (Object _, StackTrace? __) {
+        stream.removeListener(listener);
+      },
+    );
+    stream.addListener(listener);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final metadataStyle = TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 16,
+      color: Colors.white,
+    );
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -575,19 +646,56 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
           style: const TextStyle(color: Colors.white),
         ),
       ),
-      body: Center(
-        child: InteractiveViewer(
-          minScale: 0.5,
-          maxScale: 4.0,
-          child: widget.isVideo
-              ? (widget.videoController != null &&
-                      widget.videoController!.value.isInitialized)
-                  ? AspectRatio(
-                      aspectRatio: widget.videoController!.value.aspectRatio,
-                      child: VideoPlayer(widget.videoController!),
-                    )
-                  : const CircularProgressIndicator()
-              : _buildImage(widget.mediaPath, BoxFit.contain),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Expanded(
+              child: Center(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: widget.isVideo
+                      ? (widget.videoController != null &&
+                              widget.videoController!.value.isInitialized)
+                          ? AspectRatio(
+                              aspectRatio:
+                                  widget.videoController!.value.aspectRatio,
+                              child: VideoPlayer(widget.videoController!),
+                            )
+                          : const CircularProgressIndicator()
+                      : _buildImage(widget.mediaPath, BoxFit.contain),
+                ),
+              ),
+            ),
+            if (!widget.isVideo)
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: DefaultTextStyle(
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Width: ${_imageWidth != null ? '${_imageWidth}px' : '-'}',
+                        style: metadataStyle,
+                      ),
+                      Text(
+                        'Height: ${_imageHeight != null ? '${_imageHeight}px' : '-'}',
+                        style: metadataStyle,
+                      ),
+                      Text(
+                        'Quality: ${widget.imageQuality != null ? '${widget.imageQuality}%' : 'Original'}',
+                        style: metadataStyle,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

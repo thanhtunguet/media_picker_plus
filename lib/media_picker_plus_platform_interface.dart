@@ -86,6 +86,10 @@ abstract class MediaPickerPlusPlatform extends PlatformInterface {
     throw UnimplementedError('getThumbnail() has not been implemented.');
   }
 
+  Future<String?> applyImage(String imagePath, MediaOptions options) {
+    throw UnimplementedError('applyImage() has not been implemented.');
+  }
+
   Future<String?> compressVideo(
     String inputPath, {
     String? outputPath,
