@@ -1,4 +1,4 @@
-## Unreleased
+## 1.1.0-rc.7
 
 ### Fixed
 - **Video rotation on all platforms**: Fixed video rotation issue where videos captured by the camera were incorrectly rotated from portrait to landscape during processing.
