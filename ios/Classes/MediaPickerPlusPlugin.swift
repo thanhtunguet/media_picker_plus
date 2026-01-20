@@ -211,6 +211,26 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             let outputPath = args["outputPath"] as? String
             let options = args["options"] as? [String: Any] ?? [:]
             compressVideo(inputPath: inputPath, outputPath: outputPath, options: options, result: result)
+            
+        case "applyImage":
+            guard let args = call.arguments as? [String: Any],
+                  let imagePath = args["imagePath"] as? String else {
+                result(MediaPickerPlusError.invalidArgs())
+                return
+            }
+            
+            let options = args["options"] as? [String: Any] ?? [:]
+            processImage(imagePath: imagePath, options: options, result: result)
+            
+        case "applyVideo":
+            guard let args = call.arguments as? [String: Any],
+                  let videoPath = args["videoPath"] as? String else {
+                result(MediaPickerPlusError.invalidArgs())
+                return
+            }
+            
+            let options = args["options"] as? [String: Any] ?? [:]
+            applyVideo(videoPath: videoPath, options: options, result: result)
 
         default:
             result(FlutterMethodNotImplemented)
@@ -1649,6 +1669,176 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             result(watermarkedPath)
         } else {
             result(FlutterError(code: "PROCESSING_FAILED", message: "Failed to add watermark to video", details: nil))
+        }
+    }
+    
+    /// Universal video processing method that applies all video transformations:
+    /// - Resizing (within targetWidth and targetHeight)
+    /// - Video quality compression
+    /// - Watermarking
+    private func applyVideo(videoPath: String, options: [String: Any], result: @escaping FlutterResult) {
+        // Validate input video path
+        guard FileManager.default.fileExists(atPath: videoPath) else {
+            result(FlutterError(code: "INVALID_VIDEO", message: "Video file does not exist", details: nil))
+            return
+        }
+        
+        // Get video dimensions and properties
+        let inputURL = URL(fileURLWithPath: videoPath)
+        let asset = AVAsset(url: inputURL)
+        guard let videoTrack = asset.tracks(withMediaType: .video).first else {
+            result(FlutterError(code: "INVALID_VIDEO", message: "Unable to read video track", details: nil))
+            return
+        }
+        
+        let transform = videoTrack.preferredTransform
+        let isPortrait = abs(transform.b) == 1 && abs(transform.c) == 1
+        let naturalSize = isPortrait
+            ? CGSize(width: videoTrack.naturalSize.height, height: videoTrack.naturalSize.width)
+            : videoTrack.naturalSize
+        
+        // Parse options
+        let maxWidth = options["maxWidth"] as? Int ?? options["targetWidth"] as? Int
+        let maxHeight = options["maxHeight"] as? Int ?? options["targetHeight"] as? Int
+        let targetBitrate = options["targetBitrate"] as? Int ?? options["videoBitrate"] as? Int ?? 2000000
+        let watermarkText = options["watermark"] as? String
+        let watermarkPosition = options["watermarkPosition"] as? String ?? "bottomRight"
+        let deleteOriginal = options["deleteOriginalFile"] as? Bool ?? false
+        
+        // Calculate target dimensions maintaining aspect ratio
+        var targetWidth = Int(naturalSize.width)
+        var targetHeight = Int(naturalSize.height)
+        
+        if let maxW = maxWidth, targetWidth > maxW {
+            targetHeight = Int(Double(targetHeight) * (Double(maxW) / Double(targetWidth)))
+            targetWidth = maxW
+        }
+        if let maxH = maxHeight, targetHeight > maxH {
+            targetWidth = Int(Double(targetWidth) * (Double(maxH) / Double(targetHeight)))
+            targetHeight = maxH
+        }
+        
+        // Ensure dimensions are even numbers
+        targetWidth = targetWidth % 2 == 0 ? targetWidth : targetWidth - 1
+        targetHeight = targetHeight % 2 == 0 ? targetHeight : targetHeight - 1
+        
+        // Generate output path
+        let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let outputVideoPath = "\(documentsPath)/processed_video_\(timestamp).mp4"
+        let outputURL = URL(fileURLWithPath: outputVideoPath)
+        
+        // Remove existing output file if it exists
+        if FileManager.default.fileExists(atPath: outputVideoPath) {
+            try? FileManager.default.removeItem(at: outputURL)
+        }
+        
+        // Create composition for processing
+        let composition = AVMutableComposition()
+        let timeRange = CMTimeRange(start: .zero, duration: asset.duration)
+        
+        // Add video track
+        guard let compositionVideoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            result(FlutterError(code: "COMPOSITION_FAILED", message: "Failed to create video track", details: nil))
+            return
+        }
+        
+        do {
+            try compositionVideoTrack.insertTimeRange(timeRange, of: videoTrack, at: .zero)
+        } catch {
+            result(FlutterError(code: "COMPOSITION_FAILED", message: "Failed to insert video track", details: nil))
+            return
+        }
+        
+        // Add audio track if exists
+        if let audioTrack = asset.tracks(withMediaType: .audio).first,
+           let compositionAudioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
+            try? compositionAudioTrack.insertTimeRange(timeRange, of: audioTrack, at: .zero)
+        }
+        
+        // Set up video composition with resizing
+        let videoComposition = AVMutableVideoComposition()
+        videoComposition.renderSize = CGSize(width: targetWidth, height: targetHeight)
+        videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+        
+        let instruction = AVMutableVideoCompositionInstruction()
+        instruction.timeRange = timeRange
+        
+        let transformer = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
+        
+        // Calculate scale and transform
+        let scaleX = CGFloat(targetWidth) / naturalSize.width
+        let scaleY = CGFloat(targetHeight) / naturalSize.height
+        let scale = min(scaleX, scaleY)
+        
+        var transformMatrix = CGAffineTransform(scaleX: scale, y: scale)
+        let translateX = (CGFloat(targetWidth) - naturalSize.width * scale) / 2
+        let translateY = (CGFloat(targetHeight) - naturalSize.height * scale) / 2
+        transformMatrix = transformMatrix.translatedBy(x: translateX / scale, y: translateY / scale)
+        
+        // Apply original video rotation
+        if isPortrait {
+            let rotationTransform = CGAffineTransform(rotationAngle: .pi / 2)
+            transformMatrix = rotationTransform.concatenating(transformMatrix)
+        }
+        
+        transformer.setTransform(transformMatrix, at: .zero)
+        instruction.layerInstructions = [transformer]
+        videoComposition.instructions = [instruction]
+        
+        // Add watermark overlay if specified
+        var finalVideoComposition: AVVideoComposition = videoComposition
+        if let watermark = watermarkText, !watermark.isEmpty {
+            let fontSize = calculateWatermarkFontSize(
+                options: options,
+                width: CGFloat(targetWidth),
+                height: CGFloat(targetHeight),
+                defaultSize: 24.0
+            )
+            
+            if let watermarkedComposition = addWatermarkToVideoComposition(
+                videoComposition: videoComposition,
+                text: watermark,
+                fontSize: fontSize,
+                position: watermarkPosition,
+                renderSize: CGSize(width: targetWidth, height: targetHeight)
+            ) {
+                finalVideoComposition = watermarkedComposition
+            }
+        }
+        
+        // Create export session
+        guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetMediumQuality) else {
+            result(FlutterError(code: "EXPORT_SESSION_FAILED", message: "Failed to create export session", details: nil))
+            return
+        }
+        
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = .mp4
+        exportSession.shouldOptimizeForNetworkUse = true
+        exportSession.videoComposition = finalVideoComposition
+        
+        // Perform the export
+        exportSession.exportAsynchronously {
+            DispatchQueue.main.async {
+                switch exportSession.status {
+                case .completed:
+                    if deleteOriginal {
+                        try? FileManager.default.removeItem(at: inputURL)
+                    }
+                    result(outputVideoPath)
+                    
+                case .failed:
+                    let errorMessage = exportSession.error?.localizedDescription ?? "Unknown export error"
+                    result(FlutterError(code: "EXPORT_FAILED", message: "Video processing failed: \(errorMessage)", details: nil))
+                    
+                case .cancelled:
+                    result(FlutterError(code: "EXPORT_CANCELLED", message: "Video processing was cancelled", details: nil))
+                    
+                default:
+                    result(FlutterError(code: "EXPORT_UNKNOWN", message: "Unknown export status", details: nil))
+                }
+            }
         }
     }
     

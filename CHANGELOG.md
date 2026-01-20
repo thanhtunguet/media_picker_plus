@@ -2,6 +2,8 @@
 
 ### Changed
 - Example fullscreen image viewer now displays basic image metadata (width, height, and configured quality).
+- Example fullscreen video viewer now displays video metadata (width, height, and quality).
+- Generated thumbnails in the example app are now clickable and can be opened in the fullscreen image viewer.
 
 ## 1.1.0-rc.5
 

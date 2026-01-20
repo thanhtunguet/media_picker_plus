@@ -952,58 +952,87 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
   @override
   Future<String?> addWatermarkToVideo(
       String videoPath, MediaOptions options) async {
+    // Use the universal applyVideo method to add watermark
+    return applyVideo(videoPath, options);
+  }
+
+  @override
+  Future<String?> applyVideo(String videoPath, MediaOptions options) async {
+    // Universal video processing method that applies all video transformations:
+    // - Resizing (within maxWidth and maxHeight)
+    // - Video quality compression
+    // - Watermarking
+    //
+    // For web, we primarily focus on watermarking as resizing and compression
+    // are more limited without native FFmpeg support.
+
     try {
-      // Check if watermark is specified
-      if (options.watermark == null || options.watermark!.isEmpty) {
-        throw Exception('Watermark text is required');
+      // If watermark is specified, add it to the video
+      if (options.watermark != null && options.watermark!.isNotEmpty) {
+        // Check if the watermarking function exists
+        final addWatermarkToVideoFunc =
+            globalThis.getProperty('addWatermarkToVideo'.toJS);
+        if (addWatermarkToVideoFunc.isUndefined ||
+            addWatermarkToVideoFunc.isNull) {
+          throw Exception(
+              'Video processing function not available on web. Please include ffmpeg_watermark.js');
+        }
+
+        // Get video dimensions to calculate font size
+        final dimensions = await _getVideoDimensions(videoPath);
+        final fontSize = _calculateWatermarkFontSize(
+          options,
+          dimensions['width']!,
+          dimensions['height']!,
+          defaultSize: 48.0,
+        );
+
+        final watermarkText = options.watermark!;
+        final position = options.watermarkPosition ?? 'bottomRight';
+
+        _log('Applying video processing: $videoPath');
+
+        try {
+          // Call JS function exposed in ffmpeg_watermark.js
+          final JSFunction watermarkFunction =
+              addWatermarkToVideoFunc as JSFunction;
+          final promise = watermarkFunction.callAsFunction(
+            null,
+            videoPath.toJS,
+            watermarkText.toJS,
+            position.toJS,
+            fontSize.toJS,
+          ) as JSPromise;
+          final url = (await promise.toDart as JSAny).dartify() as String;
+          return url;
+        } catch (e) {
+          throw Exception('Failed to process video: $e');
+        }
       }
 
-      // For web video watermarking, we need to use the JavaScript function
-      final watermarkText = options.watermark!;
-      final position = options.watermarkPosition ?? 'bottomRight';
-
-      // Check if the watermarking function exists
-      final addWatermarkToVideoFunc =
-          globalThis.getProperty('addWatermarkToVideo'.toJS);
-      if (addWatermarkToVideoFunc.isUndefined ||
-          addWatermarkToVideoFunc.isNull) {
-        throw Exception(
-            'Video watermarking function not available on web. Please include ffmpeg_watermark.js');
-      }
-
-      // Get video dimensions to calculate font size
-      final dimensions = await _getVideoDimensions(videoPath);
-      final fontSize = _calculateWatermarkFontSize(
-        options,
-        dimensions['width']!,
-        dimensions['height']!,
-        defaultSize: 48.0,
-      );
-
-      // Create a File object from the video path (assuming it's a blob URL)
-      // This is a simplified approach - in a real scenario you might need to
-      // fetch the blob and create a File object
-      _log('Adding watermark to video: $videoPath');
-
-      try {
-        // Call JS function exposed in ffmpeg_watermark.js
-        final JSFunction watermarkFunction =
-            addWatermarkToVideoFunc as JSFunction;
-        final promise = watermarkFunction.callAsFunction(
-          null,
-          videoPath.toJS, // Pass the video path/URL
-          watermarkText.toJS,
-          position.toJS,
-          fontSize.toJS,
-        ) as JSPromise;
-        final url = (await promise.toDart as JSAny).dartify() as String;
-        return url;
-      } catch (e) {
-        throw Exception('Failed to add watermark to video: $e');
-      }
+      // If no watermark, just return the original path
+      // (resizing and compression not fully supported on web)
+      return videoPath;
     } catch (e) {
-      throw Exception('Error adding watermark to video: $e');
+      throw Exception('Error applying video transformations: $e');
     }
+  }
+
+  @override
+  Future<String?> compressVideo(
+    String inputPath, {
+    String? outputPath,
+    required dynamic options,
+  }) async {
+    // Video compression on web is limited.
+    // For now, just apply video processing with the options provided.
+    final mediaOptions = options is MediaOptions
+        ? options
+        : MediaOptions(
+            maxWidth: options is Map ? options['targetWidth'] as int? : null,
+            maxHeight: options is Map ? options['targetHeight'] as int? : null,
+          );
+    return applyVideo(inputPath, mediaOptions);
   }
 
   @override

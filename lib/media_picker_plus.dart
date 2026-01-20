@@ -195,6 +195,36 @@ class MediaPickerPlus {
     return MediaPickerPlusPlatform.instance.applyImage(imagePath, options);
   }
 
+  /// Universal video processing method that applies all video transformations:
+  /// - Resizing (within maxWidth and maxHeight)
+  /// - Video quality compression (bitrate)
+  /// - Watermarking
+  ///
+  /// [videoPath] path to the input video file
+  /// [options] MediaOptions containing processing parameters
+  ///
+  /// Returns the path to the processed video file
+  static Future<String?> applyVideo(
+    String videoPath, {
+    required MediaOptions options,
+  }) async {
+    return MediaPickerPlusPlatform.instance.applyVideo(videoPath, options);
+  }
+
+  /// Resize a video to fit within the specified dimensions
+  /// while maintaining aspect ratio
+  static Future<String?> resizeVideo(
+    String videoPath, {
+    required int maxWidth,
+    required int maxHeight,
+  }) async {
+    final options = MediaOptions(
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
+    );
+    return MediaPickerPlusPlatform.instance.applyVideo(videoPath, options);
+  }
+
   /// Compress a video file
   ///
   /// [inputPath] path to the input video file

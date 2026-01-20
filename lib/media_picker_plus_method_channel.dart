@@ -192,15 +192,20 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
   @override
   Future<String?> addWatermarkToVideo(
       String videoPath, MediaOptions options) async {
+    // Use the universal applyVideo method to add watermark
+    return applyVideo(videoPath, options);
+  }
+
+  @override
+  Future<String?> applyVideo(String videoPath, MediaOptions options) async {
     try {
-      final result =
-          await methodChannel.invokeMethod<String>('addWatermarkToVideo', {
+      final result = await methodChannel.invokeMethod<String>('applyVideo', {
         'videoPath': videoPath,
         'options': options.toMap(),
       });
       return result;
     } on PlatformException catch (e) {
-      throw Exception('Error adding watermark to video: ${e.message}');
+      throw Exception('Error applying video transformations: ${e.message}');
     }
   }
 

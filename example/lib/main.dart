@@ -278,17 +278,18 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  void _openFullscreen() {
-    if (_mediaPath == null) return;
+  void _openFullscreen({String? thumbnailPath}) {
+    final path = thumbnailPath ?? _mediaPath;
+    if (path == null) return;
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => FullscreenMediaViewer(
-          mediaPath: _mediaPath!,
-          isVideo: _isVideo,
-          videoController: _videoController,
-          imageQuality: _imageQuality,
+          mediaPath: path,
+          isVideo: thumbnailPath != null ? false : _isVideo,
+          videoController: thumbnailPath != null ? null : _videoController,
+          imageQuality: thumbnailPath != null ? 85 : _imageQuality,
         ),
       ),
     );
@@ -426,22 +427,31 @@ class _MyAppState extends State<MyApp> {
                           TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 8),
-                    Container(
-                      height: 150,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: _buildImage(_thumbnailPath!, BoxFit.contain),
+                    GestureDetector(
+                      onTap: () =>
+                          _openFullscreen(thumbnailPath: _thumbnailPath),
+                      child: Container(
+                        height: 150,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: _buildImage(_thumbnailPath!, BoxFit.contain),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       _getPathDescription(_thumbnailPath!),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      "Tap thumbnail to view fullscreen",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
                   const SizedBox(height: 20),
@@ -583,25 +593,34 @@ class FullscreenMediaViewer extends StatefulWidget {
 class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
   int? _imageWidth;
   int? _imageHeight;
+  int? _videoWidth;
+  int? _videoHeight;
 
   @override
   void initState() {
     super.initState();
-    _loadImageMetadata();
+    _loadMetadata();
   }
 
   @override
   void didUpdateWidget(covariant FullscreenMediaViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.mediaPath != widget.mediaPath ||
-        oldWidget.isVideo != widget.isVideo) {
+        oldWidget.isVideo != widget.isVideo ||
+        oldWidget.videoController != widget.videoController) {
+      _loadMetadata();
+    }
+  }
+
+  void _loadMetadata() {
+    if (widget.isVideo) {
+      _loadVideoMetadata();
+    } else {
       _loadImageMetadata();
     }
   }
 
   void _loadImageMetadata() {
-    if (widget.isVideo) return;
-
     ImageProvider imageProvider;
     if (kIsWeb ||
         widget.mediaPath.startsWith('data:') ||
@@ -629,6 +648,36 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
     stream.addListener(listener);
   }
 
+  void _loadVideoMetadata() {
+    if (widget.videoController != null &&
+        widget.videoController!.value.isInitialized) {
+      setState(() {
+        _videoWidth = widget.videoController!.value.size.width.toInt();
+        _videoHeight = widget.videoController!.value.size.height.toInt();
+      });
+    } else {
+      // Listen for video initialization
+      widget.videoController?.addListener(_onVideoControllerUpdate);
+    }
+  }
+
+  void _onVideoControllerUpdate() {
+    if (widget.videoController != null &&
+        widget.videoController!.value.isInitialized) {
+      setState(() {
+        _videoWidth = widget.videoController!.value.size.width.toInt();
+        _videoHeight = widget.videoController!.value.size.height.toInt();
+      });
+      widget.videoController!.removeListener(_onVideoControllerUpdate);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.videoController?.removeListener(_onVideoControllerUpdate);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final metadataStyle = TextStyle(
@@ -649,7 +698,7 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
       body: SafeArea(
         child: Stack(
           children: [
-            Expanded(
+            Positioned.fill(
               child: Center(
                 child: InteractiveViewer(
                   minScale: 0.5,
@@ -667,8 +716,11 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
                 ),
               ),
             ),
-            if (!widget.isVideo)
-              Padding(
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: DefaultTextStyle(
                   style: const TextStyle(
@@ -678,23 +730,39 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Width: ${_imageWidth != null ? '${_imageWidth}px' : '-'}',
-                        style: metadataStyle,
-                      ),
-                      Text(
-                        'Height: ${_imageHeight != null ? '${_imageHeight}px' : '-'}',
-                        style: metadataStyle,
-                      ),
-                      Text(
-                        'Quality: ${widget.imageQuality != null ? '${widget.imageQuality}%' : 'Original'}',
-                        style: metadataStyle,
-                      ),
-                    ],
+                    children: widget.isVideo
+                        ? [
+                            Text(
+                              'Width: ${_videoWidth != null ? '${_videoWidth}px' : '-'}',
+                              style: metadataStyle,
+                            ),
+                            Text(
+                              'Height: ${_videoHeight != null ? '${_videoHeight}px' : '-'}',
+                              style: metadataStyle,
+                            ),
+                            Text(
+                              'Quality: Original',
+                              style: metadataStyle,
+                            ),
+                          ]
+                        : [
+                            Text(
+                              'Width: ${_imageWidth != null ? '${_imageWidth}px' : '-'}',
+                              style: metadataStyle,
+                            ),
+                            Text(
+                              'Height: ${_imageHeight != null ? '${_imageHeight}px' : '-'}',
+                              style: metadataStyle,
+                            ),
+                            Text(
+                              'Quality: ${widget.imageQuality != null ? '${widget.imageQuality}%' : 'Original'}',
+                              style: metadataStyle,
+                            ),
+                          ],
                   ),
                 ),
               ),
+            ),
           ],
         ),
       ),

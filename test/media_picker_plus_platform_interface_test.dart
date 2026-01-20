@@ -68,6 +68,11 @@ class MockMediaPickerPlusPlatform
   }
 
   @override
+  Future<String?> applyVideo(String videoPath, MediaOptions options) {
+    return Future.value('processed_$videoPath');
+  }
+
+  @override
   Future<String?> getThumbnail(String videoPath,
       {double timeInSeconds = 1.0, MediaOptions? options}) {
     return Future.value('thumbnail_$videoPath');

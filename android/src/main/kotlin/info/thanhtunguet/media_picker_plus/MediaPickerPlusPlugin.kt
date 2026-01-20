@@ -331,6 +331,30 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 
                 compressVideo(inputPath, outputPath, options ?: HashMap(), result)
             }
+            
+            "applyImage" -> {
+                val imagePath = call.argument<String>("imagePath")
+                val options = call.argument<HashMap<String, Any>>("options")
+                
+                if (imagePath == null) {
+                    result.error("INVALID_ARGUMENTS", "Image path is required", null)
+                    return
+                }
+                
+                processImage(imagePath, options ?: HashMap(), result)
+            }
+            
+            "applyVideo" -> {
+                val videoPath = call.argument<String>("videoPath")
+                val options = call.argument<HashMap<String, Any>>("options")
+                
+                if (videoPath == null) {
+                    result.error("INVALID_ARGUMENTS", "Video path is required", null)
+                    return
+                }
+                
+                applyVideo(videoPath, options ?: HashMap(), result)
+            }
 
             else -> result.notImplemented()
         }
@@ -2082,6 +2106,141 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         }
     }
     
+    /**
+     * Universal video processing method that applies all video transformations:
+     * - Resizing (within targetWidth and targetHeight)
+     * - Video quality compression
+     * - Watermarking
+     */
+    private fun applyVideo(videoPath: String, options: HashMap<String, Any>, result: Result) {
+        try {
+            // Validate input video path
+            val inputFile = File(videoPath)
+            if (!inputFile.exists()) {
+                result.error("FILE_NOT_FOUND", "Video file not found", null)
+                return
+            }
+
+            // Create output file
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val outputFileName = "processed_video_${timeStamp}.mp4"
+            val outputFile = File(context.cacheDir, outputFileName)
+
+            // Get video dimensions
+            val retriever = MediaMetadataRetriever()
+            var videoWidth = 1920
+            var videoHeight = 1080
+            try {
+                retriever.setDataSource(videoPath)
+                videoWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 1920
+                videoHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 1080
+            } finally {
+                retriever.release()
+            }
+
+            // Parse options
+            val targetWidth = options["targetWidth"] as? Int ?: options["maxWidth"] as? Int
+            val targetHeight = options["targetHeight"] as? Int ?: options["maxHeight"] as? Int
+            val targetBitrate = options["targetBitrate"] as? Int ?: options["videoBitrate"] as? Int ?: 2000000
+            val watermarkText = options["watermark"] as? String
+            val watermarkPosition = options["watermarkPosition"] as? String ?: "bottomRight"
+            val deleteOriginal = options["deleteOriginalFile"] as? Boolean ?: false
+
+            // Calculate actual output dimensions maintaining aspect ratio
+            var actualWidth = videoWidth
+            var actualHeight = videoHeight
+            
+            if (targetWidth != null && actualWidth > targetWidth) {
+                actualHeight = (actualHeight * (targetWidth.toFloat() / actualWidth)).toInt()
+                actualWidth = targetWidth
+            }
+            if (targetHeight != null && actualHeight > targetHeight) {
+                actualWidth = (actualWidth * (targetHeight.toFloat() / actualHeight)).toInt()
+                actualHeight = targetHeight
+            }
+
+            // Ensure dimensions are even numbers (required for some codecs)
+            val evenWidth = if (actualWidth % 2 == 0) actualWidth else actualWidth - 1
+            val evenHeight = if (actualHeight % 2 == 0) actualHeight else actualHeight - 1
+
+            // Build FFmpeg command
+            val filters = mutableListOf<String>()
+            
+            // Add scale filter if resizing is needed
+            if (evenWidth != videoWidth || evenHeight != videoHeight) {
+                filters.add("scale=$evenWidth:$evenHeight")
+            }
+            
+            // Add watermark filter if watermark is specified
+            if (!watermarkText.isNullOrEmpty()) {
+                val fontSize = calculateWatermarkFontSize(options, evenWidth, evenHeight, 48f).toInt()
+                val (x, y) = getWatermarkPosition(watermarkPosition, evenWidth, evenHeight, fontSize)
+                val escapedText = watermarkText.replace("'", "'\\''").replace(":", "\\:")
+                filters.add("drawtext=text='$escapedText':fontcolor=white:fontsize=$fontSize:x=$x:y=$y:shadowcolor=black:shadowx=2:shadowy=2")
+            }
+
+            val filterString = if (filters.isNotEmpty()) filters.joinToString(",") else null
+
+            // Build FFmpeg command
+            val ffmpegCommand = mutableListOf("-y", "-i", videoPath)
+            
+            if (filterString != null) {
+                ffmpegCommand.addAll(listOf("-vf", filterString))
+            }
+            
+            ffmpegCommand.addAll(listOf(
+                "-c:v", "libx264",
+                "-preset", "medium",
+                "-b:v", targetBitrate.toString(),
+                "-c:a", "aac",
+                "-b:a", "128k",
+                outputFile.absolutePath
+            ))
+
+            // Execute FFmpeg command
+            Thread {
+                try {
+                    val session = FFmpegKit.execute(ffmpegCommand.joinToString(" "))
+                    val returnCode = session.returnCode
+
+                    runOnUiThread {
+                        if (ReturnCode.isSuccess(returnCode)) {
+                            if (deleteOriginal) {
+                                inputFile.delete()
+                            }
+                            result.success(outputFile.absolutePath)
+                        } else {
+                            val output = session.output ?: "Unknown error"
+                            Log.e("MediaPickerPlus", "FFmpeg video processing failed: $output")
+                            result.error("VIDEO_PROCESSING_ERROR", "FFmpeg video processing failed: $output", null)
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Log.e("MediaPickerPlus", "Error processing video: ${e.message}", e)
+                        result.error("VIDEO_PROCESSING_ERROR", "Error processing video: ${e.message}", null)
+                    }
+                }
+            }.start()
+
+        } catch (e: Exception) {
+            Log.e("MediaPickerPlus", "Error setting up video processing: ${e.message}", e)
+            result.error("VIDEO_PROCESSING_ERROR", "Error setting up video processing: ${e.message}", null)
+        }
+    }
+    
+    private fun getWatermarkPosition(position: String, videoWidth: Int, videoHeight: Int, fontSize: Int): Pair<String, String> {
+        val margin = 20
+        return when (position) {
+            "topLeft" -> Pair("$margin", "$margin")
+            "topRight" -> Pair("w-tw-$margin", "$margin")
+            "bottomLeft" -> Pair("$margin", "h-th-$margin")
+            "bottomRight" -> Pair("w-tw-$margin", "h-th-$margin")
+            "center" -> Pair("(w-tw)/2", "(h-th)/2")
+            else -> Pair("w-tw-$margin", "h-th-$margin") // Default to bottomRight
+        }
+    }
+
     private fun compressVideo(inputPath: String, outputPath: String?, options: HashMap<String, Any>, result: Result) {
         try {
             // Check if input file exists
