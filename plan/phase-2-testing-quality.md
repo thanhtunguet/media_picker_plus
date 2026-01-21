@@ -11,6 +11,7 @@ Goal: improve confidence and prevent regressions across platforms and the crop U
   - Notes:
     - Dart-side unit/widget tests cover the Flutter layer, MethodChannel implementation, Web implementation, and crop UI/options.
     - Web tests that require a real browser file picker are marked as skipped to keep automated runs reliable.
+    - Added issue-focused tests for method-channel crop behavior, web applyImage data URLs, and native image quality handling.
 
 - [x] **Add integration tests for camera and gallery functionality**
   - Create integration tests for camera capture flow

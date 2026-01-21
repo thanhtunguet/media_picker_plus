@@ -27,6 +27,14 @@ void main() {
             return ['picked_1.pdf', 'picked_2.docx'];
           case 'processImage':
             return 'processed_media.jpg';
+          case 'applyImage':
+            return 'applied_image.jpg';
+          case 'applyVideo':
+            return 'applied_video.mp4';
+          case 'compressVideo':
+            return 'compressed_video.mp4';
+          case 'getThumbnail':
+            return 'thumbnail.jpg';
           case 'hasCameraPermission':
           case 'requestCameraPermission':
           case 'hasGalleryPermission':
@@ -55,6 +63,27 @@ void main() {
     expect(
       await MediaPickerPlus.pickMultipleFiles(),
       ['picked_1.pdf', 'picked_2.docx'],
+    );
+  });
+
+  testWidgets('media processing flows return expected values', (tester) async {
+    expect(
+      await MediaPickerPlus.applyImage('input.jpg',
+          options: const MediaOptions()),
+      'applied_image.jpg',
+    );
+    expect(
+      await MediaPickerPlus.applyVideo('input.mp4',
+          options: const MediaOptions()),
+      'applied_video.mp4',
+    );
+    expect(
+      await MediaPickerPlus.compressVideo('input.mp4', options: {}),
+      'compressed_video.mp4',
+    );
+    expect(
+      await MediaPickerPlus.getThumbnail('input.mp4'),
+      'thumbnail.jpg',
     );
   });
 }

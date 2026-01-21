@@ -1,5 +1,8 @@
 ## Unreleased
 
+### Added
+- Issue-focused tests across Flutter, web, and native targets to capture current behavior.
+
 ### Fixed
 - **iOS build errors**: Fixed Swift compiler errors in `addWatermarkToVideoComposition` method usage:
   - Fixed incorrect parameter label `renderSize:` (should be `videoSize:`)
