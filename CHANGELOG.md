@@ -1,4 +1,4 @@
-## Unreleased
+## 1.1.0-rc.8
 
 ### Added
 - Issue-focused tests across Flutter, web, and native targets to capture current behavior.
