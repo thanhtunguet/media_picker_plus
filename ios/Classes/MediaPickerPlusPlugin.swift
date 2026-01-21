@@ -375,7 +375,15 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         }
     }
 
+    /// Convenience wrapper that uses the global mediaOptions.
+    /// For thread-safe usage from background threads, use saveMediaToFile(info:options:) instead.
     private func saveMediaToFile(info: [UIImagePickerController.InfoKey: Any]) -> String? {
+        return saveMediaToFile(info: info, options: mediaOptions)
+    }
+    
+    /// Thread-safe version that takes explicit options parameter.
+    /// This avoids race conditions when called from background threads.
+    private func saveMediaToFile(info: [UIImagePickerController.InfoKey: Any], options: [String: Any]?) -> String? {
         // Create a unique filename based on timestamp
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd_HHmmss"
@@ -385,7 +393,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         if let image = info[.originalImage] as? UIImage {
             // Process image quality if specified
             var quality: CGFloat = 0.85  // Default Medium
-            if let options = mediaOptions, let imageQuality = options["imageQuality"] as? Int {
+            if let options = options, let imageQuality = options["imageQuality"] as? Int {
                 if imageQuality >= 90 {
                     quality = 0.9  // High
                 } else if imageQuality >= 80 {
@@ -397,7 +405,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
 
             // Process image size while preserving aspect ratio if specified
             var finalImage = image
-            if let options = mediaOptions {
+            if let options = options {
                 if let maxWidth = options["maxWidth"] as? Int, maxWidth > 0,
                     let maxHeight = options["maxHeight"] as? Int, maxHeight > 0
                 {
@@ -425,13 +433,13 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             }
 
             // Apply cropping if specified
-            if let options = mediaOptions, let cropOptions = options["cropOptions"] as? [String: Any],
+            if let options = options, let cropOptions = options["cropOptions"] as? [String: Any],
                let enableCrop = cropOptions["enableCrop"] as? Bool, enableCrop {
                 finalImage = applyCropToImage(finalImage, cropOptions: cropOptions)
             }
 
             // Add watermark if specified
-            if let options = mediaOptions, let watermarkText = options["watermark"] as? String {
+            if let options = options, let watermarkText = options["watermark"] as? String {
                 let fontSize = calculateWatermarkFontSize(
                     options: options,
                     width: finalImage.size.width,
@@ -464,7 +472,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                 let destinationURL = tempDir.appendingPathComponent("VID_\(timestamp).mp4")
 
                 // Process video with cropping and/or watermark if specified
-                if let options = mediaOptions {
+                if let options = options {
                     let watermarkText = options["watermark"] as? String
                     let cropOptions = options["cropOptions"] as? [String: Any]
                     let enableCrop = cropOptions?["enableCrop"] as? Bool ?? false
@@ -1176,6 +1184,10 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                 return
             }
 
+            // Capture mediaOptions at the start to avoid race conditions
+            // when background closures access it after another method channel call changes it
+            let capturedOptions = self.mediaOptions
+            
             var filePaths: [String] = []
             let dispatchGroup = DispatchGroup()
 
@@ -1191,7 +1203,8 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                             let info: [UIImagePickerController.InfoKey: Any] = [
                                 .originalImage: image
                             ]
-                            if let filePath = self.saveMediaToFile(info: info) {
+                            // Use thread-safe version with captured options
+                            if let filePath = self.saveMediaToFile(info: info, options: capturedOptions) {
                                 filePaths.append(filePath)
                             }
                         }
@@ -1205,7 +1218,8 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                             let info: [UIImagePickerController.InfoKey: Any] = [
                                 .mediaURL: url
                             ]
-                            if let filePath = self.saveMediaToFile(info: info) {
+                            // Use thread-safe version with captured options
+                            if let filePath = self.saveMediaToFile(info: info, options: capturedOptions) {
                                 filePaths.append(filePath)
                             }
                         }

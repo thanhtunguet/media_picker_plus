@@ -4,6 +4,15 @@
 - Issue-focused tests across Flutter, web, and native targets to capture current behavior.
 
 ### Fixed
+- **Android video compression rotation**: Fixed aspect ratio calculation in `compressVideo` to account for video rotation metadata. Videos with 90° or 270° rotation now correctly use effective (post-rotation) dimensions for scaling calculations, preventing incorrect output dimensions when FFmpeg auto-rotates frames.
+- **Android thread safety**: Fixed race conditions when processing media from background threads:
+  - Added `@Volatile` annotation to `mediaOptions` for thread-safe reads
+  - Created `processImageWithOptions` helper that takes explicit options instead of relying on global mutable state
+  - Fixed `extractThumbnail` to use the new thread-safe helper instead of mutating global `mediaOptions`
+  - Removed unnecessary `mediaOptions` mutation in `processVideo` that created a race condition with no benefit
+- **iOS thread safety**: Fixed race condition in `PHPickerViewControllerDelegate` where background closures could read stale `mediaOptions` if another method channel call changed it:
+  - Created overloaded `saveMediaToFile(info:options:)` that takes explicit options parameter
+  - Updated PHPicker delegate to capture `mediaOptions` at the start and pass it explicitly to background closures
 - **iOS build errors**: Fixed Swift compiler errors in `addWatermarkToVideoComposition` method usage:
   - Fixed incorrect parameter label `renderSize:` (should be `videoSize:`)
   - Fixed incorrect use of optional binding for non-optional return type

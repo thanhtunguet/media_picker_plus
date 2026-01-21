@@ -62,6 +62,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private var activity: Activity? = null
     private var pendingResult: Result? = null
     private var currentMediaPath: String? = null
+    @Volatile
     private var mediaOptions: HashMap<String, Any>? = null
     private var currentMediaAction: (() -> Unit)? = null
 
@@ -775,8 +776,20 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         }
     }
 
+    /**
+     * Process image using the global mediaOptions.
+     * Delegates to processImageWithOptions for the actual processing.
+     */
     private fun processImage(sourcePath: String): String {
         val options = mediaOptions ?: return sourcePath
+        return processImageWithOptions(sourcePath, options)
+    }
+    
+    /**
+     * Process image with explicitly provided options.
+     * This is thread-safe as it doesn't rely on global mutable state.
+     */
+    private fun processImageWithOptions(sourcePath: String, options: HashMap<String, Any>): String {
         try {
             var bitmap = android.graphics.BitmapFactory.decodeFile(sourcePath)
             
@@ -2145,12 +2158,10 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 )
 
                 if (success) {
+                    // Use processImageWithOptions directly to avoid race condition
+                    // by not mutating the global mediaOptions from a background thread
                     val processedPath = if (options != null && options.isNotEmpty()) {
-                        val originalMediaOptions = mediaOptions
-                        mediaOptions = options
-                        val path = processImage(outputFile.absolutePath)
-                        mediaOptions = originalMediaOptions
-                        path
+                        processImageWithOptions(outputFile.absolutePath, options)
                     } else {
                         outputFile.absolutePath
                     }
@@ -2336,61 +2347,52 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
             // If watermarking is needed, use the existing watermarkVideoWithNativeProcessing function
             if (!watermarkText.isNullOrEmpty()) {
-                // Temporarily store original mediaOptions and set new ones for processing
-                val originalMediaOptions = mediaOptions
-                mediaOptions = options
-                
+                // Get video dimensions to calculate font size
+                val retriever = MediaMetadataRetriever()
+                var videoWidth = 1920
+                var videoHeight = 1080
                 try {
-                    // Get video dimensions to calculate font size
-                    val retriever = MediaMetadataRetriever()
-                    var videoWidth = 1920
-                    var videoHeight = 1080
-                    try {
-                        retriever.setDataSource(videoPath)
-                        videoWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 1920
-                        videoHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 1080
-                        val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
-                        
-                        // For rotated videos, swap dimensions for font size calculation
-                        if (rotation == 90 || rotation == 270) {
-                            val temp = videoWidth
-                            videoWidth = videoHeight
-                            videoHeight = temp
-                        }
-                    } finally {
-                        retriever.release()
+                    retriever.setDataSource(videoPath)
+                    videoWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 1920
+                    videoHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 1080
+                    val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
+                    
+                    // For rotated videos, swap dimensions for font size calculation
+                    if (rotation == 90 || rotation == 270) {
+                        val temp = videoWidth
+                        videoWidth = videoHeight
+                        videoHeight = temp
                     }
-                    
-                    // Calculate font size and create watermark bitmap
-                    val fontSize = calculateWatermarkFontSize(options, videoWidth, videoHeight, 48f)
-                    val watermarkBitmap = createWatermarkBitmap(watermarkText, fontSize)
-                    
-                    // Process video using existing watermarkVideoWithNativeProcessing function
-                    Thread {
-                        val success = watermarkVideoWithNativeProcessing(
-                            videoPath,
-                            outputFile.absolutePath,
-                            watermarkBitmap,
-                            watermarkPosition
-                        )
-                        
-                        runOnUiThread {
-                            if (success && outputFile.exists() && outputFile.length() > 0) {
-                                if (deleteOriginal) {
-                                    inputFile.delete()
-                                }
-                                result.success(outputFile.absolutePath)
-                            } else {
-                                Log.e("MediaPickerPlus", "Video watermarking failed")
-                                result.error("VIDEO_PROCESSING_ERROR", "FFmpeg video processing failed", null)
-                            }
-                        }
-                    }.start()
-                    
                 } finally {
-                    // Restore original mediaOptions
-                    mediaOptions = originalMediaOptions
+                    retriever.release()
                 }
+                
+                // Calculate font size and create watermark bitmap
+                // Note: options is passed directly, no need to mutate global mediaOptions
+                val fontSize = calculateWatermarkFontSize(options, videoWidth, videoHeight, 48f)
+                val watermarkBitmap = createWatermarkBitmap(watermarkText, fontSize)
+                
+                // Process video using existing watermarkVideoWithNativeProcessing function
+                Thread {
+                    val success = watermarkVideoWithNativeProcessing(
+                        videoPath,
+                        outputFile.absolutePath,
+                        watermarkBitmap,
+                        watermarkPosition
+                    )
+                    
+                    runOnUiThread {
+                        if (success && outputFile.exists() && outputFile.length() > 0) {
+                            if (deleteOriginal) {
+                                inputFile.delete()
+                            }
+                            result.success(outputFile.absolutePath)
+                        } else {
+                            Log.e("MediaPickerPlus", "Video watermarking failed")
+                            result.error("VIDEO_PROCESSING_ERROR", "FFmpeg video processing failed", null)
+                        }
+                    }
+                }.start()
             } else {
                 val retriever = MediaMetadataRetriever()
                 var videoWidth = 0
@@ -2504,20 +2506,26 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             
             val originalWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: targetWidth
             val originalHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: targetHeight
+            val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
             val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
             
             retriever.release()
             
+            // Account for video rotation - swap dimensions for 90/270 degree rotation
+            // FFmpeg autorotate will rotate the frames, so we need to calculate dimensions based on the displayed orientation
+            val effectiveWidth = if (rotation == 90 || rotation == 270) originalHeight else originalWidth
+            val effectiveHeight = if (rotation == 90 || rotation == 270) originalWidth else originalHeight
+            
             // Calculate actual output dimensions maintaining aspect ratio
-            val aspectRatio = originalWidth.toFloat() / originalHeight.toFloat()
+            val aspectRatio = effectiveWidth.toFloat() / effectiveHeight.toFloat()
             val actualWidth: Int
             val actualHeight: Int
             
-            if (originalWidth > originalHeight) {
-                actualWidth = minOf(targetWidth, originalWidth)
+            if (effectiveWidth > effectiveHeight) {
+                actualWidth = minOf(targetWidth, effectiveWidth)
                 actualHeight = (actualWidth / aspectRatio).toInt()
             } else {
-                actualHeight = minOf(targetHeight, originalHeight)
+                actualHeight = minOf(targetHeight, effectiveHeight)
                 actualWidth = (actualHeight * aspectRatio).toInt()
             }
             
