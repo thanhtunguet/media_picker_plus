@@ -8,6 +8,7 @@
   - Fixed incorrect parameter label `renderSize:` (should be `videoSize:`)
   - Fixed incorrect use of optional binding for non-optional return type
 - Documented known issues and added TODO markers for follow-up fixes.
+- Fixed TODO-tracked issues across iOS gallery permissions, image quality handling, Android thumbnail extraction, video processing, and gallery permissions.
 
 ## 1.1.0-rc.7
 

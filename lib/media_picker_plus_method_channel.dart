@@ -25,14 +25,6 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
   Future<String?> pickMedia(
       MediaSource source, MediaType type, MediaOptions options) async {
     try {
-      // Check if freeform cropping is enabled
-      // TODO: This path returns the uncropped media unless Flutter UI is used.
-      if (options.cropOptions?.freeform == true &&
-          options.cropOptions?.enableCrop == true) {
-        // Handle interactive cropping
-        return await _pickMediaWithInteractiveCrop(source, type, options);
-      }
-
       final result = await methodChannel.invokeMethod<String>('pickMedia', {
         'source': source.toString().split('.').last,
         'type': type.toString().split('.').last,
@@ -42,34 +34,6 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     } on PlatformException catch (e) {
       throw Exception('Error picking media: ${e.message}');
     }
-  }
-
-  Future<String?> _pickMediaWithInteractiveCrop(
-      MediaSource source, MediaType type, MediaOptions options) async {
-    // First pick the media without cropping
-    final tempOptions = MediaOptions(
-      imageQuality: options.imageQuality,
-      maxWidth: options.maxWidth,
-      maxHeight: options.maxHeight,
-      watermark: options.watermark,
-      watermarkFontSize: options.watermarkFontSize,
-      watermarkPosition: options.watermarkPosition,
-      maxDuration: options.maxDuration,
-      // Disable cropping for initial pick
-      cropOptions: null,
-    );
-
-    final tempResult = await methodChannel.invokeMethod<String>('pickMedia', {
-      'source': source.toString().split('.').last,
-      'type': type.toString().split('.').last,
-      'options': tempOptions.toMap(),
-    });
-
-    if (tempResult == null) return null;
-
-    // Show interactive cropping UI - this will be handled at the Flutter app level
-    // For now, return the uncropped image and let the app handle the UI
-    return tempResult;
   }
 
   @override

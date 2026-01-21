@@ -55,7 +55,8 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(emitted, isNotNull);
     expect(emitted!.x, closeTo(0.2, 0.001));
@@ -81,7 +82,8 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(emitted, isNotNull);
     final ratio = emitted!.width / emitted!.height;

@@ -44,6 +44,8 @@ Goal: expand features and developer experience after macOS/Web are functional an
   - Align permission handling patterns
   - Consistent file naming and storage patterns
   - Unified watermarking positioning and styling
+  - Notes:
+    - Resolved TODO-tracked gaps in iOS gallery permissions and Android media permission handling.
   - [x] Fix iOS image watermark bounds/positioning (prevent bottom-edge overflow vs Android)
     - Use `boundingRect`-based bounds + clamping for more accurate emoji/stroke/descender sizing.
   - [x] Handle multiline ("\n") watermark text on Android images/videos

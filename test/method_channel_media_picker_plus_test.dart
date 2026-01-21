@@ -26,7 +26,7 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
-  test('pickMedia clears cropOptions for freeform cropping', () async {
+  test('pickMedia preserves cropOptions for freeform cropping', () async {
     final api = MethodChannelMediaPickerPlus();
     const options = MediaOptions(
       cropOptions: CropOptions(enableCrop: true, freeform: true),
@@ -38,6 +38,6 @@ void main() {
     final args = lastCall?.arguments as Map<dynamic, dynamic>?;
     expect(args, isNotNull);
     final optionsMap = args?['options'] as Map<dynamic, dynamic>?;
-    expect(optionsMap?['cropOptions'], isNull);
+    expect(optionsMap?['cropOptions'], isNotNull);
   });
 }

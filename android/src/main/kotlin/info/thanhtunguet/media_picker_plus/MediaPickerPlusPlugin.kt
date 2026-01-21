@@ -175,7 +175,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
                 when (source) {
                     "gallery" -> {
-                        if (hasGalleryPermission()) {
+                        if (hasGalleryPermissionForType(type)) {
                             when (type) {
                                 "image" -> pickImageFromGallery()
                                 "video" -> pickVideoFromGallery()
@@ -193,7 +193,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                                 else -> null
                             }
                             if (currentMediaAction != null) {
-                                requestGalleryPermission()
+                                requestGalleryPermissionForType(type)
                             } else {
                                 result.error("INVALID_TYPE", "Invalid media type specified", null)
                             }
@@ -267,7 +267,16 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 val type = call.argument<String>("type")
                 mediaOptions = call.argument<HashMap<String, Any>>("options")
                 pendingResult = result
-                pickMultipleMedia(source, type)
+                if (source == "gallery") {
+                    if (hasGalleryPermissionForType(type)) {
+                        pickMultipleMedia(source, type)
+                    } else {
+                        currentMediaAction = ({ pickMultipleMedia(source, type) })
+                        requestGalleryPermissionForType(type)
+                    }
+                } else {
+                    pickMultipleMedia(source, type)
+                }
             }
 
             "processImage" -> {
@@ -540,7 +549,6 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         return when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
                 // Android 13+ (API 33+): Use granular media permissions
-                // TODO: Allow image-only permission to pass for image picking.
                 ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.READ_MEDIA_IMAGES
@@ -561,6 +569,25 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 // Android 5.1 and below (API 22 and below): Permissions granted at install time
                 true
             }
+        }
+    }
+
+    private fun hasGalleryPermissionForType(type: String?): Boolean {
+        return when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                when (type) {
+                    "image" -> ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.READ_MEDIA_IMAGES
+                    ) == PackageManager.PERMISSION_GRANTED
+                    "video" -> ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.READ_MEDIA_VIDEO
+                    ) == PackageManager.PERMISSION_GRANTED
+                    else -> hasGalleryPermission()
+                }
+            }
+            else -> hasGalleryPermission()
         }
     }
 
@@ -588,6 +615,38 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 }
                 else -> {
                     // Android 5.1 and below (API 22 and below): No runtime permissions needed
+                    pendingResult?.success(true)
+                }
+            }
+        }
+    }
+
+    private fun requestGalleryPermissionForType(type: String?) {
+        activity?.let {
+            when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                    val permissions = when (type) {
+                        "image" -> arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
+                        "video" -> arrayOf(Manifest.permission.READ_MEDIA_VIDEO)
+                        else -> arrayOf(
+                            Manifest.permission.READ_MEDIA_IMAGES,
+                            Manifest.permission.READ_MEDIA_VIDEO
+                        )
+                    }
+                    ActivityCompat.requestPermissions(
+                        it,
+                        permissions,
+                        REQUEST_GALLERY_PERMISSION
+                    )
+                }
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                    ActivityCompat.requestPermissions(
+                        it,
+                        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
+                        REQUEST_GALLERY_PERMISSION
+                    )
+                }
+                else -> {
                     pendingResult?.success(true)
                 }
             }
@@ -1246,6 +1305,99 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             
         } catch (e: Exception) {
             Log.e("MediaPickerPlus", "Error in FFmpeg video processing: ${e.message}", e)
+            false
+        }
+    }
+
+    private fun processVideoWithoutWatermark(
+        inputPath: String,
+        outputPath: String,
+        videoWidth: Int,
+        videoHeight: Int,
+        rotation: Int,
+        options: HashMap<String, Any>
+    ): Boolean {
+        return try {
+            val inputVideo = "\"$inputPath\""
+            val output = "\"$outputPath\""
+
+            val maxWidth = options["maxWidth"] as? Int ?: videoWidth
+            val maxHeight = options["maxHeight"] as? Int ?: videoHeight
+            val cropInfo = applyCropToVideo(videoWidth, videoHeight, options)
+
+            val baseWidth = cropInfo?.width ?: videoWidth
+            val baseHeight = cropInfo?.height ?: videoHeight
+            var (targetWidth, targetHeight) = calculateTargetDimensions(
+                baseWidth,
+                baseHeight,
+                maxWidth,
+                maxHeight
+            )
+
+            if (targetWidth % 2 != 0) targetWidth -= 1
+            if (targetHeight % 2 != 0) targetHeight -= 1
+
+            val filters = mutableListOf<String>()
+            if (cropInfo != null) {
+                filters.add("crop=${cropInfo.width}:${cropInfo.height}:${cropInfo.x}:${cropInfo.y}")
+            }
+            if (targetWidth != baseWidth || targetHeight != baseHeight) {
+                filters.add("scale=$targetWidth:$targetHeight")
+            }
+
+            val filterArg = if (filters.isNotEmpty()) {
+                "-vf \"${filters.joinToString(",")}\""
+            } else {
+                ""
+            }
+
+            val targetBitrate = options["targetBitrate"] as? Int ?: options["videoBitrate"] as? Int
+            val bitrateArg = if (targetBitrate != null) {
+                "-b:v $targetBitrate"
+            } else {
+                ""
+            }
+
+            val command = "-i $inputVideo $filterArg $bitrateArg -c:a copy -c:v mpeg4 -q:v 5 -y $output"
+
+            val latch = CountDownLatch(1)
+            var success = false
+            var errorMessage = ""
+
+            val session = FFmpegKit.executeAsync(command,
+                { session ->
+                    val returnCode = session.returnCode
+                    if (ReturnCode.isSuccess(returnCode)) {
+                        success = true
+                    } else {
+                        errorMessage = "FFmpeg processing failed with code: $returnCode"
+                    }
+                    latch.countDown()
+                },
+                { log ->
+                    Log.d("MediaPickerPlus", "FFmpeg log: ${log.message}")
+                },
+                { statistics ->
+                    Log.d("MediaPickerPlus", "FFmpeg statistics: time=${statistics.time}ms, size=${statistics.size}")
+                }
+            )
+
+            val completed = latch.await(10, TimeUnit.MINUTES)
+
+            if (!completed) {
+                session.cancel()
+                return false
+            }
+
+            if (!success) {
+                Log.e("MediaPickerPlus", errorMessage)
+                return false
+            }
+
+            val outputFile = File(outputPath)
+            outputFile.exists() && outputFile.length() > 0L
+        } catch (e: Exception) {
+            Log.e("MediaPickerPlus", "Error processing video without watermark: ${e.message}", e)
             false
         }
     }
@@ -1968,40 +2120,63 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
     
     private fun extractThumbnail(videoPath: String, timeInSeconds: Double, options: HashMap<String, Any>?, result: Result) {
-        try {
-            // Validate input video path
-            val inputFile = File(videoPath)
-            if (!inputFile.exists()) {
-                result.error("FILE_NOT_FOUND", "Video file not found", null)
-                return
-            }
-
-            // Create output file for thumbnail
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            val thumbnailFileName = "thumbnail_${timeStamp}.jpg"
-            val outputFile = File(context.cacheDir, thumbnailFileName)
-
-            // Extract thumbnail using FFmpeg
-            val success = extractThumbnailWithFFmpeg(videoPath, outputFile.absolutePath, timeInSeconds, options)
-
-            if (success) {
-                // Apply image processing options if provided by temporarily setting mediaOptions
-                val originalMediaOptions = mediaOptions
-                mediaOptions = options
-                val processedPath = if (options != null && options.isNotEmpty()) {
-                    processImage(outputFile.absolutePath)
-                } else {
-                    outputFile.absolutePath
+        Thread {
+            try {
+                // Validate input video path
+                val inputFile = File(videoPath)
+                if (!inputFile.exists()) {
+                    runOnUiThread {
+                        result.error("FILE_NOT_FOUND", "Video file not found", null)
+                    }
+                    return@Thread
                 }
-                mediaOptions = originalMediaOptions
-                result.success(processedPath)
-            } else {
-                result.error("EXTRACTION_ERROR", "Failed to extract thumbnail from video", null)
+
+                // Create output file for thumbnail
+                val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                val thumbnailFileName = "thumbnail_${timeStamp}.jpg"
+                val outputFile = File(context.cacheDir, thumbnailFileName)
+
+                // Extract thumbnail using FFmpeg
+                val success = extractThumbnailWithFFmpeg(
+                    videoPath,
+                    outputFile.absolutePath,
+                    timeInSeconds,
+                    options
+                )
+
+                if (success) {
+                    val processedPath = if (options != null && options.isNotEmpty()) {
+                        val originalMediaOptions = mediaOptions
+                        mediaOptions = options
+                        val path = processImage(outputFile.absolutePath)
+                        mediaOptions = originalMediaOptions
+                        path
+                    } else {
+                        outputFile.absolutePath
+                    }
+                    runOnUiThread {
+                        result.success(processedPath)
+                    }
+                } else {
+                    runOnUiThread {
+                        result.error(
+                            "EXTRACTION_ERROR",
+                            "Failed to extract thumbnail from video",
+                            null
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MediaPickerPlus", "Error extracting thumbnail: ${e.message}", e)
+                runOnUiThread {
+                    result.error(
+                        "EXTRACTION_ERROR",
+                        "Error extracting thumbnail: ${e.message}",
+                        null
+                    )
+                }
             }
-        } catch (e: Exception) {
-            Log.e("MediaPickerPlus", "Error extracting thumbnail: ${e.message}", e)
-            result.error("EXTRACTION_ERROR", "Error extracting thumbnail: ${e.message}", null)
-        }
+        }.start()
     }
     
     private fun extractThumbnailWithFFmpeg(inputPath: String, outputPath: String, timeInSeconds: Double, options: HashMap<String, Any>?): Boolean {
@@ -2107,7 +2282,6 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             )
             
             // Wait for completion with timeout
-            // TODO: Avoid blocking the platform thread during FFmpeg execution.
             val completed = latch.await(30, TimeUnit.SECONDS)
             
             if (!completed) {
@@ -2218,11 +2392,63 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     mediaOptions = originalMediaOptions
                 }
             } else {
-                // No watermarking needed, but resizing/compression might be needed
-                // TODO: Returning the original path ignores resize/compression options.
-                // For now, if no watermark, just return original path
-                // TODO: Implement resizing/compression without watermarking if needed
-                result.success(videoPath)
+                val retriever = MediaMetadataRetriever()
+                var videoWidth = 0
+                var videoHeight = 0
+                var rotation = 0
+                try {
+                    retriever.setDataSource(videoPath)
+                    videoWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
+                    videoHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
+                    rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0
+                } finally {
+                    retriever.release()
+                }
+
+                val (effectiveWidth, effectiveHeight) = if (rotation == 90 || rotation == 270) {
+                    Pair(videoHeight, videoWidth)
+                } else {
+                    Pair(videoWidth, videoHeight)
+                }
+
+                val maxWidth = options["maxWidth"] as? Int ?: effectiveWidth
+                val maxHeight = options["maxHeight"] as? Int ?: effectiveHeight
+                val cropInfo = applyCropToVideo(effectiveWidth, effectiveHeight, options)
+                val baseWidth = cropInfo?.width ?: effectiveWidth
+                val baseHeight = cropInfo?.height ?: effectiveHeight
+                val (targetWidth, targetHeight) = calculateTargetDimensions(baseWidth, baseHeight, maxWidth, maxHeight)
+                val targetBitrate = options["targetBitrate"] as? Int ?: options["videoBitrate"] as? Int
+
+                val needsProcessing = cropInfo != null ||
+                    targetWidth != baseWidth ||
+                    targetHeight != baseHeight ||
+                    targetBitrate != null
+
+                if (!needsProcessing) {
+                    result.success(videoPath)
+                    return
+                }
+
+                Thread {
+                    val success = processVideoWithoutWatermark(
+                        videoPath,
+                        outputFile.absolutePath,
+                        effectiveWidth,
+                        effectiveHeight,
+                        rotation,
+                        options
+                    )
+                    runOnUiThread {
+                        if (success && outputFile.exists() && outputFile.length() > 0) {
+                            if (deleteOriginal) {
+                                inputFile.delete()
+                            }
+                            result.success(outputFile.absolutePath)
+                        } else {
+                            result.error("VIDEO_PROCESSING_ERROR", "FFmpeg video processing failed", null)
+                        }
+                    }
+                }.start()
             }
 
         } catch (e: Exception) {
@@ -2340,31 +2566,46 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         targetBitrate: Int
     ): Boolean {
         return try {
-            val retriever = MediaMetadataRetriever()
-            retriever.setDataSource(inputPath)
-            
-            val rotationString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
-            val rotation = rotationString?.toIntOrNull() ?: 0
-            
-            retriever.release()
-            
-            // Create a simple compression using MediaMetadataRetriever and file copy
-            // TODO: Implement actual compression; this currently copies the input.
-            // For a more robust solution, you would use MediaCodec, MediaMuxer, and MediaExtractor
-            // This is a simplified version that focuses on file size reduction
-            
-            val inputFile = File(inputPath)
+            val inputVideo = "\"$inputPath\""
+            val output = "\"$outputPath\""
+            val scaleFilter = "scale=$targetWidth:$targetHeight"
+            val command = "-i $inputVideo -vf $scaleFilter -b:v $targetBitrate -c:a copy -c:v mpeg4 -q:v 5 -y $output"
+
+            val latch = CountDownLatch(1)
+            var success = false
+            var errorMessage = ""
+
+            val session = FFmpegKit.executeAsync(command,
+                { session ->
+                    val returnCode = session.returnCode
+                    if (ReturnCode.isSuccess(returnCode)) {
+                        success = true
+                    } else {
+                        errorMessage = "FFmpeg compression failed with code: $returnCode"
+                    }
+                    latch.countDown()
+                },
+                { log ->
+                    Log.d("MediaPickerPlus", "FFmpeg log: ${log.message}")
+                },
+                { statistics ->
+                    Log.d("MediaPickerPlus", "FFmpeg statistics: time=${statistics.time}ms, size=${statistics.size}")
+                }
+            )
+
+            val completed = latch.await(10, TimeUnit.MINUTES)
+            if (!completed) {
+                session.cancel()
+                return false
+            }
+
+            if (!success) {
+                Log.e("MediaPickerPlus", errorMessage)
+                return false
+            }
+
             val outputFile = File(outputPath)
-            
-            // Simple approach: if the target resolution is smaller than original,
-            // we can achieve some compression. For more advanced compression,
-            // MediaCodec implementation would be needed.
-            
-            inputFile.copyTo(outputFile, overwrite = true)
-            
-            Log.d("MediaPickerPlus", "Video compression completed. Output: $outputPath")
-            true
-            
+            outputFile.exists() && outputFile.length() > 0L
         } catch (e: Exception) {
             Log.e("MediaPickerPlus", "Error in video compression: ${e.message}", e)
             false
