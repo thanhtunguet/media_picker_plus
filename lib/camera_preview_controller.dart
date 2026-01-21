@@ -6,6 +6,7 @@ import 'package:web/web.dart' as web;
 import 'camera_preview_web.dart';
 
 /// Helper class to show camera preview overlay and handle user interactions
+// TODO: This overlay path appears unused; consider removing or integrating.
 class CameraPreviewController {
   static Future<T?> showPreview<T>({
     required BuildContext context,

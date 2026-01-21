@@ -4,6 +4,7 @@
 - **iOS build errors**: Fixed Swift compiler errors in `addWatermarkToVideoComposition` method usage:
   - Fixed incorrect parameter label `renderSize:` (should be `videoSize:`)
   - Fixed incorrect use of optional binding for non-optional return type
+- Documented known issues and added TODO markers for follow-up fixes.
 
 ## 1.1.0-rc.7
 

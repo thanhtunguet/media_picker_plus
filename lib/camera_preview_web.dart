@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
 /// Camera preview overlay for web
+// TODO: This overlay path appears unused; consider removing or integrating.
 class CameraPreviewOverlay extends StatefulWidget {
   final web.MediaStream stream;
   final bool isVideo;

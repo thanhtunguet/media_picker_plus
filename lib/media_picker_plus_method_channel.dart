@@ -26,6 +26,7 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       MediaSource source, MediaType type, MediaOptions options) async {
     try {
       // Check if freeform cropping is enabled
+      // TODO: This path returns the uncropped media unless Flutter UI is used.
       if (options.cropOptions?.freeform == true &&
           options.cropOptions?.enableCrop == true) {
         // Handle interactive cropping

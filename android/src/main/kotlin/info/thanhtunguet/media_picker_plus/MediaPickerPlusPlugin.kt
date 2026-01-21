@@ -540,6 +540,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         return when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
                 // Android 13+ (API 33+): Use granular media permissions
+                // TODO: Allow image-only permission to pass for image picking.
                 ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.READ_MEDIA_IMAGES
@@ -2106,6 +2107,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             )
             
             // Wait for completion with timeout
+            // TODO: Avoid blocking the platform thread during FFmpeg execution.
             val completed = latch.await(30, TimeUnit.SECONDS)
             
             if (!completed) {
@@ -2217,6 +2219,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 }
             } else {
                 // No watermarking needed, but resizing/compression might be needed
+                // TODO: Returning the original path ignores resize/compression options.
                 // For now, if no watermark, just return original path
                 // TODO: Implement resizing/compression without watermarking if needed
                 result.success(videoPath)
@@ -2346,6 +2349,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             retriever.release()
             
             // Create a simple compression using MediaMetadataRetriever and file copy
+            // TODO: Implement actual compression; this currently copies the input.
             // For a more robust solution, you would use MediaCodec, MediaMuxer, and MediaExtractor
             // This is a simplified version that focuses on file size reduction
             
