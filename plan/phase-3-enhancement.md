@@ -37,6 +37,7 @@ Goal: expand features and developer experience after macOS/Web are functional an
   - Improve error handling consistency across platforms
   - Add proper logging and debugging capabilities
   - Optimize performance for large media files
+    - Moved Android image/video processing after picker/camera results to background threads to avoid UI blocking.
 
 ### Platform Consistency
 - [ ] **Ensure consistent behavior across all platforms**

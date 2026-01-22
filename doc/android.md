@@ -151,6 +151,7 @@ android {
 - **Memory Usage**: High (consider background processing)
 - **Processing Time**: 2-10s per minute of video
 - **Output Quality**: Maintains original quality with configurable compression
+- **Threading**: Post-capture/selection video processing now runs on background threads to keep the UI responsive.
 
 ## Troubleshooting
 

@@ -975,15 +975,22 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         return maxWidth
     }
 
+    /**
+     * Process video using the global mediaOptions.
+     * Delegates to processVideoWithOptions for the actual processing.
+     */
     private fun processVideo(sourcePath: String): String {
-        Log.d("MediaPickerPlus", "processVideo called with sourcePath: $sourcePath")
-        val options = mediaOptions
-        Log.d("MediaPickerPlus", "mediaOptions: $options")
-        
-        if (options == null) {
-            Log.d("MediaPickerPlus", "No media options found, returning original path")
-            return sourcePath
-        }
+        val options = mediaOptions ?: return sourcePath
+        return processVideoWithOptions(sourcePath, options)
+    }
+    
+    /**
+     * Process video with explicitly provided options.
+     * This is thread-safe as it doesn't rely on global mutable state.
+     */
+    private fun processVideoWithOptions(sourcePath: String, options: HashMap<String, Any>): String {
+        Log.d("MediaPickerPlus", "processVideoWithOptions called with sourcePath: $sourcePath")
+        Log.d("MediaPickerPlus", "options: $options")
         
         if (!options.containsKey("watermark")) {
             Log.d("MediaPickerPlus", "No watermark option found, returning original path")
@@ -1036,7 +1043,8 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 sourcePath,
                 outputVideoFile.absolutePath,
                 watermarkBitmap,
-                position
+                position,
+                options
             )
             Log.d("MediaPickerPlus", "Watermarking success: $success")
             
@@ -1112,7 +1120,8 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         inputPath: String,
         outputPath: String,
         watermarkBitmap: Bitmap,
-        position: String
+        position: String,
+        options: HashMap<String, Any>
     ): Boolean {
         return try {
             Log.d("MediaPickerPlus", "Starting FFmpeg video watermarking")
@@ -1167,7 +1176,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             Log.d("MediaPickerPlus", "Effective dimensions after rotation: ${effectiveWidth}x${effectiveHeight}")
             
             // Process video using FFmpeg with effective dimensions
-            return processVideoWithFFmpeg(inputPath, outputPath, watermarkBitmap, position, effectiveWidth, effectiveHeight, duration, rotation)
+            return processVideoWithFFmpeg(inputPath, outputPath, watermarkBitmap, position, effectiveWidth, effectiveHeight, duration, rotation, options)
             
         } catch (e: Exception) {
             Log.e("MediaPickerPlus", "Error in FFmpeg video processing: ${e.message}", e)
@@ -1183,7 +1192,8 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         videoWidth: Int,
         videoHeight: Int,
         duration: Long,
-        rotation: Int
+        rotation: Int,
+        options: HashMap<String, Any>
     ): Boolean {
         return try {
             Log.d("MediaPickerPlus", "Processing video with FFmpeg")
@@ -1196,9 +1206,9 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             
             Log.d("MediaPickerPlus", "Watermark saved to: ${watermarkFile.absolutePath}")
             
-            // Get options from mediaOptions
-            val maxWidth = (mediaOptions?.get("maxWidth") as? Int) ?: videoWidth
-            val maxHeight = (mediaOptions?.get("maxHeight") as? Int) ?: videoHeight
+            // Get options from provided options parameter
+            val maxWidth = (options.get("maxWidth") as? Int) ?: videoWidth
+            val maxHeight = (options.get("maxHeight") as? Int) ?: videoHeight
             
             Log.d("MediaPickerPlus", "Max dimensions: ${maxWidth}x${maxHeight}")
             
@@ -1206,7 +1216,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             var (targetWidth, targetHeight) = calculateTargetDimensions(videoWidth, videoHeight, maxWidth, maxHeight)
             
             // Apply cropping if specified
-            val cropInfo = applyCropToVideo(videoWidth, videoHeight, mediaOptions)
+            val cropInfo = applyCropToVideo(videoWidth, videoHeight, options)
             if (cropInfo != null) {
                 targetWidth = cropInfo.width
                 targetHeight = cropInfo.height
@@ -1739,11 +1749,24 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         if (resultCode == Activity.RESULT_OK) {
             when (requestCode) {
                 REQUEST_IMAGE_CAPTURE -> {
-                    currentMediaPath?.let { path ->
-                        val processedPath = processImage(path)
-                        pendingResult?.success(processedPath)
-                        pendingResult = null
-                        currentMediaPath = null
+                    val result = pendingResult
+                    pendingResult = null
+                    val capturePath = currentMediaPath
+                    currentMediaPath = null
+                    // Snapshot mediaOptions to avoid race conditions with concurrent requests
+                    val optionsSnapshot = mediaOptions?.let { HashMap(it) }
+
+                    capturePath?.let { path ->
+                        Thread {
+                            val processedPath = if (optionsSnapshot != null) {
+                                processImageWithOptions(path, optionsSnapshot)
+                            } else {
+                                path
+                            }
+                            runOnUiThread {
+                                result?.success(processedPath)
+                            }
+                        }.start()
                     }
                     return true
                 }
@@ -1755,52 +1778,88 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                         getFilePathFromUri(uri)
                     }
 
-                    if (capturedPath != null) {
-                        val processedPath = processVideo(capturedPath)
-                        pendingResult?.success(processedPath)
-                    } else {
-                        pendingResult?.error("NO_FILE", "No video file was captured", null)
-                    }
+                    val result = pendingResult
                     pendingResult = null
                     currentMediaPath = null
+                    // Snapshot mediaOptions to avoid race conditions with concurrent requests
+                    val optionsSnapshot = mediaOptions?.let { HashMap(it) }
+
+                    if (capturedPath != null) {
+                        Thread {
+                            val processedPath = if (optionsSnapshot != null) {
+                                processVideoWithOptions(capturedPath, optionsSnapshot)
+                            } else {
+                                capturedPath
+                            }
+                            runOnUiThread {
+                                result?.success(processedPath)
+                            }
+                        }.start()
+                    } else {
+                        result?.error("NO_FILE", "No video file was captured", null)
+                    }
                     return true
                 }
                 REQUEST_PICK_IMAGE -> {
+                    val result = pendingResult
+                    pendingResult = null
+                    // Snapshot mediaOptions to avoid race conditions with concurrent requests
+                    val optionsSnapshot = mediaOptions?.let { HashMap(it) }
+
                     data?.data?.let { uri ->
                         val filePath = getFilePathFromUri(uri)
                         filePath?.let { path ->
-                            val processedPath = processImage(path)
-                            pendingResult?.success(processedPath)
+                            Thread {
+                                val processedPath = if (optionsSnapshot != null) {
+                                    processImageWithOptions(path, optionsSnapshot)
+                                } else {
+                                    path
+                                }
+                                runOnUiThread {
+                                    result?.success(processedPath)
+                                }
+                            }.start()
                         } ?: run {
-                            pendingResult?.error(
+                            result?.error(
                                 "NO_FILE",
                                 "Could not get file path from URI",
                                 null
                             )
                         }
                     } ?: run {
-                        pendingResult?.error("NO_FILE", "No file was selected", null)
+                        result?.error("NO_FILE", "No file was selected", null)
                     }
-                    pendingResult = null
                     return true
                 }
                 REQUEST_PICK_VIDEO -> {
+                    val result = pendingResult
+                    pendingResult = null
+                    // Snapshot mediaOptions to avoid race conditions with concurrent requests
+                    val optionsSnapshot = mediaOptions?.let { HashMap(it) }
+
                     data?.data?.let { uri ->
                         val filePath = getFilePathFromUri(uri)
                         filePath?.let { path ->
-                            val processedPath = processVideo(path)
-                            pendingResult?.success(processedPath)
+                            Thread {
+                                val processedPath = if (optionsSnapshot != null) {
+                                    processVideoWithOptions(path, optionsSnapshot)
+                                } else {
+                                    path
+                                }
+                                runOnUiThread {
+                                    result?.success(processedPath)
+                                }
+                            }.start()
                         } ?: run {
-                            pendingResult?.error(
+                            result?.error(
                                 "NO_FILE",
                                 "Could not get file path from URI",
                                 null
                             )
                         }
                     } ?: run {
-                        pendingResult?.error("NO_FILE", "No file was selected", null)
+                        result?.error("NO_FILE", "No file was selected", null)
                     }
-                    pendingResult = null
                     return true
                 }
                 REQUEST_PICK_FILE -> {
@@ -1822,81 +1881,122 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     return true
                 }
                 REQUEST_PICK_MULTIPLE_FILES -> {
-                    val filePaths = mutableListOf<String>()
+                    val result = pendingResult
+                    pendingResult = null
+
+                    val selectedUris = mutableListOf<Uri>()
                     data?.clipData?.let { clipData ->
                         for (i in 0 until clipData.itemCount) {
-                            val uri = clipData.getItemAt(i).uri
+                            selectedUris.add(clipData.getItemAt(i).uri)
+                        }
+                    } ?: data?.data?.let { uri ->
+                        selectedUris.add(uri)
+                    }
+
+                    if (selectedUris.isEmpty()) {
+                        result?.error("NO_FILE", "No files were selected", null)
+                        return true
+                    }
+
+                    Thread {
+                        val filePaths = mutableListOf<String>()
+                        for (uri in selectedUris) {
                             val filePath = getFilePathFromUri(uri)
                             filePath?.let { filePaths.add(it) }
                         }
-                    } ?: data?.data?.let { uri ->
-                        val filePath = getFilePathFromUri(uri)
-                        filePath?.let { filePaths.add(it) }
-                    }
-                    if (filePaths.isNotEmpty()) {
-                        pendingResult?.success(filePaths)
-                    } else {
-                        pendingResult?.error("NO_FILE", "No files were selected", null)
-                    }
-                    pendingResult = null
+
+                        runOnUiThread {
+                            if (filePaths.isNotEmpty()) {
+                                result?.success(filePaths)
+                            } else {
+                                result?.error("NO_FILE", "No files were selected", null)
+                            }
+                        }
+                    }.start()
                     return true
                 }
                 REQUEST_PICK_MULTIPLE_MEDIA -> {
-                    val filePaths = mutableListOf<String>()
+                    val result = pendingResult
+                    pendingResult = null
+
+                    val selectedUris = mutableListOf<Uri>()
                     data?.clipData?.let { clipData ->
                         for (i in 0 until clipData.itemCount) {
-                            val uri = clipData.getItemAt(i).uri
+                            selectedUris.add(clipData.getItemAt(i).uri)
+                        }
+                    } ?: data?.data?.let { uri ->
+                        selectedUris.add(uri)
+                    }
+
+                    if (selectedUris.isEmpty()) {
+                        result?.error("NO_FILE", "No media files were selected", null)
+                        return true
+                    }
+
+                    // Snapshot mediaOptions to avoid race conditions with concurrent requests
+                    val optionsSnapshot = mediaOptions?.let { HashMap(it) }
+
+                    Thread {
+                        val filePaths = mutableListOf<String>()
+                        for (uri in selectedUris) {
                             val filePath = getFilePathFromUri(uri)
                             filePath?.let { path ->
-                                val processedPath = if (isImageFile(path)) {
-                                    processImage(path)
-                                } else if (isVideoFile(path)) {
-                                    processVideo(path)
+                                val processedPath = if (optionsSnapshot != null) {
+                                    if (isImageFile(path)) {
+                                        processImageWithOptions(path, optionsSnapshot)
+                                    } else if (isVideoFile(path)) {
+                                        processVideoWithOptions(path, optionsSnapshot)
+                                    } else {
+                                        path
+                                    }
                                 } else {
                                     path
                                 }
                                 filePaths.add(processedPath)
                             }
                         }
-                    } ?: data?.data?.let { uri ->
-                        val filePath = getFilePathFromUri(uri)
-                        filePath?.let { path ->
-                            val processedPath = if (isImageFile(path)) {
-                                processImage(path)
-                            } else if (isVideoFile(path)) {
-                                processVideo(path)
+
+                        runOnUiThread {
+                            if (filePaths.isNotEmpty()) {
+                                result?.success(filePaths)
                             } else {
-                                path
+                                result?.error("NO_FILE", "No media files were selected", null)
                             }
-                            filePaths.add(processedPath)
                         }
-                    }
-                    if (filePaths.isNotEmpty()) {
-                        pendingResult?.success(filePaths)
-                    } else {
-                        pendingResult?.error("NO_FILE", "No media files were selected", null)
-                    }
-                    pendingResult = null
+                    }.start()
                     return true
                 }
                 REQUEST_PHOTO_PICKER -> {
+                    val result = pendingResult
+                    pendingResult = null
+
                     // Handle modern Photo Picker result
+                    // Snapshot mediaOptions to avoid race conditions with concurrent requests
+                    val optionsSnapshot = mediaOptions?.let { HashMap(it) }
+
                     data?.data?.let { uri ->
                         val filePath = getFilePathFromUri(uri)
                         filePath?.let { path ->
-                            val processedPath = processImage(path)
-                            pendingResult?.success(processedPath)
+                            Thread {
+                                val processedPath = if (optionsSnapshot != null) {
+                                    processImageWithOptions(path, optionsSnapshot)
+                                } else {
+                                    path
+                                }
+                                runOnUiThread {
+                                    result?.success(processedPath)
+                                }
+                            }.start()
                         } ?: run {
-                            pendingResult?.error(
+                            result?.error(
                                 "NO_FILE",
                                 "Could not get file path from URI",
                                 null
                             )
                         }
                     } ?: run {
-                        pendingResult?.error("NO_FILE", "No file was selected", null)
+                        result?.error("NO_FILE", "No file was selected", null)
                     }
-                    pendingResult = null
                     return true
                 }
             }
@@ -2118,7 +2218,8 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 videoPath,
                 outputFile.absolutePath,
                 watermarkBitmap,
-                position
+                position,
+                options
             )
 
             if (success) {
@@ -2378,7 +2479,8 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                         videoPath,
                         outputFile.absolutePath,
                         watermarkBitmap,
-                        watermarkPosition
+                        watermarkPosition,
+                        options
                     )
                     
                     runOnUiThread {
