@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 1.1.0-rc.9
+
 ### Fixed
 - Move Android image/video processing after capture or selection to background threads to avoid blocking the UI during compression or watermarking.
 - **Android thread safety for media options**: Fixed race condition where background threads processing images/videos could read stale or incorrect `mediaOptions` if another request updated the global mutable state while processing was in progress:
