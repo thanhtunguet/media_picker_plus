@@ -263,13 +263,21 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
 
     private func hasGalleryPermission() -> Bool {
         let status = PHPhotoLibrary.authorizationStatus()
-        return status == .authorized || status == .limited
+        if #available(iOS 14.0, *) {
+            return status == .authorized || status == .limited
+        } else {
+            return status == .authorized
+        }
     }
 
     private func requestGalleryPermission(completion: @escaping (Bool) -> Void) {
         PHPhotoLibrary.requestAuthorization { status in
             DispatchQueue.main.async {
-                completion(status == .authorized || status == .limited)
+                if #available(iOS 14.0, *) {
+                    completion(status == .authorized || status == .limited)
+                } else {
+                    completion(status == .authorized)
+                }
             }
         }
     }
@@ -1575,7 +1583,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         }
         
         // Apply quality and save
-        let quality = (options["imageQuality"] as? Int ?? 80) / 100.0
+        let quality = Double(options["imageQuality"] as? Int ?? 80) / 100.0
         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let filename = "processed_\(Int(Date().timeIntervalSince1970)).jpg"
         let fileURL = documentsDirectory.appendingPathComponent(filename)
@@ -1623,7 +1631,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         let watermarkedImage = addWatermark(to: image, text: watermarkText, fontSize: fontSize, position: position)
         
         // Save the watermarked image
-        let quality = (options["imageQuality"] as? Int ?? 80) / 100.0
+        let quality = Double(options["imageQuality"] as? Int ?? 80) / 100.0
         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let filename = "watermarked_image_\(Int(Date().timeIntervalSince1970)).jpg"
         let fileURL = documentsDirectory.appendingPathComponent(filename)
