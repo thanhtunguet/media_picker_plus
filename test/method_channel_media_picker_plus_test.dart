@@ -210,7 +210,8 @@ void main() {
       final api = MethodChannelMediaPickerPlus();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
-        throw PlatformException(code: 'ERROR', message: 'Image processing error');
+        throw PlatformException(
+            code: 'ERROR', message: 'Image processing error');
       });
 
       expect(
@@ -259,8 +260,8 @@ void main() {
       });
 
       expect(
-        () => api.pickMedia(MediaSource.gallery, MediaType.image,
-            const MediaOptions()),
+        () => api.pickMedia(
+            MediaSource.gallery, MediaType.image, const MediaOptions()),
         throwsA(isA<Exception>().having(
           (e) => e.toString(),
           'message',
@@ -271,8 +272,8 @@ void main() {
 
     test('converts source and type to string correctly', () async {
       final api = MethodChannelMediaPickerPlus();
-      await api.pickMedia(MediaSource.camera, MediaType.video,
-          const MediaOptions());
+      await api.pickMedia(
+          MediaSource.camera, MediaType.video, const MediaOptions());
 
       final args = lastCall?.arguments as Map<dynamic, dynamic>?;
       expect(args?['source'], 'camera');
@@ -758,7 +759,7 @@ void main() {
 
     test('handles VideoCompressionOptions with video info', () async {
       final api = MethodChannelMediaPickerPlus();
-      final options = VideoCompressionOptions(
+      const options = VideoCompressionOptions(
         quality: VideoCompressionQuality.p720,
       );
 
@@ -780,7 +781,7 @@ void main() {
 
     test('handles VideoCompressionOptions when getVideoInfo fails', () async {
       final api = MethodChannelMediaPickerPlus();
-      final options = VideoCompressionOptions(
+      const options = VideoCompressionOptions(
         quality: VideoCompressionQuality.p720,
       );
 
@@ -801,7 +802,7 @@ void main() {
 
     test('handles VideoCompressionOptions with outputPath', () async {
       final api = MethodChannelMediaPickerPlus();
-      final options = VideoCompressionOptions(
+      const options = VideoCompressionOptions(
         quality: VideoCompressionQuality.p1080,
       );
 
@@ -843,7 +844,7 @@ void main() {
 
     test('handles custom object with toMap method', () async {
       final api = MethodChannelMediaPickerPlus();
-      
+
       // Create a custom class with toMap method
       final customOptions = _CustomOptions();
 
@@ -860,10 +861,11 @@ void main() {
       expect(args?['options'], {'custom': 'value'});
     });
 
-    test('handles custom object without toMap method (throws NoSuchMethodError)',
+    test(
+        'handles custom object without toMap method (throws NoSuchMethodError)',
         () async {
       final api = MethodChannelMediaPickerPlus();
-      
+
       // Create a custom object without toMap method
       final customOptions = _CustomOptionsWithoutToMap();
 
@@ -873,15 +875,6 @@ void main() {
         () => api.compressVideo('input.mp4', options: customOptions),
         throwsA(isA<NoSuchMethodError>()),
       );
-    });
-  });
-
-  group('_convertToBool', () {
-    test('converts bool correctly', () {
-      final api = MethodChannelMediaPickerPlus();
-      // Access via reflection or make it public for testing
-      // Since it's private, we test it indirectly through permission methods
-      // But we can verify behavior through hasCameraPermission
     });
   });
 }
