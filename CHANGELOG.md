@@ -8,6 +8,9 @@
   - Updated `processVideoWithFFmpeg` and `watermarkVideoWithNativeProcessing` to accept options parameter instead of reading from global `mediaOptions`
   - Updated all `onActivityResult` call sites to snapshot `mediaOptions` before starting background threads, ensuring each request uses its own immutable copy of options
   - Added comprehensive tests for concurrency scenarios on both Android native and Dart sides
+- **iOS build errors**: Fixed Swift compiler errors in iOS test pipeline:
+  - Fixed iOS 14+ availability check for `.limited` authorization status in `hasGalleryPermission()` and `requestGalleryPermission()` methods to support iOS versions below 14.0
+  - Fixed type mismatch errors in division operations by converting `Int` to `Double` before dividing by `100.0` in `processImage()` and `addWatermarkToExistingImage()` methods
 
 ## 1.1.0-rc.8
 
