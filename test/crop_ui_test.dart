@@ -57,18 +57,27 @@ void main() {
         ),
       ),
     );
-    // Pump initial frame to build the widget
-    await tester.pump();
-    // Pump again to trigger post-frame callbacks scheduled in initState
+    
+    // Pump initial frame to build widget
     await tester.pump();
     
-    // Wait for callback, pumping frames periodically if needed
-    for (int i = 0; i < 20 && emitted == null; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
+    // Pump additional frames to trigger post-frame callbacks and microtasks
+    // The callback is scheduled via addPostFrameCallback in initState
+    // and also via Future.microtask in didChangeDependencies
+    for (int i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 16)); // ~60fps
       if (emitted != null) break;
     }
+    
+    // If still not received, pump a few more frames with longer delays
+    if (emitted == null) {
+      for (int i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        if (emitted != null) break;
+      }
+    }
 
-    expect(emitted, isNotNull, reason: 'onCropChanged should have been called');
+    expect(emitted, isNotNull, reason: 'onCropChanged should have been called after widget initialization');
     expect(emitted!.x, closeTo(0.2, 0.001));
     expect(emitted!.y, closeTo(0.3, 0.001));
     expect(emitted!.width, closeTo(0.4, 0.001));
@@ -94,18 +103,27 @@ void main() {
         ),
       ),
     );
-    // Pump initial frame to build the widget
-    await tester.pump();
-    // Pump again to trigger post-frame callbacks scheduled in initState
+    
+    // Pump initial frame to build widget
     await tester.pump();
     
-    // Wait for callback, pumping frames periodically if needed
-    for (int i = 0; i < 20 && emitted == null; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
+    // Pump additional frames to trigger post-frame callbacks and microtasks
+    // The callback is scheduled via addPostFrameCallback in initState
+    // and also via Future.microtask in didChangeDependencies
+    for (int i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 16)); // ~60fps
       if (emitted != null) break;
     }
+    
+    // If still not received, pump a few more frames with longer delays
+    if (emitted == null) {
+      for (int i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        if (emitted != null) break;
+      }
+    }
 
-    expect(emitted, isNotNull, reason: 'onCropChanged should have been called');
+    expect(emitted, isNotNull, reason: 'onCropChanged should have been called after widget initialization');
     final ratio = emitted!.width / emitted!.height;
     expect(ratio, closeTo(1.0, 0.01));
   });

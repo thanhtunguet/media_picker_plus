@@ -62,6 +62,19 @@ class _CropUIState extends State<CropUI> with TickerProviderStateMixin {
     }
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Ensure callback is called after the first build completes
+    // This helps in test environments where post-frame callbacks might not fire immediately
+    if (widget.initialImage != null && _image != null && !_isLoading && mounted) {
+      // Use a microtask to ensure this runs after the current frame
+      Future.microtask(() {
+        if (mounted) _notifyCropChanged();
+      });
+    }
+  }
+
   void _initializeCropSettings() {
     if (widget.initialCropOptions != null) {
       _aspectRatio = widget.initialCropOptions!.aspectRatio;
