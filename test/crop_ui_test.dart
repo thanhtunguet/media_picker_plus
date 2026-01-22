@@ -51,14 +51,24 @@ void main() {
           initialCropOptions: const CropOptions(
             cropRect: CropRect(x: 0.2, y: 0.3, width: 0.4, height: 0.5),
           ),
-          onCropChanged: (rect) => emitted = rect,
+          onCropChanged: (rect) {
+            emitted = rect;
+          },
         ),
       ),
     );
+    // Pump initial frame to build the widget
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    // Pump again to trigger post-frame callbacks scheduled in initState
+    await tester.pump();
+    
+    // Wait for callback, pumping frames periodically if needed
+    for (int i = 0; i < 20 && emitted == null; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+      if (emitted != null) break;
+    }
 
-    expect(emitted, isNotNull);
+    expect(emitted, isNotNull, reason: 'onCropChanged should have been called');
     expect(emitted!.x, closeTo(0.2, 0.001));
     expect(emitted!.y, closeTo(0.3, 0.001));
     expect(emitted!.width, closeTo(0.4, 0.001));
@@ -78,14 +88,24 @@ void main() {
             aspectRatio: 1.0,
             lockAspectRatio: true,
           ),
-          onCropChanged: (rect) => emitted = rect,
+          onCropChanged: (rect) {
+            emitted = rect;
+          },
         ),
       ),
     );
+    // Pump initial frame to build the widget
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    // Pump again to trigger post-frame callbacks scheduled in initState
+    await tester.pump();
+    
+    // Wait for callback, pumping frames periodically if needed
+    for (int i = 0; i < 20 && emitted == null; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+      if (emitted != null) break;
+    }
 
-    expect(emitted, isNotNull);
+    expect(emitted, isNotNull, reason: 'onCropChanged should have been called');
     final ratio = emitted!.width / emitted!.height;
     expect(ratio, closeTo(1.0, 0.01));
   });
