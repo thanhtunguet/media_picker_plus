@@ -39,6 +39,23 @@ android {
     }
 }
 
+// Remove integration_test plugin registration from GeneratedPluginRegistrant for release builds
+// This is needed because integration_test is a dev dependency and shouldn't be included in release builds
+afterEvaluate {
+    tasks.matching { it.name == "compileReleaseJavaWithJavac" }.configureEach { task ->
+        task.doFirst {
+            def registrantFile = file("src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java")
+            if (registrantFile.exists()) {
+                def content = registrantFile.text
+                // Remove the entire try-catch block for integration_test plugin using multiline pattern
+                def pattern = ~/(?s)\s*try \{\s*flutterEngine\.getPlugins\(\)\.add\(new dev\.flutter\.plugins\.integration_test\.IntegrationTestPlugin\(\)\);\s*\} catch \(Exception e\) \{\s*Log\.e\(TAG, "Error registering plugin integration_test[^"]*", e\);\s*\}/
+                content = content.replaceAll(pattern, "")
+                registrantFile.text = content
+            }
+        }
+    }
+}
+
 flutter {
     source = "../.."
 }

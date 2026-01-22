@@ -11,6 +11,7 @@
 - **iOS build errors**: Fixed Swift compiler errors in iOS test pipeline:
   - Fixed iOS 14+ availability check for `.limited` authorization status in `hasGalleryPermission()` and `requestGalleryPermission()` methods to support iOS versions below 14.0
   - Fixed type mismatch errors in division operations by converting `Int` to `Double` before dividing by `100.0` in `processImage()` and `addWatermarkToExistingImage()` methods
+- **Android release build errors**: Fixed compilation error in Android release builds where `integration_test` plugin (dev dependency) was being included in `GeneratedPluginRegistrant.java`. Added Gradle task to automatically remove `integration_test` plugin registration from generated files before release compilation.
 
 ## 1.1.0-rc.8
 
