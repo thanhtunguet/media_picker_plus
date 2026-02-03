@@ -43,6 +43,7 @@ class CropHelper {
       watermarkPosition: options.watermarkPosition,
       maxDuration: options.maxDuration,
       cropOptions: null, // Disable cropping for initial pick
+      preferredCameraDevice: options.preferredCameraDevice,
     );
 
     final tempResult = await MediaPickerPlusPlatform.instance
@@ -74,6 +75,7 @@ class CropHelper {
           showGrid: false,
           lockAspectRatio: false,
         ),
+        preferredCameraDevice: options.preferredCameraDevice,
       );
 
       // Create a temporary file from the original and process with final options
@@ -96,6 +98,7 @@ class CropHelper {
         showGrid: false,
         lockAspectRatio: false,
       ),
+      preferredCameraDevice: options.preferredCameraDevice,
     );
 
     return await _processImageWithFinalOptions(tempResult, finalOptions);

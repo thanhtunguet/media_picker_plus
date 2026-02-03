@@ -54,6 +54,7 @@ The Web implementation provides basic media picking and processing capabilities 
 - **Browser Camera**: ⚠️ Basic file input with camera preference
 - **Real Camera API**: ❌ No getUserMedia implementation
 - **Live Preview**: ❌ No real-time camera preview
+- **Preferred Camera Device**: `preferredCameraDevice` is currently ignored on web.
 
 #### Video Processing
 - **Video Selection**: ✅ Complete video file selection

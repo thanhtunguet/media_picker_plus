@@ -23,6 +23,10 @@ Goal: expand features and developer experience after macOS/Web are functional an
   - [x] Create comprehensive example app with permissions, camerawesome integration, and all picking modes
     - Updated `example/lib/main.dart` with full feature set.
 
+- [x] **Add Zed Flutter debugging configuration**
+  - Added `.zed/debug.json` launch task for the example app.
+  - Documented Zed usage in `doc/zed-debugging.md`.
+
 - [ ] **Add CI/CD pipeline for automated testing**
   - Set up GitHub Actions for automated testing
   - Add platform-specific test runners
@@ -40,6 +44,9 @@ Goal: expand features and developer experience after macOS/Web are functional an
     - Moved Android image/video processing after picker/camera results to background threads to avoid UI blocking.
 
 ### Platform Consistency
+- [x] **Add preferred camera device hint for Android/iOS**
+  - Added `preferredCameraDevice` in `MediaOptions` (auto/front/back) and passed to native pickers.
+  - Android support is best-effort via camera intent extras; web/macOS currently ignore the hint.
 - [ ] **Ensure consistent behavior across all platforms**
   - Standardize error messages and codes
   - Align permission handling patterns

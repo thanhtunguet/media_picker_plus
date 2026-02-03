@@ -397,11 +397,34 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         return null
     }
 
+    private fun applyPreferredCameraDevice(intent: Intent) {
+        val preferred = (mediaOptions?.get("preferredCameraDevice") as? String)
+            ?.lowercase(Locale.US) ?: "auto"
+
+        when (preferred) {
+            "front" -> {
+                // Best-effort hints; camera apps may ignore these extras.
+                intent.putExtra("android.intent.extras.CAMERA_FACING", 1)
+                intent.putExtra("android.intent.extras.LENS_FACING_FRONT", 1)
+                intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", true)
+            }
+            "back" -> {
+                intent.putExtra("android.intent.extras.CAMERA_FACING", 0)
+                intent.putExtra("android.intent.extras.LENS_FACING_BACK", 0)
+                intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", false)
+            }
+            else -> {
+                // auto: do nothing
+            }
+        }
+    }
+
     private fun capturePhoto() {
         val activity = activity ?: return
 
         Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { intent ->
             intent.resolveActivity(activity.packageManager)?.also {
+                applyPreferredCameraDevice(intent)
                 val photoFile = createMediaFile(true)
                 photoFile?.also {
                     val photoURI = FileProvider.getUriForFile(
@@ -429,6 +452,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
         Intent(MediaStore.ACTION_VIDEO_CAPTURE).also { intent ->
             intent.resolveActivity(activity.packageManager)?.also {
+                applyPreferredCameraDevice(intent)
                 val videoFile = createMediaFile(false)
                 videoFile?.also {
                     val videoURI = FileProvider.getUriForFile(

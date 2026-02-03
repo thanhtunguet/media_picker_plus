@@ -14,6 +14,7 @@ export 'media_source.dart';
 export 'media_type.dart';
 export 'watermark_position.dart';
 export 'crop_options.dart';
+export 'preferred_camera_device.dart';
 export 'crop_ui.dart';
 
 class MediaPickerPlus {

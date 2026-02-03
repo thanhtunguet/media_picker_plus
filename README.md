@@ -105,6 +105,26 @@ String? imagePath = await MediaPickerPlus.pickImage(
 );
 ```
 
+### Preferred Camera Device (Android/iOS)
+
+```dart
+String? imagePath = await MediaPickerPlus.capturePhoto(
+  options: MediaOptions(
+    preferredCameraDevice: PreferredCameraDevice.front,
+  ),
+);
+```
+
+```dart
+String? videoPath = await MediaPickerPlus.recordVideo(
+  options: MediaOptions(
+    preferredCameraDevice: PreferredCameraDevice.back,
+  ),
+);
+```
+
+> Note: `preferredCameraDevice` is a best-effort hint. On Android, some camera apps may ignore it; on web and macOS it is currently ignored.
+
 ### Pick Video
 
 ```dart

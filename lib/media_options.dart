@@ -1,5 +1,6 @@
 import 'watermark_position.dart';
 import 'crop_options.dart';
+import 'preferred_camera_device.dart';
 
 class MediaOptions {
   final int imageQuality;
@@ -7,6 +8,12 @@ class MediaOptions {
   final int? maxWidth;
 
   final int? maxHeight;
+
+  /// Preferred camera device when capturing media.
+  ///
+  /// This is a best-effort hint to the platform. Some platforms or camera apps
+  /// may ignore it and use the default camera instead.
+  final PreferredCameraDevice preferredCameraDevice;
 
   final String? watermark;
 
@@ -29,6 +36,7 @@ class MediaOptions {
     this.imageQuality = 80,
     this.maxWidth = 1280,
     this.maxHeight = 1280,
+    this.preferredCameraDevice = PreferredCameraDevice.auto,
     this.watermark,
     this.watermarkFontSize,
     this.watermarkFontSizePercentage = 4.0,
@@ -42,6 +50,7 @@ class MediaOptions {
       'imageQuality': imageQuality,
       'maxWidth': maxWidth,
       'maxHeight': maxHeight,
+      'preferredCameraDevice': preferredCameraDevice.name,
       'watermark': watermark,
       'watermarkFontSize': watermarkFontSize,
       'watermarkFontSizePercentage': watermarkFontSizePercentage,

@@ -1,5 +1,11 @@
 ## Unreleased
 
+## Unreleased
+
+### Added
+- **Preferred camera device hint**: Added `preferredCameraDevice` to `MediaOptions` to request front/back camera for capture on Android/iOS. This is best-effort and may be ignored by Android camera apps; it is currently ignored on web and macOS.
+- Added Zed Flutter debugging configuration (`.zed/debug.json`) and setup notes in `doc/zed-debugging.md`.
+
 ## 1.1.0-rc.9
 
 ### Fixed

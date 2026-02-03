@@ -49,7 +49,8 @@ void main() {
         expect(quality.calculateWidth(1920, 1920), 720);
       });
 
-      test('returns original width when original height is smaller than maxHeight',
+      test(
+          'returns original width when original height is smaller than maxHeight',
           () {
         const quality = VideoCompressionQuality.p720;
         // 640x480 -> should remain 640x480 (no upscaling)
@@ -58,7 +59,8 @@ void main() {
     });
 
     group('calculateHeight', () {
-      test('returns original height when maxHeight is 0 (original quality)', () {
+      test('returns original height when maxHeight is 0 (original quality)',
+          () {
         const quality = VideoCompressionQuality.original;
         expect(quality.calculateHeight(1080), 1080);
         expect(quality.calculateHeight(2160), 2160);
@@ -211,7 +213,8 @@ void main() {
         expect(map['targetHeight'], 1080);
       });
 
-      test('falls back to default dimensions when original dimensions not provided',
+      test(
+          'falls back to default dimensions when original dimensions not provided',
           () {
         const options = VideoCompressionOptions();
         final map = options.toMap();

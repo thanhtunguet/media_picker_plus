@@ -37,6 +37,7 @@ class _MyAppState extends State<MyApp> {
   final TextEditingController _watermarkController =
       TextEditingController(text: "Media Picker Plus");
   String _watermarkPosition = WatermarkPosition.bottomRight;
+  PreferredCameraDevice _preferredCameraDevice = PreferredCameraDevice.auto;
   bool _enableCrop = false;
 
   @override
@@ -67,15 +68,54 @@ class _MyAppState extends State<MyApp> {
     ].request();
   }
 
+  String _preferredCameraDeviceLabel(PreferredCameraDevice device) {
+    switch (device) {
+      case PreferredCameraDevice.auto:
+        return "Auto (system default)";
+      case PreferredCameraDevice.front:
+        return "Front";
+      case PreferredCameraDevice.back:
+        return "Back";
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<String?> _runPicker(
+    Future<String?> Function() action, {
+    required String cancelMessage,
+    String? errorMessage,
+  }) async {
+    try {
+      final result = await action();
+      if (result == null) {
+        _showMessage(cancelMessage);
+      }
+      return result;
+    } catch (error) {
+      _showMessage(errorMessage ?? "Error: $error");
+      return null;
+    }
+  }
+
   Future<void> _pickImage() async {
-    final file = await MediaPickerPlus.pickImage(
-      options: MediaOptions(
-        imageQuality: 80,
-        watermark: _watermarkController.text,
-        watermarkPosition: _watermarkPosition,
-        cropOptions: CropOptions(enableCrop: _enableCrop),
+    final file = await _runPicker(
+      () => MediaPickerPlus.pickImage(
+        options: MediaOptions(
+          imageQuality: 80,
+          watermark: _watermarkController.text,
+          watermarkPosition: _watermarkPosition,
+          cropOptions: CropOptions(enableCrop: _enableCrop),
+        ),
+        context: context,
       ),
-      context: context,
+      cancelMessage: "Image selection cancelled",
+      errorMessage: "Failed to pick image",
     );
     if (file != null) {
       setState(() {
@@ -87,14 +127,19 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _capturePhoto() async {
-    final file = await MediaPickerPlus.capturePhoto(
-      options: MediaOptions(
-        imageQuality: 80,
-        watermark: _watermarkController.text,
-        watermarkPosition: _watermarkPosition,
-        cropOptions: CropOptions(enableCrop: _enableCrop),
+    final file = await _runPicker(
+      () => MediaPickerPlus.capturePhoto(
+        options: MediaOptions(
+          imageQuality: 80,
+          watermark: _watermarkController.text,
+          watermarkPosition: _watermarkPosition,
+          cropOptions: CropOptions(enableCrop: _enableCrop),
+          preferredCameraDevice: _preferredCameraDevice,
+        ),
+        context: context,
       ),
-      context: context,
+      cancelMessage: "Photo capture cancelled",
+      errorMessage: "Failed to capture photo",
     );
     if (file != null) {
       setState(() {
@@ -106,11 +151,15 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _pickVideo() async {
-    final file = await MediaPickerPlus.pickVideo(
-      options: MediaOptions(
-        watermark: _watermarkController.text,
-        watermarkPosition: _watermarkPosition,
+    final file = await _runPicker(
+      () => MediaPickerPlus.pickVideo(
+        options: MediaOptions(
+          watermark: _watermarkController.text,
+          watermarkPosition: _watermarkPosition,
+        ),
       ),
+      cancelMessage: "Video selection cancelled",
+      errorMessage: "Failed to pick video",
     );
     if (file != null) {
       _setVideo(file);
@@ -118,11 +167,16 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _recordVideo() async {
-    final file = await MediaPickerPlus.recordVideo(
-      options: MediaOptions(
-        watermark: _watermarkController.text,
-        watermarkPosition: _watermarkPosition,
+    final file = await _runPicker(
+      () => MediaPickerPlus.recordVideo(
+        options: MediaOptions(
+          watermark: _watermarkController.text,
+          watermarkPosition: _watermarkPosition,
+          preferredCameraDevice: _preferredCameraDevice,
+        ),
       ),
+      cancelMessage: "Video recording cancelled",
+      errorMessage: "Failed to record video",
     );
     if (file != null) {
       _setVideo(file);
@@ -411,6 +465,26 @@ class _MyAppState extends State<MyApp> {
                       .toList(),
                   onChanged: (v) {
                     if (v != null) setState(() => _watermarkPosition = v);
+                  },
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<PreferredCameraDevice>(
+                  initialValue: _preferredCameraDevice,
+                  decoration: const InputDecoration(
+                    labelText: "Preferred Camera Device",
+                    border: OutlineInputBorder(),
+                    helperText: "Best-effort on Android/iOS",
+                  ),
+                  items: PreferredCameraDevice.values
+                      .map((device) => DropdownMenuItem(
+                            value: device,
+                            child: Text(_preferredCameraDeviceLabel(device)),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _preferredCameraDevice = value);
+                    }
                   },
                 ),
                 SwitchListTile(

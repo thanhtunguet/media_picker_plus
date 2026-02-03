@@ -98,6 +98,12 @@ The iOS implementation provides comprehensive media picking, camera capture, and
 
 ## Developer Configuration Notes
 
+### Preferred camera device
+Use `MediaOptions(preferredCameraDevice: PreferredCameraDevice.front|back|auto)` to select a preferred camera for both photo and video capture.
+
+On iOS this maps to `UIImagePickerController.cameraDevice` when that device is available; otherwise the system default camera is used.
+
+
 ### Required Permissions
 Add to `ios/Runner/Info.plist`:
 

@@ -289,10 +289,30 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         }
     }
 
+    private func applyPreferredCameraDevice(_ picker: UIImagePickerController) {
+        guard let preferred = mediaOptions?["preferredCameraDevice"] as? String else {
+            return
+        }
+
+        switch preferred {
+        case "front":
+            if UIImagePickerController.isCameraDeviceAvailable(.front) {
+                picker.cameraDevice = .front
+            }
+        case "back":
+            if UIImagePickerController.isCameraDeviceAvailable(.rear) {
+                picker.cameraDevice = .rear
+            }
+        default:
+            break
+        }
+    }
+
     private func capturePhoto() {
         let picker = UIImagePickerController()
         picker.delegate = self
         picker.sourceType = .camera
+        applyPreferredCameraDevice(picker)
         picker.mediaTypes = [kUTTypeImage as String]
 
         // Configure camera options
@@ -326,6 +346,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         let picker = UIImagePickerController()
         picker.delegate = self
         picker.sourceType = .camera
+        applyPreferredCameraDevice(picker)
         picker.mediaTypes = [kUTTypeMovie as String]
         picker.videoQuality = .typeHigh
 

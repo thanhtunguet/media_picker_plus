@@ -79,6 +79,12 @@ The Android implementation provides comprehensive media picking, camera capture,
 
 ## Developer Configuration Notes
 
+### Preferred camera device (best-effort)
+Use `MediaOptions(preferredCameraDevice: PreferredCameraDevice.front|back|auto)` to hint which camera to open when capturing photos or videos.
+
+Android uses system camera intents, so OEM camera apps may ignore this preference and still open their default camera.
+
+
 ### Required Permissions
 Add to `android/app/src/main/AndroidManifest.xml`:
 
