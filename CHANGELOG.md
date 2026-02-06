@@ -1,10 +1,15 @@
 ## Unreleased
 
-## Unreleased
+## 1.1.0-rc.11
 
 ### Added
 - **Preferred camera device hint**: Added `preferredCameraDevice` to `MediaOptions` to request front/back camera for capture on Android/iOS. This is best-effort and may be ignored by Android camera apps; it is currently ignored on web and macOS.
 - Added Zed Flutter debugging configuration (`.zed/debug.json`) and setup notes in `doc/zed-debugging.md`.
+
+### Fixed
+- Web `pickFile`/`pickMultipleFiles` now treat all selected files as generic files instead of validating as videos.
+- Removed `dart:io` usage from crop UI flows on web by adding conditional file/image loaders.
+- Guarded `CropUI` async state updates with `mounted` checks and expanded repaint conditions to handle layout changes.
 
 ## 1.1.0-rc.9
 

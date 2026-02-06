@@ -40,6 +40,11 @@ Goal: bring macOS and Web implementations up to feature parity with Android/iOS.
   - Implement video processing using WebRTC/MediaRecorder APIs
   - Verification: `README.md` describes Canvas-based processing and shows Web capabilities.
 
+- [x] **Stabilize web crop UI and file picking semantics**
+  - Replace `dart:io` usage in crop UI flows with conditional loaders for web builds.
+  - Ensure `pickFile/pickMultipleFiles` treat all selections as generic files on web.
+  - Notes: Added guidance to revoke object URLs in `doc/web-fix-summary.md`.
+
 ## Android Fixes
 - [x] **Fix Android video watermarking**
   - Verified FFmpeg-kit integration exists and is properly configured

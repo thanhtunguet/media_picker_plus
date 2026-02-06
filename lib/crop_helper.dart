@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'crop_options.dart';
@@ -7,6 +6,7 @@ import 'media_options.dart';
 import 'media_picker_plus_platform_interface.dart';
 import 'media_source.dart';
 import 'media_type.dart';
+import 'platform_file_utils.dart';
 
 /// Helper class to handle interactive cropping flow
 class CropHelper {
@@ -109,8 +109,7 @@ class CropHelper {
     MediaOptions options,
   ) async {
     try {
-      final tempFile = File(imagePath);
-      if (!await tempFile.exists()) return null;
+      if (!await pathExists(imagePath)) return null;
 
       // Use the platform interface to process the image with the crop settings
       return await MediaPickerPlusPlatform.instance

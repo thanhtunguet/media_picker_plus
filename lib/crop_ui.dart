@@ -1,10 +1,8 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'crop_image_loader.dart';
 import 'crop_options.dart';
 
 /// Interactive cropping UI widget for manual crop selection
@@ -118,25 +116,12 @@ class _CropUIState extends State<CropUI> with TickerProviderStateMixin {
 
   Future<void> _loadImage() async {
     try {
-      Uint8List bytes;
-
-      if (kIsWeb || widget.imagePath.startsWith('data:')) {
-        // Handle web data URLs
-        if (widget.imagePath.startsWith('data:image')) {
-          final base64Data = widget.imagePath.split(',')[1];
-          bytes = base64Decode(base64Data);
-        } else {
-          throw Exception('Unsupported image format for web');
-        }
-      } else {
-        // Handle file paths
-        final file = File(widget.imagePath);
-        bytes = await file.readAsBytes();
-      }
+      final bytes = await loadImageBytes(widget.imagePath);
 
       final codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();
 
+      if (!mounted) return;
       setState(() {
         _image = frame.image;
         _isLoading = false;
@@ -147,8 +132,11 @@ class _CropUIState extends State<CropUI> with TickerProviderStateMixin {
         }
       });
 
-      _notifyCropChanged();
+      if (mounted) {
+        _notifyCropChanged();
+      }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -677,7 +665,10 @@ class CropImagePainter extends CustomPainter {
   @override
   bool shouldRepaint(CropImagePainter oldDelegate) {
     // More precise repaint conditions for better performance
-    return oldDelegate.cropRect != cropRect;
+    return oldDelegate.cropRect != cropRect ||
+        oldDelegate.image != image ||
+        oldDelegate.imageSize != imageSize ||
+        oldDelegate.imageOffset != imageOffset;
   }
 }
 

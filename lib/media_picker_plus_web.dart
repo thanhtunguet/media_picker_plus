@@ -704,7 +704,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
               return;
             }
             try {
-              final url = _createVideoObjectURL(file);
+              final url = web.URL.createObjectURL(file);
               completer.complete(url);
             } catch (e) {
               completer.completeError(e);
@@ -745,12 +745,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
               final file = files.item(i);
               if (file != null) {
                 try {
-                  // Check if it's a video file based on accept attribute
-                  if (input.accept.contains('video/')) {
-                    urls.add(_createVideoObjectURL(file));
-                  } else {
-                    urls.add(web.URL.createObjectURL(file));
-                  }
+                  urls.add(web.URL.createObjectURL(file));
                 } catch (e) {
                   _log(
                       'Failed to create object URL for file: ${file.name}, error: $e');

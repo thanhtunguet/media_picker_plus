@@ -72,6 +72,28 @@ Widget _buildImage(String path, BoxFit fit) {
 }
 ```
 
+### 3. **File Picking on Web Treats All Files as Files** ✅ FIXED
+
+**Problem:**
+- `pickFile()` on web was validating files as videos only, which failed for non-video files.
+- `pickMultipleFiles()` attempted to branch behavior based on the `accept` attribute, causing inconsistent handling.
+
+**Solution:**
+- Web file picking now creates object URLs for all files, regardless of type.
+- This matches the intent of `pickFile/pickMultipleFiles` (generic file selection).
+
+**Note:**
+- The plugin returns object URLs (e.g., `blob:https://...`). Callers should revoke them when done via `URL.revokeObjectURL()` to avoid memory leaks.
+
+### 4. **Crop UI Web Build Compatibility** ✅ FIXED
+
+**Problem:**
+- `CropUI` and `CropHelper` imported `dart:io`, which is not available on web builds.
+
+**Solution:**
+- Introduced conditional imports for file access and image loading.
+- Web builds now handle data URLs without relying on `dart:io`.
+
 ## Files Modified
 
 1. **`example/lib/main.dart`**
