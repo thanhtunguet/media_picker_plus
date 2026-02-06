@@ -26,6 +26,7 @@
 - **Android camera lifecycle**: Fixed camera initialization by properly passing Activity reference to CameraX via activity provider lambda, ensuring correct lifecycle binding
 - **0.5x zoom uses ultrawide back lens**: Updated native multi-capture camera implementations to switch to back ultrawide hardware for `0.5x` when available, and switch back to standard wide lens for `1x+`. Added safe fallback to standard back lens on devices without ultrawide support.
 - **Camera switch button in multi-capture screen**: Fixed front/back switching by keying native platform camera views with the selected device, forcing recreation with updated `preferredCameraDevice` params.
+- **`captureMultiplePhotos()` web/macOS compatibility fallback**: Avoids not-implemented flows by falling back to a single camera capture on web and macOS, returning a one-item `List<String>` to keep API shape consistent.
 
 ## 1.1.0-rc.11
 

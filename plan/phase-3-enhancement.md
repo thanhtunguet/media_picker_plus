@@ -19,6 +19,7 @@ Goal: expand features and developer experience after macOS/Web are functional an
   - Documented in `doc/multi-image-capture.md`
   - Updated native zoom behavior: `0.5x` now targets back ultrawide lens where available (with fallback to standard back lens)
   - Fixed camera switch button by forcing platform camera view recreation when `preferredCameraDevice` changes
+  - Added web/macOS compatibility fallback: `captureMultiplePhotos()` now performs a single camera capture and returns a one-item list
 
 ## Documentation & DevOps
 - [ ] **Expand API documentation and usage examples**

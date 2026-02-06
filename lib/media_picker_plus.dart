@@ -136,6 +136,9 @@ class MediaPickerPlus {
   /// and taps "Done" when finished. Each image is processed with quality and
   /// watermark settings (cropping is skipped for multi-image).
   ///
+  /// On web and macOS, this falls back to a single camera capture and returns
+  /// a one-item list to preserve this method's signature.
+  ///
   /// [context] is required to push the hub screen.
   /// [options] controls image quality, watermark, etc. Crop options are ignored.
   /// [multiImageOptions] controls max/min images and discard confirmation.

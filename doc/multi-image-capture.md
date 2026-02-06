@@ -81,14 +81,16 @@ if (paths != null) {
 
 ## Platform Support
 
-No native code changes are needed. The feature works by looping the existing `pickMedia()` call with `MediaSource.camera`, which uses the native camera on each platform:
+For native mobile (Android/iOS), multi-capture uses the dedicated hub screen with live native camera preview.
 
-| Platform | Camera | Gallery Multi-Pick |
-|----------|--------|--------------------|
-| Android  | Native camera intent | Native gallery picker |
-| iOS      | UIImagePickerController | PHPickerViewController |
-| macOS    | Native camera preview | File dialog |
-| Web      | getUserMedia API | File input |
+For web and macOS, `captureMultiplePhotos()` falls back to a single camera capture and returns a one-item list so callers can keep one consistent `List<String>?` handling path.
+
+| Platform | `captureMultiplePhotos()` behavior | Gallery Multi-Pick |
+|----------|------------------------------------|--------------------|
+| Android  | Multi-capture hub + native camera preview | Native gallery picker |
+| iOS      | Multi-capture hub + native camera preview | PHPickerViewController |
+| macOS    | Single-capture fallback (`List` with 1 path) | File dialog |
+| Web      | Single-capture fallback (`List` with 1 path) | File input |
 
 ## Cross-Platform Thumbnails
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'media_options.dart';
@@ -13,6 +14,24 @@ import 'multi_image_options.dart';
 /// multi-pick, applying quality and watermark processing to each image.
 /// Cropping is intentionally skipped for multi-image operations.
 class MultiImageHelper {
+  static bool get _shouldUseSingleCaptureFallback =>
+      kIsWeb || defaultTargetPlatform == TargetPlatform.macOS;
+
+  static MediaOptions _optionsWithoutCrop(MediaOptions options) {
+    return MediaOptions(
+      imageQuality: options.imageQuality,
+      maxWidth: options.maxWidth,
+      maxHeight: options.maxHeight,
+      preferredCameraDevice: options.preferredCameraDevice,
+      watermark: options.watermark,
+      watermarkFontSize: options.watermarkFontSize,
+      watermarkFontSizePercentage: options.watermarkFontSizePercentage,
+      watermarkPosition: options.watermarkPosition,
+      maxDuration: options.maxDuration,
+      // No crop for multi-image
+    );
+  }
+
   /// Opens a hub screen for continuous camera capture.
   ///
   /// 1. Pushes [MultiCaptureScreen] which loops the native camera.
@@ -24,6 +43,19 @@ class MultiImageHelper {
     MediaOptions options,
     MultiImageOptions multiOptions,
   ) async {
+    final pickOptions = _optionsWithoutCrop(options);
+
+    if (_shouldUseSingleCaptureFallback) {
+      final path = await MediaPickerPlusPlatform.instance.pickMedia(
+        MediaSource.camera,
+        MediaType.image,
+        pickOptions,
+      );
+
+      if (path == null || path.isEmpty) return null;
+      return [path];
+    }
+
     if (!context.mounted) return null;
 
     final rawPaths = await Navigator.of(context).push<List<String>>(
@@ -48,19 +80,7 @@ class MultiImageHelper {
   static Future<List<String>?> pickMultipleImagesProcessed(
     MediaOptions options,
   ) async {
-    // Pick without crop — strip cropOptions
-    final pickOptions = MediaOptions(
-      imageQuality: options.imageQuality,
-      maxWidth: options.maxWidth,
-      maxHeight: options.maxHeight,
-      preferredCameraDevice: options.preferredCameraDevice,
-      watermark: options.watermark,
-      watermarkFontSize: options.watermarkFontSize,
-      watermarkFontSizePercentage: options.watermarkFontSizePercentage,
-      watermarkPosition: options.watermarkPosition,
-      maxDuration: options.maxDuration,
-      // No crop for multi-image
-    );
+    final pickOptions = _optionsWithoutCrop(options);
 
     final paths = await MediaPickerPlusPlatform.instance
         .pickMultipleMedia(MediaSource.gallery, MediaType.image, pickOptions);
