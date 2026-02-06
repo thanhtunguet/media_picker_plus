@@ -40,6 +40,9 @@ class _MyAppState extends State<MyApp> {
   PreferredCameraDevice _preferredCameraDevice = PreferredCameraDevice.auto;
   bool _enableCrop = false;
 
+  // Multi-capture state
+  List<String>? _multiCapturePaths;
+
   @override
   void initState() {
     super.initState();
@@ -269,6 +272,38 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  Future<void> _captureMultiplePhotos() async {
+    try {
+      final paths = await MediaPickerPlus.captureMultiplePhotos(
+        context: context,
+        options: MediaOptions(
+          imageQuality: 80,
+          watermark: _watermarkController.text,
+          watermarkPosition: _watermarkPosition,
+          preferredCameraDevice: _preferredCameraDevice,
+        ),
+        multiImageOptions: const MultiImageOptions(
+          minImages: 1,
+          confirmOnDiscard: true,
+        ),
+      );
+      if (!mounted) return;
+      if (paths != null && paths.isNotEmpty) {
+        setState(() {
+          _multiCapturePaths = paths;
+          _mediaPath = paths.first;
+          _isVideo = false;
+          _imageQuality = 80;
+        });
+        _showMessage('Captured ${paths.length} photo(s)');
+      } else {
+        _showMessage('Multi-capture cancelled');
+      }
+    } catch (error) {
+      _showMessage('Error: $error');
+    }
+  }
+
   Future<void> _extractThumbnail() async {
     if (_mediaPath == null || !_isVideo) {
       if (mounted) {
@@ -435,6 +470,54 @@ class _MyAppState extends State<MyApp> {
                 else
                   const Text("No media selected",
                       style: TextStyle(fontSize: 18)),
+                // Multi-capture results
+                if (_multiCapturePaths != null &&
+                    _multiCapturePaths!.length > 1) ...[
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Multi-Capture Results",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 80,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _multiCapturePaths!.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final path = _multiCapturePaths![index];
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _mediaPath = path;
+                              _isVideo = false;
+                              _imageQuality = 80;
+                            });
+                          },
+                          child: Container(
+                            width: 80,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: _mediaPath == path
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.grey,
+                                width: _mediaPath == path ? 2 : 1,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(7),
+                              child: _buildImage(path, BoxFit.cover),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Divider(),
+                ],
                 const SizedBox(height: 20),
                 TextField(
                   controller: _watermarkController,
@@ -634,6 +717,15 @@ class _MyAppState extends State<MyApp> {
                       label: const Text("Camerawesome Video"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _captureMultiplePhotos,
+                      icon: const Icon(Icons.burst_mode),
+                      label: const Text("Multi-Capture Photos"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal,
                         foregroundColor: Colors.white,
                       ),
                     ),

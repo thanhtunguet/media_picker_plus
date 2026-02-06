@@ -65,6 +65,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     @Volatile
     private var mediaOptions: HashMap<String, Any>? = null
     private var currentMediaAction: (() -> Unit)? = null
+    private var flutterPluginBinding: FlutterPlugin.FlutterPluginBinding? = null
 
     // Request codes
     private val REQUEST_IMAGE_CAPTURE = 1001
@@ -129,12 +130,19 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        this.flutterPluginBinding = flutterPluginBinding
         channel = MethodChannel(
             flutterPluginBinding.binaryMessenger,
             "info.thanhtunguet.media_picker_plus"
         )
         channel.setMethodCallHandler(this)
         context = flutterPluginBinding.applicationContext
+
+        // Register camera view factory with activity provider
+        flutterPluginBinding.platformViewRegistry.registerViewFactory(
+            "info.thanhtunguet.media_picker_plus/camera_view",
+            CameraViewFactory(flutterPluginBinding.binaryMessenger) { activity }
+        )
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {

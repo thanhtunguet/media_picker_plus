@@ -1,5 +1,32 @@
 ## Unreleased
 
+### Added
+- **Multi-image capture from camera with live preview**: Added `captureMultiplePhotos()` method with native camera preview for instant multi-capture. The screen displays a live camera preview using native platform views, with instant capture button that directly takes photos (no picker UI). Thumbnails appear in the bottom strip with badge count showing progress. Each image is processed with quality and watermark settings (crop is skipped for multi-image). **No external camera package dependencies** - uses only native camera APIs (AVCaptureSession on iOS, CameraX on Android).
+- **`MultiImageOptions`**: New options class controlling `maxImages`, `minImages`, and `confirmOnDiscard` for multi-image flows.
+- **`MultiCaptureScreen`**: Native camera preview screen with live feed embedded via platform views (UiKitView/AndroidView). Features:
+  - **Zoom controls**: 0.5x, 1x, 2x, 3x zoom levels displayed at the top of the bottom control area. Fully functional with native camera zoom implementation on both iOS (AVCaptureDevice videoZoomFactor) and Android (CameraX setZoomRatio).
+  - **Grouped thumbnails**: Stacked thumbnail preview on bottom-left corner showing latest captured photo with badge count. Tap to view all photos in a grid.
+  - **Capture button**: Large centered button for instant photo capture
+  - **Camera switch**: Flip button on bottom-right corner to switch between front and back cameras
+  - **Grid view**: Tap the thumbnail group to see all captured photos in a 3-column grid with delete options
+  - Thumbnail strip at bottom, badge count showing progress, instant capture button, and full-screen preview for captured photos
+- **Native camera platform views**:
+  - iOS: `CameraView.swift` using AVCaptureSession, AVCapturePhotoOutput, and AVCaptureVideoPreviewLayer with custom `CameraPreviewView` that properly handles layout updates
+  - Android: `CameraView.kt` using CameraX (camera-camera2, camera-lifecycle, camera-view) with proper Activity lifecycle binding
+  - Method channel for Flutter-native communication (`info.thanhtunguet.media_picker_plus/camera`)
+  - Preview layer automatically resizes when view bounds change to ensure proper display
+- **`MultiImageHelper`**: Orchestration class for camera multi-capture and gallery multi-pick with batch processing.
+- **Cross-platform thumbnail widget**: `thumbnail_image.dart` with conditional imports for IO (`Image.file` with `cacheWidth`) and web (`Image.network`).
+- Added "Multi-Capture Photos" demo button to example app.
+- Added `doc/multi-image-capture.md` feature documentation.
+- Added `doc/multi-capture-ui-layout.md` detailed UI layout documentation with implementation guide for zoom functionality.
+
+### Fixed
+- **iOS camera preview**: Fixed black screen issue by creating custom `CameraPreviewView` that updates preview layer frame in `layoutSubviews()` when bounds change
+- **Android camera lifecycle**: Fixed camera initialization by properly passing Activity reference to CameraX via activity provider lambda, ensuring correct lifecycle binding
+- **0.5x zoom uses ultrawide back lens**: Updated native multi-capture camera implementations to switch to back ultrawide hardware for `0.5x` when available, and switch back to standard wide lens for `1x+`. Added safe fallback to standard back lens on devices without ultrawide support.
+- **Camera switch button in multi-capture screen**: Fixed front/back switching by keying native platform camera views with the selected device, forcing recreation with updated `preferredCameraDevice` params.
+
 ## 1.1.0-rc.11
 
 ### Added

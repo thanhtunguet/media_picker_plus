@@ -7,6 +7,8 @@ import 'package:media_picker_plus/media_type.dart';
 
 import 'crop_helper.dart';
 import 'media_picker_plus_platform_interface.dart';
+import 'multi_image_helper.dart';
+import 'multi_image_options.dart';
 
 export 'media_options.dart';
 export 'video_compression_options.dart';
@@ -16,6 +18,7 @@ export 'watermark_position.dart';
 export 'crop_options.dart';
 export 'preferred_camera_device.dart';
 export 'crop_ui.dart';
+export 'multi_image_options.dart';
 
 class MediaPickerPlus {
   /// Pick an image from gallery
@@ -124,6 +127,28 @@ class MediaPickerPlus {
   }) async {
     return MediaPickerPlusPlatform.instance
         .pickMultipleMedia(MediaSource.gallery, MediaType.video, options);
+  }
+
+  /// Capture multiple photos using the camera with a hub screen.
+  ///
+  /// Opens a hub screen that continuously loops the native camera for a
+  /// multi-capture experience. The user reviews thumbnails between captures
+  /// and taps "Done" when finished. Each image is processed with quality and
+  /// watermark settings (cropping is skipped for multi-image).
+  ///
+  /// [context] is required to push the hub screen.
+  /// [options] controls image quality, watermark, etc. Crop options are ignored.
+  /// [multiImageOptions] controls max/min images and discard confirmation.
+  static Future<List<String>?> captureMultiplePhotos({
+    required BuildContext context,
+    MediaOptions options = const MediaOptions(),
+    MultiImageOptions multiImageOptions = const MultiImageOptions(),
+  }) async {
+    return MultiImageHelper.captureMultiplePhotosWithUI(
+      context,
+      options,
+      multiImageOptions,
+    );
   }
 
   /// Add watermark to an existing image file

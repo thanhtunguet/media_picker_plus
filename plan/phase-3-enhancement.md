@@ -10,6 +10,16 @@ Goal: expand features and developer experience after macOS/Web are functional an
   - Handle memory management for large selections
   - Verification: `README.md` lists “Multiple Selection” as a feature and shows `pickMultipleImages` / `pickMultipleFiles` usage.
 
+- [x] **Add multi-image capture from camera**
+  - Added `captureMultiplePhotos()` public API with hub screen for continuous camera capture
+  - Created `MultiImageOptions` class, `MultiCaptureScreen` hub widget, `MultiImageHelper` orchestrator
+  - Cross-platform thumbnail widget with conditional imports (IO/Web)
+  - Batch processing for quality + watermark (crop intentionally skipped)
+  - Added demo button to example app
+  - Documented in `doc/multi-image-capture.md`
+  - Updated native zoom behavior: `0.5x` now targets back ultrawide lens where available (with fallback to standard back lens)
+  - Fixed camera switch button by forcing platform camera view recreation when `preferredCameraDevice` changes
+
 ## Documentation & DevOps
 - [ ] **Expand API documentation and usage examples**
   - Create comprehensive API documentation

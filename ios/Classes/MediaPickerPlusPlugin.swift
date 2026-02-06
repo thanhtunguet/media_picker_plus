@@ -48,6 +48,13 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             name: "info.thanhtunguet.media_picker_plus", binaryMessenger: registrar.messenger())
         let instance = SwiftMediaPickerPlusPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
+
+        // Register camera view factory
+        let cameraViewFactory = CameraViewFactory(messenger: registrar.messenger())
+        registrar.register(
+            cameraViewFactory,
+            withId: "info.thanhtunguet.media_picker_plus/camera_view"
+        )
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
