@@ -1,4 +1,4 @@
-## Unreleased
+## 1.1.0-rc.13
 
 ### Added
 - **Multi-image capture from camera with live preview**: Added `captureMultiplePhotos()` method with native camera preview for instant multi-capture. The screen displays a live camera preview using native platform views, with instant capture button that directly takes photos (no picker UI). Thumbnails appear in the bottom strip with badge count showing progress. Each image is processed with quality and watermark settings (crop is skipped for multi-image). **No external camera package dependencies** - uses only native camera APIs (AVCaptureSession on iOS, CameraX on Android).
