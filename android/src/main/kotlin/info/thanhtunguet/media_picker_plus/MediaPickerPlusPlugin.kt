@@ -876,7 +876,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     else -> 75
                 }
             }
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
             val fileName = "IMG_PROCESSED_$timeStamp.jpg"
             val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
             val outputFile = File(storageDir, fileName)

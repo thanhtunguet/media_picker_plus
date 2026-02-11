@@ -27,6 +27,7 @@
 - **0.5x zoom uses ultrawide back lens**: Updated native multi-capture camera implementations to switch to back ultrawide hardware for `0.5x` when available, and switch back to standard wide lens for `1x+`. Added safe fallback to standard back lens on devices without ultrawide support.
 - **Camera switch button in multi-capture screen**: Fixed front/back switching by keying native platform camera views with the selected device, forcing recreation with updated `preferredCameraDevice` params.
 - **`captureMultiplePhotos()` web/macOS compatibility fallback**: Avoids not-implemented flows by falling back to a single camera capture on web and macOS, returning a one-item `List<String>` to keep API shape consistent.
+- **`pickMultipleImages()` returning duplicate paths**: Fixed timestamp collision bug where multiple images processed within the same second would all receive the same filename. Changed timestamp format from second-precision (`yyyyMMdd_HHmmss`) to millisecond-precision (`yyyyMMdd_HHmmss_SSS`) on Android/iOS and from `Int(Date().timeIntervalSince1970)` to millisecond-precision on macOS. This ensures unique filenames for each processed image when selecting multiple photos.
 
 ## 1.1.0-rc.11
 

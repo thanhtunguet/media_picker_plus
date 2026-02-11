@@ -420,9 +420,9 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
     /// Thread-safe version that takes explicit options parameter.
     /// This avoids race conditions when called from background threads.
     private func saveMediaToFile(info: [UIImagePickerController.InfoKey: Any], options: [String: Any]?) -> String? {
-        // Create a unique filename based on timestamp
+        // Create a unique filename based on timestamp with milliseconds for uniqueness
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        formatter.dateFormat = "yyyyMMdd_HHmmss_SSS"
         let timestamp = formatter.string(from: Date())
 
         // Check if it's an image or video
