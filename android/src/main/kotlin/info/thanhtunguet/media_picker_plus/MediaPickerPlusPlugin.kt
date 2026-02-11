@@ -2045,7 +2045,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 }
             }
         } else if (resultCode == Activity.RESULT_CANCELED) {
-            pendingResult?.error("CANCELLED", "User cancelled the operation", null)
+            pendingResult?.success(null)
             pendingResult = null
             return true
         }

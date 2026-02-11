@@ -252,7 +252,31 @@ void main() {
   });
 
   group('pickMedia', () {
-    test('handles PlatformException correctly', () async {
+    test('returns null for cancellation PlatformException codes', () async {
+      final api = MethodChannelMediaPickerPlus();
+      const cancellationCodes = [
+        'CANCELLED',
+        'cancelled',
+        'operation_cancelled',
+      ];
+
+      for (final code in cancellationCodes) {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+          throw PlatformException(code: code, message: 'User cancelled');
+        });
+
+        final result = await api.pickMedia(
+          MediaSource.gallery,
+          MediaType.image,
+          const MediaOptions(),
+        );
+
+        expect(result, isNull, reason: 'Expected null for code: $code');
+      }
+    });
+
+    test('handles non-cancel PlatformException correctly', () async {
       final api = MethodChannelMediaPickerPlus();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
@@ -485,7 +509,26 @@ void main() {
       expect(args?['allowedExtensions'], isNull);
     });
 
-    test('handles PlatformException', () async {
+    test('returns null for cancellation PlatformException codes', () async {
+      final api = MethodChannelMediaPickerPlus();
+      const cancellationCodes = [
+        'CANCELLED',
+        'cancelled',
+        'operation_cancelled',
+      ];
+
+      for (final code in cancellationCodes) {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+          throw PlatformException(code: code, message: 'User cancelled');
+        });
+
+        final result = await api.pickFile(const MediaOptions(), null);
+        expect(result, isNull, reason: 'Expected null for code: $code');
+      }
+    });
+
+    test('handles non-cancel PlatformException', () async {
       final api = MethodChannelMediaPickerPlus();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
@@ -532,7 +575,26 @@ void main() {
       expect(result, isNull);
     });
 
-    test('handles PlatformException', () async {
+    test('returns null for cancellation PlatformException codes', () async {
+      final api = MethodChannelMediaPickerPlus();
+      const cancellationCodes = [
+        'CANCELLED',
+        'cancelled',
+        'operation_cancelled',
+      ];
+
+      for (final code in cancellationCodes) {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+          throw PlatformException(code: code, message: 'User cancelled');
+        });
+
+        final result = await api.pickMultipleFiles(const MediaOptions(), null);
+        expect(result, isNull, reason: 'Expected null for code: $code');
+      }
+    });
+
+    test('handles non-cancel PlatformException', () async {
       final api = MethodChannelMediaPickerPlus();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
@@ -547,7 +609,30 @@ void main() {
   });
 
   group('pickMultipleMedia', () {
-    test('handles PlatformException', () async {
+    test('returns null for cancellation PlatformException codes', () async {
+      final api = MethodChannelMediaPickerPlus();
+      const cancellationCodes = [
+        'CANCELLED',
+        'cancelled',
+        'operation_cancelled',
+      ];
+
+      for (final code in cancellationCodes) {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+          throw PlatformException(code: code, message: 'User cancelled');
+        });
+
+        final result = await api.pickMultipleMedia(
+          MediaSource.gallery,
+          MediaType.image,
+          const MediaOptions(),
+        );
+        expect(result, isNull, reason: 'Expected null for code: $code');
+      }
+    });
+
+    test('handles non-cancel PlatformException', () async {
       final api = MethodChannelMediaPickerPlus();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {

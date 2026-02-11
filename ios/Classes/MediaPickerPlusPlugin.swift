@@ -1173,7 +1173,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
 
     public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
         picker.dismiss(animated: true) {
-            self.pendingResult?(MediaPickerPlusError.cancelled())
+            self.pendingResult?(nil)
             self.pendingResult = nil
             self.mediaOptions = nil
         }
@@ -1221,7 +1221,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
 
     public func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
         controller.dismiss(animated: true) {
-            self.pendingResult?(MediaPickerPlusError.cancelled())
+            self.pendingResult?(nil)
             self.pendingResult = nil
             self.mediaOptions = nil
         }
@@ -1232,7 +1232,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
     public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
         picker.dismiss(animated: true) {
             if results.isEmpty {
-                self.pendingResult?(MediaPickerPlusError.cancelled())
+                self.pendingResult?(nil)
                 self.pendingResult = nil
                 self.mediaOptions = nil
                 return

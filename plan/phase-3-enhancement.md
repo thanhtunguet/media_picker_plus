@@ -69,6 +69,9 @@ Goal: expand features and developer experience after macOS/Web are functional an
     - Use `boundingRect`-based bounds + clamping for more accurate emoji/stroke/descender sizing.
   - [x] Handle multiline ("\n") watermark text on Android images/videos
     - Switch to StaticLayout-based rendering for text measurement and drawing.
+  - [x] Align picker dialog cancellation behavior to nullable API contract
+    - Android/iOS/macOS picker/capture cancel callbacks now return `null` instead of throwing cancellation errors.
+    - Dart method-channel picker methods defensively map cancellation codes (`CANCELLED`, `cancelled`, `operation_cancelled`) to `null` while preserving non-cancel errors.
 
 ### Security & Privacy
 - [ ] **Implement security best practices**

@@ -444,7 +444,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             if response == .OK, let url = openPanel.url {
                 self.processSelectedImage(url: url)
             } else {
-                self.pendingResult?(MediaPickerPlusError.cancelled())
+                self.pendingResult?(nil)
                 self.pendingResult = nil
             }
         }
@@ -471,7 +471,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             if response == .OK, let url = openPanel.url {
                 self.processSelectedVideo(url: url)
             } else {
-                self.pendingResult?(MediaPickerPlusError.cancelled())
+                self.pendingResult?(nil)
                 self.pendingResult = nil
             }
         }
@@ -576,7 +576,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             onCancel: { [weak self] in
                 print("Cancel button pressed")
                 self?.cleanupCaptureSession()
-                self?.pendingResult?(MediaPickerPlusError.cancelled())
+                self?.pendingResult?(nil)
                 self?.pendingResult = nil
             }
         )
@@ -670,7 +670,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             onCancel: { [weak self] in
                 print("Cancel button pressed")
                 self?.cleanupCaptureSession()
-                self?.pendingResult?(MediaPickerPlusError.cancelled())
+                self?.pendingResult?(nil)
                 self?.pendingResult = nil
             }
         )

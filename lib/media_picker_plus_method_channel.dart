@@ -32,6 +32,9 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       });
       return result;
     } on PlatformException catch (e) {
+      if (_isPickerCancellationException(e)) {
+        return null;
+      }
       throw Exception('Error picking media: ${e.message}');
     }
   }
@@ -88,6 +91,9 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       });
       return result;
     } on PlatformException catch (e) {
+      if (_isPickerCancellationException(e)) {
+        return null;
+      }
       throw Exception('Error picking file: ${e.message}');
     }
   }
@@ -103,6 +109,9 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       });
       return result?.cast<String>().toList();
     } on PlatformException catch (e) {
+      if (_isPickerCancellationException(e)) {
+        return null;
+      }
       throw Exception('Error picking multiple files: ${e.message}');
     }
   }
@@ -119,6 +128,9 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       });
       return result?.cast<String>().toList();
     } on PlatformException catch (e) {
+      if (_isPickerCancellationException(e)) {
+        return null;
+      }
       throw Exception('Error picking multiple media: ${e.message}');
     }
   }
@@ -235,6 +247,11 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     } on PlatformException catch (e) {
       throw Exception('Error compressing video: ${e.message}');
     }
+  }
+
+  bool _isPickerCancellationException(PlatformException exception) {
+    final code = exception.code.toLowerCase();
+    return code == 'cancelled' || code == 'operation_cancelled';
   }
 
   /// Helper method to safely convert various types to boolean
