@@ -20,6 +20,28 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
     private var pendingResult: FlutterResult?
     private var mediaOptions: [String: Any]?
 
+    // MARK: - Timestamp Generation
+
+    /// Shared date formatter for timestamp generation with millisecond precision.
+    /// Format: yyyyMMdd_HHmmss_SSS (e.g., 20240115_143052_123)
+    private static let timestampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss_SSS"
+        return formatter
+    }()
+
+    /// Generates a unique timestamp string with millisecond precision.
+    /// - Returns: A timestamp string in the format yyyyMMdd_HHmmss_SSS
+    static func generateTimestamp() -> String {
+        return timestampFormatter.string(from: Date())
+    }
+
+    /// Generates a unique millisecond-precision timestamp for numeric-based filenames.
+    /// - Returns: Milliseconds since epoch as Int
+    static func generateTimestampMillis() -> Int {
+        return Int(Date().timeIntervalSince1970 * 1000)
+    }
+
     /// Calculate watermark font size from options.
     /// If watermarkFontSizePercentage is provided, calculates based on shorter edge.
     /// Otherwise, uses watermarkFontSize or default value.
@@ -421,9 +443,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
     /// This avoids race conditions when called from background threads.
     private func saveMediaToFile(info: [UIImagePickerController.InfoKey: Any], options: [String: Any]?) -> String? {
         // Create a unique filename based on timestamp with milliseconds for uniqueness
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd_HHmmss_SSS"
-        let timestamp = formatter.string(from: Date())
+        let timestamp = SwiftMediaPickerPlusPlugin.generateTimestamp()
 
         // Check if it's an image or video
         if let image = info[.originalImage] as? UIImage {
@@ -947,9 +967,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
                 in: parentLayer)
 
             // Create export session
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyyMMdd_HHmmss"
-            let timestamp = formatter.string(from: Date())
+            let timestamp = SwiftMediaPickerPlusPlugin.generateTimestamp()
 
             // Create a new destination for the watermarked video
             let documentsDirectory = FileManager.default.temporaryDirectory
@@ -1274,10 +1292,8 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
     }
 
     private func copyFileToTemp(from url: URL) -> String? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd_HHmmss"
-        let timestamp = formatter.string(from: Date())
-        
+        let timestamp = SwiftMediaPickerPlusPlugin.generateTimestamp()
+
         let fileName = url.lastPathComponent
         let tempDir = FileManager.default.temporaryDirectory
         let destURL = tempDir.appendingPathComponent("FILE_\(timestamp)_\(fileName)")
@@ -1538,9 +1554,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         originalPath: String
     ) -> String? {
         // Create export session
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd_HHmmss"
-        let timestamp = formatter.string(from: Date())
+        let timestamp = SwiftMediaPickerPlusPlugin.generateTimestamp()
 
         // Create a new destination for the processed video
         let documentsDirectory = FileManager.default.temporaryDirectory
@@ -1613,7 +1627,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         // Apply quality and save
         let quality = Double(options["imageQuality"] as? Int ?? 80) / 100.0
         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let filename = "processed_\(Int(Date().timeIntervalSince1970)).jpg"
+        let filename = "processed_\(SwiftMediaPickerPlusPlugin.generateTimestampMillis()).jpg"
         let fileURL = documentsDirectory.appendingPathComponent(filename)
         
         guard let data = processedImage.jpegData(compressionQuality: CGFloat(quality)) else {
@@ -1661,7 +1675,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         // Save the watermarked image
         let quality = Double(options["imageQuality"] as? Int ?? 80) / 100.0
         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let filename = "watermarked_image_\(Int(Date().timeIntervalSince1970)).jpg"
+        let filename = "watermarked_image_\(SwiftMediaPickerPlusPlugin.generateTimestampMillis()).jpg"
         let fileURL = documentsDirectory.appendingPathComponent(filename)
         
         guard let data = watermarkedImage.jpegData(compressionQuality: CGFloat(quality)) else {
@@ -1775,7 +1789,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         
         // Generate output path
         let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
-        let timestamp = Int(Date().timeIntervalSince1970)
+        let timestamp = SwiftMediaPickerPlusPlugin.generateTimestampMillis()
         let outputVideoPath = "\(documentsPath)/processed_video_\(timestamp).mp4"
         let outputURL = URL(fileURLWithPath: outputVideoPath)
         
@@ -1909,7 +1923,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             outputVideoPath = customOutput
         } else {
             let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
-            let timestamp = Int(Date().timeIntervalSince1970)
+            let timestamp = SwiftMediaPickerPlusPlugin.generateTimestampMillis()
             outputVideoPath = "\(documentsPath)/compressed_video_\(timestamp).mp4"
         }
         

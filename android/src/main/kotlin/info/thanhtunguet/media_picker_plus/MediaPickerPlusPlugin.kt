@@ -105,6 +105,18 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         }
     }
 
+    companion object {
+        private val timestampFormatter = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US)
+
+        /**
+         * Generates a unique timestamp string with millisecond precision.
+         * Format: yyyyMMdd_HHmmss_SSS (e.g., 20240115_143052_123)
+         */
+        fun generateTimestamp(): String {
+            return timestampFormatter.format(Date())
+        }
+    }
+
     /**
      * Calculate watermark font size from options.
      * If watermarkFontSizePercentage is provided, calculates based on shorter edge.
@@ -380,7 +392,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
     private fun createMediaFile(isImage: Boolean): File? {
         try {
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val timeStamp = generateTimestamp()
             val fileName = if (isImage) "IMG_${timeStamp}" else "VID_${timeStamp}"
             val extension = if (isImage) ".jpg" else ".mp4"
             
@@ -744,9 +756,9 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         return try {
             Log.d("MediaPickerPlus", "copyUriToTempFile: Starting copy for URI = $uri")
             
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val timeStamp = generateTimestamp()
             val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-            
+
             if (storageDir == null) {
                 Log.e("MediaPickerPlus", "Failed to get external files directory")
                 return null
@@ -876,7 +888,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     else -> 75
                 }
             }
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
+            val timeStamp = generateTimestamp()
             val fileName = "IMG_PROCESSED_$timeStamp.jpg"
             val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
             val outputFile = File(storageDir, fileName)
@@ -1037,7 +1049,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             return sourcePath
         }
         try {
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val timeStamp = generateTimestamp()
             val videoFileName = "VID_PROCESSED_$timeStamp.mp4"
             val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
             val outputVideoFile = File(storageDir, videoFileName)
@@ -2184,7 +2196,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             val watermarkedBitmap = addWatermarkToBitmap(originalBitmap, watermarkText, fontSize, position)
 
             // Create output file
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val timeStamp = generateTimestamp()
             val outputFileName = "watermarked_image_${timeStamp}.jpg"
             val outputFile = File(context.cacheDir, outputFileName)
 
@@ -2224,7 +2236,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             }
 
             // Create output file
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val timeStamp = generateTimestamp()
             val outputFileName = "watermarked_video_${timeStamp}.mp4"
             val outputFile = File(context.cacheDir, outputFileName)
 
@@ -2278,7 +2290,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 }
 
                 // Create output file for thumbnail
-                val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                val timeStamp = generateTimestamp()
                 val thumbnailFileName = "thumbnail_${timeStamp}.jpg"
                 val outputFile = File(context.cacheDir, thumbnailFileName)
 
@@ -2470,7 +2482,7 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             }
 
             // Create output file
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val timeStamp = generateTimestamp()
             val outputFileName = "processed_video_${timeStamp}.mp4"
             val outputFile = File(context.cacheDir, outputFileName)
 

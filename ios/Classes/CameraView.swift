@@ -51,6 +51,11 @@ class CameraView: NSObject, FlutterPlatformView {
         case ultraWide
     }
 
+    /// Generates a unique millisecond-precision timestamp for filenames.
+    private static func generateTimestamp() -> Int {
+        return Int(Date().timeIntervalSince1970 * 1000)
+    }
+
     private var _view: CameraPreviewView
     private let previewLayer: AVCaptureVideoPreviewLayer
     private let captureSession: AVCaptureSession
@@ -328,7 +333,7 @@ extension CameraView: AVCapturePhotoCaptureDelegate {
 
         // Save to temp directory
         let tempDir = NSTemporaryDirectory()
-        let fileName = "media_picker_plus_\(Date().timeIntervalSince1970).jpg"
+        let fileName = "media_picker_plus_\(CameraView.generateTimestamp()).jpg"
         let filePath = (tempDir as NSString).appendingPathComponent(fileName)
 
         do {

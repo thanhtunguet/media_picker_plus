@@ -136,7 +136,29 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     private var movieCaptureDelegate: MovieCaptureDelegate?
     private var cameraPreviewWindow: CameraPreviewWindow?
     private var videoPreviewWindow: VideoPreviewWindow?
-    
+
+    // MARK: - Timestamp Generation
+
+    /// Shared date formatter for timestamp generation with millisecond precision.
+    /// Format: yyyyMMdd_HHmmss_SSS (e.g., 20240115_143052_123)
+    private static let timestampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss_SSS"
+        return formatter
+    }()
+
+    /// Generates a unique timestamp string with millisecond precision.
+    /// - Returns: A timestamp string in the format yyyyMMdd_HHmmss_SSS
+    static func generateTimestamp() -> String {
+        return timestampFormatter.string(from: Date())
+    }
+
+    /// Generates a unique millisecond-precision timestamp for numeric-based filenames.
+    /// - Returns: Milliseconds since epoch as Int
+    static func generateTimestampMillis() -> Int {
+        return Int(Date().timeIntervalSince1970 * 1000)
+    }
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "info.thanhtunguet.media_picker_plus", binaryMessenger: registrar.messenger)
         let instance = MediaPickerPlusPlugin()
@@ -620,7 +642,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         let output = AVCaptureMovieFileOutput()
         session.addOutput(output)
         
-        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("recorded_video_\(Int(Date().timeIntervalSince1970 * 1000)).mov")
+        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("recorded_video_\(MediaPickerPlusPlugin.generateTimestampMillis()).mov")
         
         // Retain the delegate as an instance variable
         movieCaptureDelegate = MovieCaptureDelegate { [weak self] url in
@@ -700,7 +722,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         }
         
         // Save to temporary file with millisecond precision for uniqueness
-        let timestamp = Int(Date().timeIntervalSince1970 * 1000)
+        let timestamp = MediaPickerPlusPlugin.generateTimestampMillis()
         let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("temp_image_\(timestamp).jpg")
         print("Saving processed image to: \(tempURL.path)")
         
@@ -1287,7 +1309,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         videoComposition.instructions = [instruction]
         
         // Export
-        let outputURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("processed_video_\(Int(Date().timeIntervalSince1970 * 1000)).mov")
+        let outputURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("processed_video_\(MediaPickerPlusPlugin.generateTimestampMillis()).mov")
         
         guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
             completion(nil)
@@ -1348,7 +1370,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         // Apply quality and save with millisecond precision for uniqueness
         let quality = (options["imageQuality"] as? Int ?? 80) / 100
         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let filename = "processed_\(Int(Date().timeIntervalSince1970 * 1000)).jpg"
+        let filename = "processed_\(MediaPickerPlusPlugin.generateTimestampMillis()).jpg"
         let fileURL = documentsDirectory.appendingPathComponent(filename)
         
         guard let cgImage = processedImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
@@ -1397,7 +1419,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         // Save the watermarked image
         let quality = (options["imageQuality"] as? Int ?? 80) / 100
         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let filename = "watermarked_image_\(Int(Date().timeIntervalSince1970 * 1000)).jpg"
+        let filename = "watermarked_image_\(MediaPickerPlusPlugin.generateTimestampMillis()).jpg"
         let fileURL = documentsDirectory.appendingPathComponent(filename)
         
         guard let cgImage = watermarkedImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
@@ -1500,7 +1522,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         
         // Generate output path
         let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
-        let timestamp = Int(Date().timeIntervalSince1970 * 1000)
+        let timestamp = MediaPickerPlusPlugin.generateTimestampMillis()
         let outputVideoPath = "\(documentsPath)/processed_video_\(timestamp).mp4"
         let outputURL = URL(fileURLWithPath: outputVideoPath)
         
