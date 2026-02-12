@@ -25,18 +25,30 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
   Future<String?> pickMedia(
       MediaSource source, MediaType type, MediaOptions options) async {
     try {
-      final result = await methodChannel.invokeMethod<String>('pickMedia', {
+      final result = await methodChannel.invokeMethod<dynamic>('pickMedia', {
         'source': source.toString().split('.').last,
         'type': type.toString().split('.').last,
         'options': options.toMap(),
       });
-      return result;
+      return _pickMediaResultToPath(result);
     } on PlatformException catch (e) {
       if (_isPickerCancellationException(e)) {
         return null;
       }
       throw Exception('Error picking media: ${e.message}');
     }
+  }
+
+  /// Converts native pickMedia result to a file path string.
+  /// Native may return a [String] path or a [Map] (e.g. {'path': '...'}).
+  static String? _pickMediaResultToPath(dynamic result) {
+    if (result == null) return null;
+    if (result is String) return result;
+    if (result is Map) {
+      final path = result['path'] ?? result['filePath'];
+      return path is String ? path : path?.toString();
+    }
+    return result.toString();
   }
 
   @override

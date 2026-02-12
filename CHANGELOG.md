@@ -1,3 +1,8 @@
+## 1.1.0-rc.14
+
+### Fixed
+- **Pick video / pickMedia result type**: Method channel now accepts both `String` and `Map` from native. When native returns a map (e.g. `{'path': '...'}`), the path is extracted so `pickVideo()` and other pick flows no longer throw due to type mismatch.
+
 ## 1.1.0-rc.13
 
 ### Added
