@@ -2,6 +2,7 @@
 
 ### Fixed
 - **Pick video / pickMedia result type**: Method channel now accepts both `String` and `Map` from native. When native returns a map (e.g. `{'path': '...'}`), the path is extracted so `pickVideo()` and other pick flows no longer throw due to type mismatch.
+- **iOS error propagation**: iOS now returns `FlutterError` (not `{error:{code,message}}` maps) for picker failures like `save_failed`, ensuring Dart receives a proper `PlatformException` instead of an “unknown map structure”.
 
 ## 1.1.0-rc.13
 

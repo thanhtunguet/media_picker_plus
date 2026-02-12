@@ -14,51 +14,44 @@ public enum MediaPickerPlusErrorCode: String {
 }
 
 public class MediaPickerPlusError {
-    static func invalidArgs() -> [String: Any] {
+    static func invalidArgs() -> FlutterError {
         return createError(code: .invalidArgs, message: "Invalid arguments")
     }
 
-    static func invalidType() -> [String: Any] {
+    static func invalidType() -> FlutterError {
         return createError(code: .invalidType, message: "Invalid media type")
     }
 
-    static func invalidSource() -> [String: Any] {
+    static func invalidSource() -> FlutterError {
         return createError(code: .invalidSource, message: "Invalid media source")
     }
 
-    static func permissionDenied() -> [String: Any] {
+    static func permissionDenied() -> FlutterError {
         return createError(code: .permissionDenied, message: "Permission denied")
     }
 
-    static func saveFailed() -> [String: Any] {
+    static func saveFailed() -> FlutterError {
         return createError(code: .saveFailed, message: "Failed to save media")
     }
 
-    static func cancelled() -> [String: Any] {
+    static func cancelled() -> FlutterError {
         return createError(code: .cancelled, message: "User cancelled")
     }
 
-    static func unsupportedOS() -> [String: Any] {
+    static func unsupportedOS() -> FlutterError {
         return createError(code: .unsupportedOS, message: "Feature not supported on this iOS version")
     }
 
-    static func invalidImage() -> [String: Any] {
+    static func invalidImage() -> FlutterError {
         return createError(code: .invalidImage, message: "Invalid image file")
     }
 
-    static func processingFailed() -> [String: Any] {
+    static func processingFailed() -> FlutterError {
         return createError(code: .processingFailed, message: "Image processing failed")
     }
 
-    private static func createError(code: MediaPickerPlusErrorCode, message: String) -> [String:
-        Any]
-    {
-        return [
-            "error": [
-                "code": code.rawValue,
-                "message": message,
-            ]
-        ]
+    private static func createError(code: MediaPickerPlusErrorCode, message: String) -> FlutterError {
+        return FlutterError(code: code.rawValue, message: message, details: nil)
     }
 }
 

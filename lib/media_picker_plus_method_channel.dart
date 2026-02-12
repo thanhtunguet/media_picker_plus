@@ -45,6 +45,18 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     if (result == null) return null;
     if (result is String) return result;
     if (result is Map) {
+      // Some native implementations may return an error object instead of
+      // throwing a PlatformException.
+      //
+      // Expected shape:
+      //   { error: { code: 'save_failed', message: 'Failed to save media' } }
+      final error = result['error'];
+      if (error is Map) {
+        final code = error['code']?.toString() ?? 'unknown';
+        final message = error['message']?.toString();
+        throw PlatformException(code: code, message: message, details: error);
+      }
+
       final path = result['path'] ?? result['filePath'];
       return path is String ? path : path?.toString();
     }
