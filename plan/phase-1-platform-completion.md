@@ -57,5 +57,15 @@ Goal: bring macOS and Web implementations up to feature parity with Android/iOS.
   - Updated README.md platform support table to show Android video watermarking as ✅
   - Verification: Android video watermarking now working for both gallery-picked and camera-recorded videos
 
+## Cross-Platform Method Parity
+- [x] **Fix cross-platform method signature mismatches**
+  - Removed dead `getVideoInfo` call from Dart `compressVideo()` — native side already extracts dimensions internally
+  - Fixed iOS `compressVideo` rotation bug — now uses `preferredTransform` for rotation-aware dimensions
+  - Follow-up fix: resolved iOS `compressVideo` compile regression in the no-video-track guard (`INVALID_VIDEO` returned for invalid input)
+  - Follow-up fix: wired `targetBitrate` handling on iOS/macOS `compressVideo` via duration-based `fileLengthLimit` during export
+  - Added `getThumbnail` to iOS and macOS using `AVAssetImageGenerator` with optional post-processing
+  - Added `pickMultipleMedia` to macOS using `NSOpenPanel` with image/video type filtering
+  - Added `compressVideo` to macOS with rotation-aware transforms, aspect ratio preservation, and audio passthrough
+
 ## Next Session Priorities (Actionable)
 1. Expand automated testing coverage (see Phase 2)

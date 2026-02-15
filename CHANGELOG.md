@@ -1,3 +1,17 @@
+## Unreleased
+
+### Fixed
+- **Dart `compressVideo` removed dead `getVideoInfo` call**: The method channel `compressVideo()` no longer calls the unimplemented `getVideoInfo` native method. The native side already extracts real video dimensions internally, so the Dart-side dimension pre-fetch was redundant and always fell back to hardcoded defaults.
+- **iOS `compressVideo` rotation bug**: Fixed portrait video compression producing wrong dimensions. Now uses `preferredTransform` to detect rotation (matching the existing `applyVideo` pattern), calculates aspect-ratio-preserving output dimensions, and applies rotation-aware transforms.
+- **iOS `compressVideo` compile regression**: Fixed an undefined export session reference in the no-video-track guard path; invalid inputs now return a clear `INVALID_VIDEO` error.
+- **iOS/macOS `compressVideo` bitrate handling**: `targetBitrate` is now applied during export by setting an output file size limit based on media duration, so compression options are no longer ignored on Apple platforms.
+
+### Added
+- **iOS `getThumbnail`**: Extracts a video frame at a specified time using `AVAssetImageGenerator`. Supports optional post-processing (crop, watermark, quality) via the existing `processImage` pipeline.
+- **macOS `getThumbnail`**: Same functionality as iOS, using `NSBitmapImageRep` for JPEG conversion.
+- **macOS `pickMultipleMedia`**: Gallery-based multi-file picker using `NSOpenPanel` with `allowsMultipleSelection`. Supports filtering by image or video file types.
+- **macOS `compressVideo`**: Full video compression with rotation-aware dimension handling, aspect ratio preservation, audio track passthrough, and `AVAssetExportSession`-based export. Matches the pattern established in the iOS and macOS `applyVideo` implementations.
+
 ## 1.1.0-rc.14
 
 ### Fixed

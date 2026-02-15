@@ -54,13 +54,16 @@ The macOS implementation provides partial media picking and camera capture capab
 #### Video Processing
 - **Watermarking**: ✅ Native AVFoundation-based text overlay
 - **Cropping**: ✅ Rectangle and aspect ratio support
-- **Quality Control**: ⚠️ Basic export quality settings
-- **Format Support**: ⚠️ Limited to MOV output
+- **Compression**: ✅ Full `compressVideo` with rotation-aware transforms, aspect ratio preservation, and audio passthrough
+- **Thumbnail Extraction**: ✅ `getThumbnail` using AVAssetImageGenerator with optional post-processing
+- **Quality Control**: ⚠️ Basic export quality settings with bitrate-targeted size limiting in `compressVideo`
+- **Format Support**: ⚠️ Limited to MOV/MP4 output
 
 #### Gallery Access
 - **File System**: ✅ NSOpenPanel works well for file selection
 - **Photos Library**: ⚠️ Limited PHPhotoLibrary integration
 - **Content Types**: ✅ Smart filtering for images and videos
+- **Multiple Media Selection**: ✅ `pickMultipleMedia` with image/video type filtering via NSOpenPanel
 
 ### ❌ Missing Features (85% Incomplete)
 

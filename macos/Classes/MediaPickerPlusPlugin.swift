@@ -304,10 +304,45 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
                 result(MediaPickerPlusError.invalidArgs())
                 return
             }
-            
+
             let options = args["options"] as? [String: Any] ?? [:]
             applyVideo(videoPath: videoPath, options: options, result: result)
-            
+
+        case "getThumbnail":
+            guard let args = call.arguments as? [String: Any],
+                  let videoPath = args["videoPath"] as? String else {
+                result(MediaPickerPlusError.invalidArgs())
+                return
+            }
+
+            let timeInSeconds = args["timeInSeconds"] as? Double ?? 1.0
+            let options = args["options"] as? [String: Any]
+            extractThumbnail(videoPath: videoPath, timeInSeconds: timeInSeconds, options: options, result: result)
+
+        case "pickMultipleMedia":
+            guard let args = call.arguments as? [String: Any] else {
+                result(MediaPickerPlusError.invalidArgs())
+                return
+            }
+
+            let source = args["source"] as? String ?? "gallery"
+            let type = args["type"] as? String ?? "image"
+            if let options = args["options"] as? [String: Any] {
+                self.mediaOptions = options
+            }
+            pickMultipleMedia(source: source, type: type, result: result)
+
+        case "compressVideo":
+            guard let args = call.arguments as? [String: Any],
+                  let inputPath = args["inputPath"] as? String else {
+                result(MediaPickerPlusError.invalidArgs())
+                return
+            }
+
+            let outputPath = args["outputPath"] as? String
+            let options = args["options"] as? [String: Any] ?? [:]
+            compressVideo(inputPath: inputPath, outputPath: outputPath, options: options, result: result)
+
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -1475,6 +1510,221 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     /// - Resizing (within maxWidth and maxHeight)
     /// - Video quality compression
     /// - Watermarking
+    private func extractThumbnail(videoPath: String, timeInSeconds: Double, options: [String: Any]?, result: @escaping FlutterResult) {
+        guard FileManager.default.fileExists(atPath: videoPath) else {
+            result(FlutterError(code: "INVALID_VIDEO", message: "Video file does not exist", details: nil))
+            return
+        }
+
+        let inputURL = URL(fileURLWithPath: videoPath)
+        let asset = AVAsset(url: inputURL)
+        let imageGenerator = AVAssetImageGenerator(asset: asset)
+        imageGenerator.appliesPreferredTrackTransform = true
+
+        let time = CMTime(seconds: timeInSeconds, preferredTimescale: 600)
+        var actualTime = CMTime.zero
+
+        do {
+            let cgImage = try imageGenerator.copyCGImage(at: time, actualTime: &actualTime)
+            let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
+            guard let jpegData = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.85]) else {
+                result(FlutterError(code: "THUMBNAIL_FAILED", message: "Failed to convert thumbnail to JPEG", details: nil))
+                return
+            }
+
+            let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
+            let timestamp = MediaPickerPlusPlugin.generateTimestampMillis()
+            let thumbnailPath = "\(documentsPath)/thumbnail_\(timestamp).jpg"
+
+            try jpegData.write(to: URL(fileURLWithPath: thumbnailPath))
+
+            // If options provided, post-process through existing processImage
+            if let options = options, !options.isEmpty {
+                processImage(imagePath: thumbnailPath, options: options, result: result)
+            } else {
+                result(thumbnailPath)
+            }
+        } catch {
+            result(FlutterError(code: "THUMBNAIL_FAILED", message: "Failed to extract thumbnail: \(error.localizedDescription)", details: nil))
+        }
+    }
+
+    private func pickMultipleMedia(source: String, type: String, result: @escaping FlutterResult) {
+        // Only gallery source is supported for multi-pick on macOS
+        // Camera multi-capture is handled by the Flutter UI layer
+        guard source == "gallery" else {
+            result(FlutterError(code: "UNSUPPORTED_SOURCE", message: "Only gallery source is supported for pickMultipleMedia on macOS", details: nil))
+            return
+        }
+
+        let extensions: [String]
+        switch type {
+        case "video":
+            extensions = ["mp4", "mov", "avi", "m4v"]
+        default:
+            // "image" or any other type defaults to image extensions
+            extensions = ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "heic"]
+        }
+
+        pickMultipleFiles(allowedExtensions: extensions) { paths in
+            DispatchQueue.main.async {
+                result(paths)
+            }
+        }
+    }
+
+    private func compressVideo(inputPath: String, outputPath: String?, options: [String: Any], result: @escaping FlutterResult) {
+        guard FileManager.default.fileExists(atPath: inputPath) else {
+            result(FlutterError(code: "INVALID_VIDEO", message: "Input video file does not exist", details: nil))
+            return
+        }
+
+        // Generate output path if not provided
+        let outputVideoPath: String
+        if let customOutput = outputPath {
+            outputVideoPath = customOutput
+        } else {
+            let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
+            let timestamp = MediaPickerPlusPlugin.generateTimestampMillis()
+            outputVideoPath = "\(documentsPath)/compressed_video_\(timestamp).mp4"
+        }
+
+        // Parse compression options
+        let targetBitrate = options["targetBitrate"] as? Int ?? 1500000
+        let targetWidth = options["targetWidth"] as? Int ?? 854
+        let targetHeight = options["targetHeight"] as? Int ?? 480
+        let deleteOriginal = options["deleteOriginalFile"] as? Bool ?? false
+
+        let inputURL = URL(fileURLWithPath: inputPath)
+        let outputURL = URL(fileURLWithPath: outputVideoPath)
+
+        // Remove existing output file if it exists
+        if FileManager.default.fileExists(atPath: outputVideoPath) {
+            try? FileManager.default.removeItem(at: outputURL)
+        }
+
+        // Create AVAsset from input video
+        let asset = AVAsset(url: inputURL)
+        guard let videoTrack = asset.tracks(withMediaType: .video).first else {
+            result(FlutterError(code: "INVALID_VIDEO", message: "Unable to read video track", details: nil))
+            return
+        }
+
+        // Handle rotation-aware dimensions
+        let videoTransform = videoTrack.preferredTransform
+        let isPortrait = abs(videoTransform.b) == 1 && abs(videoTransform.c) == 1
+        let naturalSize = isPortrait
+            ? CGSize(width: videoTrack.naturalSize.height, height: videoTrack.naturalSize.width)
+            : videoTrack.naturalSize
+
+        // Calculate actual output dimensions maintaining aspect ratio
+        var actualWidth = targetWidth
+        var actualHeight = targetHeight
+
+        if actualWidth > Int(naturalSize.width) { actualWidth = Int(naturalSize.width) }
+        if actualHeight > Int(naturalSize.height) { actualHeight = Int(naturalSize.height) }
+
+        let widthRatio = Double(actualWidth) / Double(naturalSize.width)
+        let heightRatio = Double(actualHeight) / Double(naturalSize.height)
+        let ratio = min(widthRatio, heightRatio)
+        actualWidth = Int(naturalSize.width * ratio)
+        actualHeight = Int(naturalSize.height * ratio)
+
+        // Ensure even dimensions
+        actualWidth = actualWidth % 2 == 0 ? actualWidth : actualWidth - 1
+        actualHeight = actualHeight % 2 == 0 ? actualHeight : actualHeight - 1
+
+        // Create composition
+        let composition = AVMutableComposition()
+        let timeRange = CMTimeRange(start: .zero, duration: asset.duration)
+
+        guard let compositionVideoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            result(FlutterError(code: "COMPOSITION_FAILED", message: "Failed to create video track", details: nil))
+            return
+        }
+
+        do {
+            try compositionVideoTrack.insertTimeRange(timeRange, of: videoTrack, at: .zero)
+        } catch {
+            result(FlutterError(code: "COMPOSITION_FAILED", message: "Failed to insert video track", details: nil))
+            return
+        }
+
+        // Add audio track if exists
+        if let audioTrack = asset.tracks(withMediaType: .audio).first,
+           let compositionAudioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
+            try? compositionAudioTrack.insertTimeRange(timeRange, of: audioTrack, at: .zero)
+        }
+
+        // Set up video composition with rotation-aware transform
+        let videoComposition = AVMutableVideoComposition()
+        videoComposition.renderSize = CGSize(width: actualWidth, height: actualHeight)
+        videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+
+        let instruction = AVMutableVideoCompositionInstruction()
+        instruction.timeRange = timeRange
+
+        let transformer = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
+
+        let originalTransform = videoTrack.preferredTransform
+        let scaleX = CGFloat(actualWidth) / naturalSize.width
+        let scaleY = CGFloat(actualHeight) / naturalSize.height
+        let scale = min(scaleX, scaleY)
+        let translateX = (CGFloat(actualWidth) - naturalSize.width * scale) / 2
+        let translateY = (CGFloat(actualHeight) - naturalSize.height * scale) / 2
+
+        let finalTransform = originalTransform
+            .concatenating(CGAffineTransform(scaleX: scale, y: scale))
+            .concatenating(CGAffineTransform(translationX: translateX, y: translateY))
+
+        transformer.setTransform(finalTransform, at: .zero)
+        instruction.layerInstructions = [transformer]
+        videoComposition.instructions = [instruction]
+
+        // Create export session
+        guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetMediumQuality) else {
+            result(FlutterError(code: "EXPORT_SESSION_FAILED", message: "Failed to create export session", details: nil))
+            return
+        }
+
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = .mp4
+        exportSession.shouldOptimizeForNetworkUse = true
+        exportSession.videoComposition = videoComposition
+
+        // Honor target bitrate by constraining output file size for this duration.
+        if targetBitrate > 0 {
+            let durationSeconds = CMTimeGetSeconds(asset.duration)
+            if durationSeconds.isFinite, durationSeconds > 0 {
+                let estimatedBytes = Int64((Double(targetBitrate) * durationSeconds / 8.0).rounded())
+                exportSession.fileLengthLimit = max(estimatedBytes, 1)
+            }
+        }
+
+        // Perform the export
+        exportSession.exportAsynchronously {
+            DispatchQueue.main.async {
+                switch exportSession.status {
+                case .completed:
+                    if deleteOriginal {
+                        try? FileManager.default.removeItem(at: inputURL)
+                    }
+                    result(outputVideoPath)
+
+                case .failed:
+                    let errorMessage = exportSession.error?.localizedDescription ?? "Unknown export error"
+                    result(FlutterError(code: "EXPORT_FAILED", message: "Video compression failed: \(errorMessage)", details: nil))
+
+                case .cancelled:
+                    result(FlutterError(code: "EXPORT_CANCELLED", message: "Video compression was cancelled", details: nil))
+
+                default:
+                    result(FlutterError(code: "EXPORT_UNKNOWN", message: "Unknown export status", details: nil))
+                }
+            }
+        }
+    }
+
     private func applyVideo(videoPath: String, options: [String: Any], result: @escaping FlutterResult) {
         // Validate input video path
         guard FileManager.default.fileExists(atPath: videoPath) else {

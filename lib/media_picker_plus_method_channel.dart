@@ -240,24 +240,9 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       if (options is Map<String, dynamic>) {
         optionsMap = options;
       } else if (options is VideoCompressionOptions) {
-        // Get video dimensions first to calculate target resolution
-        try {
-          final videoInfo =
-              await methodChannel.invokeMethod<Map>('getVideoInfo', {
-            'videoPath': inputPath,
-          });
-
-          final originalWidth = videoInfo?['width'] as int? ?? 1920;
-          final originalHeight = videoInfo?['height'] as int? ?? 1080;
-
-          optionsMap = options.toMap(
-            originalWidth: originalWidth,
-            originalHeight: originalHeight,
-          );
-        } catch (e) {
-          // Fallback to default map if getting video info fails
-          optionsMap = options.toMap();
-        }
+        // Native side extracts real dimensions from the video internally,
+        // so we just pass the options with default fallback values
+        optionsMap = options.toMap();
       } else {
         optionsMap = (options as dynamic)?.toMap() ?? {};
       }

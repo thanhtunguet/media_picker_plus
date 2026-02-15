@@ -50,8 +50,10 @@ The iOS implementation provides comprehensive media picking, camera capture, and
 #### Video Processing
 - **Watermarking**: Native AVFoundation-based text overlay using Core Animation
 - **Cropping**: Rectangle and aspect ratio-based cropping using AVMutableVideoComposition
+- **Compression**: Rotation-aware `compressVideo` with aspect ratio preservation and audio passthrough
+- **Thumbnail Extraction**: `getThumbnail` using AVAssetImageGenerator with optional post-processing
 - **Format Support**: MP4, MOV, QuickTime formats
-- **Quality Control**: Configurable export quality and bitrate settings
+- **Quality Control**: Configurable export quality and bitrate-targeted size limiting during compression
 
 #### Permission System
 - **Camera Access**: AVCaptureDevice authorization with proper status handling
