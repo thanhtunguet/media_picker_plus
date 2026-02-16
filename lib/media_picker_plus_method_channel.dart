@@ -35,7 +35,7 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       if (_isPickerCancellationException(e)) {
         return null;
       }
-      throw Exception('Error picking media: ${e.message}');
+      rethrow;
     }
   }
 
@@ -118,7 +118,7 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       if (_isPickerCancellationException(e)) {
         return null;
       }
-      throw Exception('Error picking file: ${e.message}');
+      rethrow;
     }
   }
 
@@ -136,7 +136,7 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       if (_isPickerCancellationException(e)) {
         return null;
       }
-      throw Exception('Error picking multiple files: ${e.message}');
+      rethrow;
     }
   }
 
@@ -155,7 +155,7 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       if (_isPickerCancellationException(e)) {
         return null;
       }
-      throw Exception('Error picking multiple media: ${e.message}');
+      rethrow;
     }
   }
 
@@ -185,8 +185,8 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
         'options': options.toMap(),
       });
       return result;
-    } on PlatformException catch (e) {
-      throw Exception('Error applying image transformations: ${e.message}');
+    } on PlatformException {
+      rethrow;
     }
   }
 
@@ -205,8 +205,8 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
         'options': options.toMap(),
       });
       return result;
-    } on PlatformException catch (e) {
-      throw Exception('Error applying video transformations: ${e.message}');
+    } on PlatformException {
+      rethrow;
     }
   }
 
@@ -223,8 +223,8 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
         'options': options?.toMap(),
       });
       return result;
-    } on PlatformException catch (e) {
-      throw Exception('Error extracting thumbnail: ${e.message}');
+    } on PlatformException {
+      rethrow;
     }
   }
 
@@ -253,8 +253,8 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
         'options': optionsMap,
       });
       return result;
-    } on PlatformException catch (e) {
-      throw Exception('Error compressing video: ${e.message}');
+    } on PlatformException {
+      rethrow;
     }
   }
 

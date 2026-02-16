@@ -5,12 +5,18 @@
 - **iOS `compressVideo` rotation bug**: Fixed portrait video compression producing wrong dimensions. Now uses `preferredTransform` to detect rotation (matching the existing `applyVideo` pattern), calculates aspect-ratio-preserving output dimensions, and applies rotation-aware transforms.
 - **iOS `compressVideo` compile regression**: Fixed an undefined export session reference in the no-video-track guard path; invalid inputs now return a clear `INVALID_VIDEO` error.
 - **iOS/macOS `compressVideo` bitrate handling**: `targetBitrate` is now applied during export by setting an output file size limit based on media duration, so compression options are no longer ignored on Apple platforms.
+- **Android camera recording `maxDuration` parity**: `MediaOptions.maxDuration` is now forwarded to camera capture intents through `MediaStore.EXTRA_DURATION_LIMIT` (seconds) for compatible camera apps.
+- **iOS multi-pick source validation parity**: `pickMultipleMedia` now enforces gallery-only source and returns `invalid_source` for non-gallery inputs.
+- **macOS preferred camera device parity**: `preferredCameraDevice` is now honored as a best-effort front/back camera selection for capture/recording, with fallback to default camera.
+- **macOS watermark percentage parity**: `watermarkFontSizePercentage` is now applied for image/video watermark flows with fallback to absolute `watermarkFontSize`.
+- **Dart method-channel error parity**: Non-cancel `PlatformException`s are now rethrown instead of wrapped in generic `Exception`, preserving native error codes and details.
 
 ### Added
 - **iOS `getThumbnail`**: Extracts a video frame at a specified time using `AVAssetImageGenerator`. Supports optional post-processing (crop, watermark, quality) via the existing `processImage` pipeline.
 - **macOS `getThumbnail`**: Same functionality as iOS, using `NSBitmapImageRep` for JPEG conversion.
 - **macOS `pickMultipleMedia`**: Gallery-based multi-file picker using `NSOpenPanel` with `allowsMultipleSelection`. Supports filtering by image or video file types.
 - **macOS `compressVideo`**: Full video compression with rotation-aware dimension handling, aspect ratio preservation, audio track passthrough, and `AVAssetExportSession`-based export. Matches the pattern established in the iOS and macOS `applyVideo` implementations.
+- **Native `getPlatformVersion` support on Android/iOS/macOS**: Added method handling so Dart `getPlatformVersion()` now works consistently across all native platforms.
 
 ## 1.1.0-rc.14
 
@@ -53,7 +59,7 @@
 ## 1.1.0-rc.11
 
 ### Added
-- **Preferred camera device hint**: Added `preferredCameraDevice` to `MediaOptions` to request front/back camera for capture on Android/iOS. This is best-effort and may be ignored by Android camera apps; it is currently ignored on web and macOS.
+- **Preferred camera device hint**: Added `preferredCameraDevice` to `MediaOptions` to request front/back camera for capture on Android/iOS. This is best-effort and may be ignored by Android camera apps; web currently ignores it.
 - Added Zed Flutter debugging configuration (`.zed/debug.json`) and setup notes in `doc/zed-debugging.md`.
 
 ### Fixed

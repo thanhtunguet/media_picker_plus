@@ -84,6 +84,9 @@ Use `MediaOptions(preferredCameraDevice: PreferredCameraDevice.front|back|auto)`
 
 Android uses system camera intents, so OEM camera apps may ignore this preference and still open their default camera.
 
+### Camera video max duration
+Use `MediaOptions(maxDuration: Duration(...))` to limit video recording duration when capturing from camera. On Android this is forwarded to `MediaStore.EXTRA_DURATION_LIMIT` (seconds) for compatible camera apps.
+
 
 ### Required Permissions
 Add to `android/app/src/main/AndroidManifest.xml`:

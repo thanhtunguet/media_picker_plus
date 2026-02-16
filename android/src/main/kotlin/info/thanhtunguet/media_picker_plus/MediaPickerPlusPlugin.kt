@@ -184,6 +184,10 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     override fun onMethodCall(call: MethodCall, result: Result) {
         Log.d("MediaPickerPlus", "onMethodCall: ${call.method}")
         when (call.method) {
+            "getPlatformVersion" -> {
+                result.success("Android ${Build.VERSION.RELEASE}")
+            }
+
             "pickMedia" -> {
                 val source = call.argument<String>("source")
                 val type = call.argument<String>("type")
@@ -473,6 +477,12 @@ class MediaPickerPlusPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         Intent(MediaStore.ACTION_VIDEO_CAPTURE).also { intent ->
             intent.resolveActivity(activity.packageManager)?.also {
                 applyPreferredCameraDevice(intent)
+
+                val maxDurationSeconds = (mediaOptions?.get("maxDuration") as? Number)?.toInt()
+                if (maxDurationSeconds != null && maxDurationSeconds > 0) {
+                    intent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, maxDurationSeconds)
+                }
+
                 val videoFile = createMediaFile(false)
                 videoFile?.also {
                     val videoURI = FileProvider.getUriForFile(

@@ -66,6 +66,13 @@ Goal: bring macOS and Web implementations up to feature parity with Android/iOS.
   - Added `getThumbnail` to iOS and macOS using `AVAssetImageGenerator` with optional post-processing
   - Added `pickMultipleMedia` to macOS using `NSOpenPanel` with image/video type filtering
   - Added `compressVideo` to macOS with rotation-aware transforms, aspect ratio preservation, and audio passthrough
+  - Follow-up parity fixes:
+    - Android camera video capture now applies `MediaOptions.maxDuration` via `MediaStore.EXTRA_DURATION_LIMIT`
+    - iOS `pickMultipleMedia` now enforces gallery-only source and returns `invalid_source` for non-gallery
+    - macOS now applies `preferredCameraDevice` (best-effort front/back selection with fallback)
+    - macOS now supports `watermarkFontSizePercentage` across image/video watermark paths
+    - Added native `getPlatformVersion` method handling for Android/iOS/macOS
+    - Dart method-channel implementation now rethrows non-cancel `PlatformException`s to preserve native error codes/details
 
 ## Next Session Priorities (Actionable)
 1. Expand automated testing coverage (see Phase 2)

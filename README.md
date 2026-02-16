@@ -128,7 +128,7 @@ String? videoPath = await MediaPickerPlus.recordVideo(
 );
 ```
 
-> Note: `preferredCameraDevice` is a best-effort hint. On Android, some camera apps may ignore it; on web and macOS it is currently ignored.
+> Note: `preferredCameraDevice` is a best-effort hint. On Android, some camera apps may ignore it; on web it is currently ignored. On iOS/macOS, the requested camera is used when available and otherwise falls back to the default camera.
 
 ### Pick Video
 

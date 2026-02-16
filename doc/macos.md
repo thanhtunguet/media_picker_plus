@@ -41,10 +41,11 @@ The macOS implementation provides partial media picking and camera capture capab
 - **Permission Management**: Camera and microphone permission handling
 - **Photo Capture**: Basic photo capture using AVCapturePhotoOutput
 - **Video Recording**: Basic video recording with auto-stop functionality
-- **Preferred Camera Device**: `preferredCameraDevice` is currently ignored on macOS (no explicit selection support).
+- **Preferred Camera Device**: `preferredCameraDevice` supports best-effort front/back selection for camera capture and recording, with fallback to the default camera when unavailable.
 
 #### Image Processing (Basic)
 - **Watermarking**: Text overlay with dynamic font sizing and positioning
+- **Responsive Watermark Font Size**: Supports `watermarkFontSizePercentage` (percentage of shorter edge) with fallback to absolute `watermarkFontSize`
 - **Cropping**: Manual rectangle and aspect ratio-based cropping
 - **Resizing**: Max width/height with aspect ratio preservation
 - **Format Support**: JPEG output with configurable quality

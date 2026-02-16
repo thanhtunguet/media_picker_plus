@@ -81,6 +81,9 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
+        case "getPlatformVersion":
+            result("iOS " + UIDevice.current.systemVersion)
+
         case "pickMedia":
             guard let args = call.arguments as? [String: Any],
                 let source = args["source"] as? String,
@@ -1064,11 +1067,17 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
     }
 
     private func pickMultipleMedia(source: String, type: String) {
+        guard source == "gallery" else {
+            pendingResult?(MediaPickerPlusError.invalidSource())
+            pendingResult = nil
+            return
+        }
+
         // For iOS, we'll use PHPickerViewController for multiple selection
         if #available(iOS 14.0, *) {
             var config = PHPickerConfiguration()
             config.selectionLimit = 0 // 0 means unlimited
-            
+
             switch type {
             case "image":
                 config.filter = .images
@@ -1077,10 +1086,10 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
             default:
                 config.filter = .any(of: [.images, .videos])
             }
-            
+
             let picker = PHPickerViewController(configuration: config)
             picker.delegate = self
-            
+
             DispatchQueue.main.async {
                 UIApplication.shared.windows.first?.rootViewController?.present(
                     picker, animated: true, completion: nil)
@@ -1088,6 +1097,7 @@ public class SwiftMediaPickerPlusPlugin: NSObject, FlutterPlugin, UIImagePickerC
         } else {
             // Fallback for older iOS versions - use single picker multiple times
             pendingResult?(MediaPickerPlusError.unsupportedOS())
+            pendingResult = nil
         }
     }
 

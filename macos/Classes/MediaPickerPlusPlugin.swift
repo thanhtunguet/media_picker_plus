@@ -167,6 +167,10 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
+        case "getPlatformVersion":
+            let version = ProcessInfo.processInfo.operatingSystemVersion
+            result("macOS \(version.majorVersion).\(version.minorVersion).\(version.patchVersion)")
+
         case "pickMedia":
             guard let args = call.arguments as? [String: Any],
                   let source = args["source"] as? String,
@@ -349,27 +353,68 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
     }
     
     // MARK: - Device Selection
-    
-    private func getBestAvailableVideoDevice() -> AVCaptureDevice? {
-        // Try to get the best available video device, prioritizing newer device types
-        // Handle different macOS versions gracefully
-        
+
+    private func preferredCameraPosition() -> AVCaptureDevice.Position? {
+        let preferred = (mediaOptions?["preferredCameraDevice"] as? String)?.lowercased() ?? "auto"
+        switch preferred {
+        case "front":
+            return .front
+        case "back":
+            return .back
+        default:
+            return nil
+        }
+    }
+
+    private func getBestAvailableVideoDevice(preferredPosition: AVCaptureDevice.Position? = nil) -> AVCaptureDevice? {
+        let discoverySession = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.builtInWideAngleCamera, .externalUnknown],
+            mediaType: .video,
+            position: .unspecified
+        )
+
+        let devices = discoverySession.devices
+        if let preferredPosition {
+            if let exactMatch = devices.first(where: { $0.position == preferredPosition }) {
+                return exactMatch
+            }
+
+            if #available(macOS 14.0, *), preferredPosition == .front {
+                if let continuityCamera = AVCaptureDevice.default(.continuityCamera, for: .video, position: .unspecified) {
+                    return continuityCamera
+                }
+            }
+        }
+
+        // Existing behavior fallback
         if #available(macOS 14.0, *) {
-            // First try Continuity Camera if available (macOS 14.0+)
             if let continuityCamera = AVCaptureDevice.default(.continuityCamera, for: .video, position: .unspecified) {
                 return continuityCamera
             }
         }
-        
-        // Try built-in camera for supported macOS versions
+
         if #available(macOS 11.0, *) {
             if let builtInCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) {
                 return builtInCamera
             }
         }
-        
-        // Final fallback to any available video device (works on all macOS versions)
+
         return AVCaptureDevice.default(for: .video)
+    }
+
+    private func watermarkFontSize(for options: [String: Any]?, mediaSize: CGSize, defaultSize: Double = 24.0) -> Double {
+        guard let options else { return defaultSize }
+
+        if let percentage = options["watermarkFontSizePercentage"] as? Double {
+            let shorterEdge = min(mediaSize.width, mediaSize.height)
+            return shorterEdge * (percentage / 100.0)
+        }
+
+        if let fontSize = options["watermarkFontSize"] as? Double {
+            return fontSize
+        }
+
+        return defaultSize
     }
     
     // MARK: - Permission Methods
@@ -545,7 +590,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         }
         
         print("Getting video device...")
-        guard let device = getBestAvailableVideoDevice() else {
+        guard let device = getBestAvailableVideoDevice(preferredPosition: preferredCameraPosition()) else {
             print("No video device available")
             pendingResult?(MediaPickerPlusError.saveFailed())
             pendingResult = nil
@@ -656,7 +701,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         }
         
         // Setup video input
-        guard let videoDevice = getBestAvailableVideoDevice(),
+        guard let videoDevice = getBestAvailableVideoDevice(preferredPosition: preferredCameraPosition()),
               let videoInput = try? AVCaptureDeviceInput(device: videoDevice) else {
             pendingResult?(MediaPickerPlusError.saveFailed())
             pendingResult = nil
@@ -750,7 +795,7 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             // Apply watermark if specified
             if let watermarkText = options["watermark"] as? String {
                 let position = (options["watermarkPosition"] as? String) ?? "bottomRight"
-                let fontSize = (options["watermarkFontSize"] as? Double) ?? 24.0
+                let fontSize = watermarkFontSize(for: options, mediaSize: processedImage.size, defaultSize: 24.0)
                 print("Adding watermark: '\(watermarkText)' at position: \(position) with font size: \(fontSize)")
                 processedImage = addWatermarkToImage(processedImage, text: watermarkText, position: position, fontSize: fontSize)
             }
@@ -781,11 +826,20 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         
         if watermarkText != nil || enableCrop {
             let position = (options?["watermarkPosition"] as? String) ?? "bottomRight"
-            let fontSize = (options?["watermarkFontSize"] as? Double) ?? 24.0
+
+            let asset = AVAsset(url: url)
+            let transform = asset.tracks(withMediaType: .video).first?.preferredTransform
+            let trackSize = asset.tracks(withMediaType: .video).first?.naturalSize ?? .zero
+            let isPortrait = transform.map { abs($0.b) == 1 && abs($0.c) == 1 } ?? false
+            let videoSize = isPortrait
+                ? CGSize(width: trackSize.height, height: trackSize.width)
+                : trackSize
+            let fontSize = watermarkFontSize(for: options, mediaSize: videoSize, defaultSize: 24.0)
+
             print("Processing video with cropping and/or watermark")
-            processVideoWithCropAndWatermark(url, 
-                                           watermarkText: watermarkText, 
-                                           position: position, 
+            processVideoWithCropAndWatermark(url,
+                                           watermarkText: watermarkText,
+                                           position: position,
                                            fontSize: fontSize,
                                            cropOptions: enableCrop ? cropOptions : nil) { [weak self] outputURL in
                 if let outputURL = outputURL {
@@ -1396,9 +1450,9 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
         
         // Apply watermark if specified
         if let watermark = options["watermark"] as? String, !watermark.isEmpty {
-            let watermarkFontSize = options["watermarkFontSize"] as? Double ?? 30.0
+            let watermarkFontSize = watermarkFontSize(for: options, mediaSize: processedImage.size, defaultSize: 30.0)
             let watermarkPosition = options["watermarkPosition"] as? String ?? "bottomRight"
-            processedImage = addWatermarkToImage(processedImage, text: watermark, 
+            processedImage = addWatermarkToImage(processedImage, text: watermark,
                                                  position: watermarkPosition, fontSize: watermarkFontSize)
         }
         
@@ -1445,9 +1499,9 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             return
         }
         
-        let fontSize = options["watermarkFontSize"] as? Double ?? 24.0
+        let fontSize = watermarkFontSize(for: options, mediaSize: image.size, defaultSize: 24.0)
         let position = options["watermarkPosition"] as? String ?? "bottomRight"
-        
+
         // Apply watermark to the image
         let watermarkedImage = addWatermarkToImage(image, text: watermarkText, position: position, fontSize: fontSize)
         
@@ -1489,11 +1543,18 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
             return
         }
         
-        let fontSize = options["watermarkFontSize"] as? Double ?? 24.0
         let position = options["watermarkPosition"] as? String ?? "bottomRight"
-        
+
         let videoURL = URL(fileURLWithPath: videoPath)
-        
+        let asset = AVAsset(url: videoURL)
+        let transform = asset.tracks(withMediaType: .video).first?.preferredTransform
+        let trackSize = asset.tracks(withMediaType: .video).first?.naturalSize ?? .zero
+        let isPortrait = transform.map { abs($0.b) == 1 && abs($0.c) == 1 } ?? false
+        let videoSize = isPortrait
+            ? CGSize(width: trackSize.height, height: trackSize.width)
+            : trackSize
+        let fontSize = watermarkFontSize(for: options, mediaSize: videoSize, defaultSize: 24.0)
+
         // Use the existing video watermarking method
         addWatermarkToVideo(videoURL, text: watermarkText, position: position, fontSize: fontSize) { outputURL in
             DispatchQueue.main.async {
@@ -1857,7 +1918,11 @@ public class MediaPickerPlusPlugin: NSObject, FlutterPlugin {
                 case .completed:
                     // If watermark is specified, add it to the exported video
                     if let watermark = watermarkText, !watermark.isEmpty {
-                        let fontSize = options["watermarkFontSize"] as? Double ?? 24.0
+                        let fontSize = self.watermarkFontSize(
+                            for: options,
+                            mediaSize: CGSize(width: targetWidth, height: targetHeight),
+                            defaultSize: 24.0
+                        )
                         self.addWatermarkToVideo(outputURL, text: watermark, position: watermarkPosition, fontSize: fontSize) { watermarkedURL in
                             DispatchQueue.main.async {
                                 if let watermarkedURL = watermarkedURL {
