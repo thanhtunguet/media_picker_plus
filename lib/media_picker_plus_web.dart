@@ -16,17 +16,10 @@ import 'media_options.dart';
 import 'media_picker_plus_platform_interface.dart';
 import 'media_source.dart';
 import 'media_type.dart';
+import 'src/media_picker_logger.dart';
 
 @JS()
 external JSObject get globalThis;
-
-// Simple logging helper to avoid print() warnings
-void _log(String message) {
-  // In production, this could be replaced with a proper logging framework
-  // For now, using print for debugging purposes
-  // ignore: avoid_print
-  print('[MediaPickerPlusWeb] $message');
-}
 
 // ignore_for_file: invalid_assignment
 /// Web implementation of MediaPickerPlusPlatform.
@@ -117,7 +110,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       MediaType type, MediaOptions options) async {
     // Try modern camera API first if available
     if (_shouldUseCameraAPI(type)) {
-      _log('Using modern camera API for capture');
+      MediaPickerLogger.d('Web', 'Using modern camera API for capture');
 
       if (type == MediaType.image) {
         return await _capturePhotoWithCameraAPI(options);
@@ -127,7 +120,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     }
 
     // Fall back to file input method
-    _log('Falling back to file input method');
+    MediaPickerLogger.d('Web', 'Falling back to file input method');
     return await _captureFromCameraFileInput(type, options);
   }
 
@@ -200,18 +193,19 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       stream = await _getCameraStream(facingMode: 'environment');
 
       if (stream == null) {
-        _log('Failed to get camera stream, falling back to file input');
+        MediaPickerLogger.d(
+            'Web', 'Failed to get camera stream, falling back to file input');
         return await _captureFromCameraFileInput(MediaType.image, options);
       }
 
       // Step 2: Show camera preview UI and wait for user to capture
-      _log('Showing camera preview UI');
+      MediaPickerLogger.d('Web', 'Showing camera preview UI');
       final preview = WebCameraPreview();
       final shouldCapture = await preview.show(stream: stream, isVideo: false);
 
       if (shouldCapture != true) {
         // User cancelled
-        _log('User cancelled photo capture');
+        MediaPickerLogger.d('Web', 'User cancelled photo capture');
         return null;
       }
 
@@ -237,18 +231,19 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       if (_supportsImageCapture()) {
         photoBlob = await _capturePhotoWithImageCapture(stream);
         if (photoBlob != null) {
-          _log('Photo captured using ImageCapture API');
+          MediaPickerLogger.d('Web', 'Photo captured using ImageCapture API');
         }
       }
 
       // Fallback to canvas snapshot if ImageCapture failed
       if (photoBlob == null) {
-        _log('Using canvas snapshot fallback');
+        MediaPickerLogger.d('Web', 'Using canvas snapshot fallback');
         photoBlob = await _capturePhotoFromVideo(videoElement);
       }
 
       if (photoBlob == null) {
-        _log('Failed to capture photo with camera API, falling back');
+        MediaPickerLogger.d(
+            'Web', 'Failed to capture photo with camera API, falling back');
         return await _captureFromCameraFileInput(MediaType.image, options);
       }
 
@@ -260,7 +255,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
 
       return processedDataUrl;
     } catch (e) {
-      _log('Error in camera API photo capture: $e');
+      MediaPickerLogger.d('Web', 'Error in camera API photo capture: $e');
       return await _captureFromCameraFileInput(MediaType.image, options);
     } finally {
       // Step 6: Cleanup
@@ -284,12 +279,13 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       );
 
       if (stream == null) {
-        _log('Failed to get camera stream, falling back to file input');
+        MediaPickerLogger.d(
+            'Web', 'Failed to get camera stream, falling back to file input');
         return await _captureFromCameraFileInput(MediaType.video, options);
       }
 
       // Step 2: Show camera preview UI and wait for user to start recording
-      _log('Showing camera preview UI for video');
+      MediaPickerLogger.d('Web', 'Showing camera preview UI for video');
       final preview = WebCameraPreview();
 
       // Start recording when user clicks record button
@@ -297,7 +293,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       final started = await recorder.startRecording(stream);
 
       if (!started) {
-        _log('Failed to start recording, falling back');
+        MediaPickerLogger.d('Web', 'Failed to start recording, falling back');
         return await _captureFromCameraFileInput(MediaType.video, options);
       }
 
@@ -306,7 +302,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
 
       if (shouldStop != true) {
         // User cancelled before stopping
-        _log('User cancelled video recording');
+        MediaPickerLogger.d('Web', 'User cancelled video recording');
         recorder.stopRecording(); // Make sure to stop the recorder
         return null;
       }
@@ -315,15 +311,17 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       final videoBlob = await recorder.stopRecording();
 
       if (videoBlob == null) {
-        _log('Failed to get recorded video, falling back');
+        MediaPickerLogger.d(
+            'Web', 'Failed to get recorded video, falling back');
         return await _captureFromCameraFileInput(MediaType.video, options);
       }
 
-      _log('Recording stopped, blob size: ${videoBlob.size} bytes');
+      MediaPickerLogger.d(
+          'Web', 'Recording stopped, blob size: ${videoBlob.size} bytes');
 
       // Step 4: Process video (watermark if requested)
       if (options.watermark != null && options.watermark!.isNotEmpty) {
-        _log('Processing video with watermark...');
+        MediaPickerLogger.d('Web', 'Processing video with watermark...');
         // Convert blob to File for processing
         final file = web.File(
           [videoBlob].toJS,
@@ -337,7 +335,8 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
               await _processVideoFileWithWatermark(file, options);
           return watermarkedUrl;
         } catch (e) {
-          _log('Watermarking failed: $e, returning original video');
+          MediaPickerLogger.d(
+              'Web', 'Watermarking failed: $e, returning original video');
           // Return original video without watermark
           return web.URL.createObjectURL(videoBlob);
         }
@@ -346,7 +345,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
         return web.URL.createObjectURL(videoBlob);
       }
     } catch (e) {
-      _log('Error in camera API video recording: $e');
+      MediaPickerLogger.d('Web', 'Error in camera API video recording: $e');
       return await _captureFromCameraFileInput(MediaType.video, options);
     } finally {
       // Step 5: Cleanup
@@ -366,15 +365,15 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     }
 
     // Log the video type for debugging
-    _log(
+    MediaPickerLogger.d('Web',
         'Creating object URL for video: ${file.name}, type: $mimeType, size: ${file.size} bytes');
 
     try {
       final url = web.URL.createObjectURL(file);
-      _log('Created video object URL: $url');
+      MediaPickerLogger.d('Web', 'Created video object URL: $url');
       return url;
     } catch (e) {
-      _log('Failed to create object URL for video: $e');
+      MediaPickerLogger.d('Web', 'Failed to create object URL for video: $e');
       throw Exception('Failed to create video object URL: $e');
     }
   }
@@ -425,7 +424,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
           globalThis.getProperty('addWatermarkToVideo'.toJS);
       if (addWatermarkToVideo.isUndefined || addWatermarkToVideo.isNull) {
         // Watermarking function not available, return video without watermark
-        _log(
+        MediaPickerLogger.d('Web',
             'Warning: Video watermarking not available on web. Returning video without watermark.');
         return _createVideoObjectURL(file);
       }
@@ -452,7 +451,8 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       return url;
     } catch (e) {
       // Fallback to original video without watermark if processing fails
-      _log('Video watermarking failed: $e. Returning original video.');
+      MediaPickerLogger.d(
+          'Web', 'Video watermarking failed: $e. Returning original video.');
       return _createVideoObjectURL(file);
     }
   }
@@ -747,7 +747,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
                 try {
                   urls.add(web.URL.createObjectURL(file));
                 } catch (e) {
-                  _log(
+                  MediaPickerLogger.d('Web',
                       'Failed to create object URL for file: ${file.name}, error: $e');
                   // Skip this file but continue with others
                 }
@@ -985,7 +985,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
         final watermarkText = options.watermark!;
         final position = options.watermarkPosition ?? 'bottomRight';
 
-        _log('Applying video processing: $videoPath');
+        MediaPickerLogger.d('Web', 'Applying video processing: $videoPath');
 
         try {
           // Call JS function exposed in ffmpeg_watermark.js
@@ -1037,7 +1037,8 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     MediaOptions? options,
   }) async {
     try {
-      _log('Extracting thumbnail from video: $videoPath at ${timeInSeconds}s');
+      MediaPickerLogger.d('Web',
+          'Extracting thumbnail from video: $videoPath at ${timeInSeconds}s');
 
       // Create a video element to load the video
       final video = web.document.createElement('video') as web.HTMLVideoElement;
@@ -1053,7 +1054,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
           (web.Event event) {
             try {
               final duration = video.duration;
-              _log('Video duration: ${duration}s');
+              MediaPickerLogger.d('Web', 'Video duration: ${duration}s');
 
               // Ensure the time is within video duration
               final actualTime = timeInSeconds.clamp(0.0, duration - 0.1);
@@ -1124,7 +1125,8 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
                           (web.Blob? blob) {
                             if (blob != null) {
                               final url = web.URL.createObjectURL(blob);
-                              _log('Thumbnail extracted successfully: $url');
+                              MediaPickerLogger.d('Web',
+                                  'Thumbnail extracted successfully: $url');
                               completer.complete(url);
                             } else {
                               completer.completeError(
@@ -1234,7 +1236,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       context.strokeText(text, x, y);
       context.fillText(text, x, y);
     } catch (e) {
-      _log('Error adding watermark to canvas: $e');
+      MediaPickerLogger.d('Web', 'Error adding watermark to canvas: $e');
     }
   }
 
@@ -1286,7 +1288,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
 
     // Must be in secure context (HTTPS or localhost)
     if (!_isSecureContext()) {
-      _log('Camera API requires HTTPS or localhost');
+      MediaPickerLogger.d('Web', 'Camera API requires HTTPS or localhost');
       return false;
     }
 
@@ -1319,7 +1321,8 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
     }
 
     if (!_isSecureContext()) {
-      _log('Warning: getUserMedia requires HTTPS or localhost');
+      MediaPickerLogger.d(
+          'Web', 'Warning: getUserMedia requires HTTPS or localhost');
       return null;
     }
 
@@ -1340,7 +1343,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
 
       return stream;
     } catch (e) {
-      _log('Error getting camera stream: $e');
+      MediaPickerLogger.d('Web', 'Error getting camera stream: $e');
       return null;
     }
   }
@@ -1375,7 +1378,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
       final blob = await promise.toDart as web.Blob;
       return blob;
     } catch (e) {
-      _log('Error capturing photo with ImageCapture: $e');
+      MediaPickerLogger.d('Web', 'Error capturing photo with ImageCapture: $e');
       return null;
     }
   }
@@ -1404,7 +1407,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
 
       return await completer.future;
     } catch (e) {
-      _log('Error capturing photo from video: $e');
+      MediaPickerLogger.d('Web', 'Error capturing photo from video: $e');
       return null;
     }
   }
@@ -1419,7 +1422,7 @@ class MediaPickerPlusWeb extends MediaPickerPlusPlatform {
         (track).stop();
       }
     } catch (e) {
-      _log('Error stopping media stream: $e');
+      MediaPickerLogger.d('Web', 'Error stopping media stream: $e');
     }
   }
 }
@@ -1463,7 +1466,7 @@ class _MediaRecorderHelper {
       _recorder!.start();
       return true;
     } catch (e) {
-      _log('Error starting MediaRecorder: $e');
+      MediaPickerLogger.d('Web', 'Error starting MediaRecorder: $e');
       return false;
     }
   }
@@ -1478,7 +1481,7 @@ class _MediaRecorderHelper {
       _recorder!.stop();
       return await _completer.future;
     } catch (e) {
-      _log('Error stopping MediaRecorder: $e');
+      MediaPickerLogger.d('Web', 'Error stopping MediaRecorder: $e');
       return null;
     }
   }

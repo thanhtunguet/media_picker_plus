@@ -1,5 +1,17 @@
 ## Unreleased
 
+### Fixed
+- **CI docs.yml path typo**: Fixed `./docsaurusaurus/build` → `./docsaurus/build` in GitHub Pages artifact upload step, restoring broken documentation deployment.
+- **Permission error silent swallowing**: `hasCameraPermission`, `requestCameraPermission`, `hasGalleryPermission`, `requestGalleryPermission` now only return `false` for genuine permission-denied errors (PlatformException with permission-related code). Other platform exceptions are rethrown so callers can distinguish real errors from denials.
+- **Misleading zoom TODO comment removed**: Removed a TODO comment in `multi_capture_screen.dart` that incorrectly suggested zoom was unimplemented; native setZoom is fully functional on Android and iOS.
+
+### Added
+- **Input validation for file paths**: `applyImage`, `applyVideo`, `getThumbnail`, `compressVideo`, `addWatermarkToImage`, `addWatermarkToVideo`, and their public API counterparts now validate file paths to prevent path traversal (paths containing `..`).
+- **Watermark text length validation**: Watermark text is now rejected if it exceeds 500 characters, preventing potential buffer issues on native side.
+- **Structured logging utility (`MediaPickerLogger`)**: New `lib/src/media_picker_logger.dart` provides a minimal opt-in logger using `debugPrint`. Disabled by default (`MediaPickerLogger.enabled = false`). Set to `true` in debug builds to trace pick/crop/process flows. Integrated into `MethodChannelMediaPickerPlus`, `CropHelper`, and the web implementation (replacing the `print()`-based `_log()` function that violated the `avoid_print` lint rule).
+- **CropHelper unit tests**: Added 8 new tests in `test/crop_helper_test.dart` covering the three-phase pick-crop-process flow, watermark stripping in phase 1, option preservation across phases, context unmount handling, and platform exception propagation.
+- **Expanded CropUI widget tests**: Added 10 new tests in `test/crop_ui_test.dart` covering loading state, error state, button rendering, cancel/confirm callbacks, aspect ratio chips, crop percentage display, reset button, and custom crop rect initialization. Test count increased from 2 to 12.
+
 ### Documentation
 - **Updated documentation accuracy**: Corrected completion percentages and feature status in platform documentation to match actual implementation:
   - `doc/web.md`: Updated from ~10% to ~40% completion; added `getThumbnail` and `compressVideo` (stub) to feature lists; corrected Camera API status (getUserMedia, live preview implemented)

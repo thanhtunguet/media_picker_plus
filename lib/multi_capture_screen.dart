@@ -213,7 +213,6 @@ class MultiCaptureScreenState extends State<MultiCaptureScreen> {
     setState(() {
       _currentZoom = zoom;
     });
-    // TODO: Implement actual zoom via method channel
     _cameraChannel.invokeMethod('setZoom', {'zoom': zoom});
   }
 

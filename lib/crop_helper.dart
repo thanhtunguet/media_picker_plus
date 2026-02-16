@@ -7,6 +7,7 @@ import 'media_picker_plus_platform_interface.dart';
 import 'media_source.dart';
 import 'media_type.dart';
 import 'platform_file_utils.dart';
+import 'src/media_picker_logger.dart';
 
 /// Helper class to handle interactive cropping flow
 class CropHelper {
@@ -33,6 +34,7 @@ class CropHelper {
     MediaType type,
     MediaOptions options,
   ) async {
+    MediaPickerLogger.d('CropHelper', 'Phase 1: picking media without crop');
     // First pick the media without cropping
     final tempOptions = MediaOptions(
       imageQuality: options.imageQuality,
@@ -48,15 +50,24 @@ class CropHelper {
 
     final tempResult = await MediaPickerPlusPlatform.instance
         .pickMedia(source, type, tempOptions);
-    if (tempResult == null) return null;
+    if (tempResult == null) {
+      MediaPickerLogger.d('CropHelper', 'Phase 1: user cancelled pick');
+      return null;
+    }
 
+    MediaPickerLogger.d('CropHelper', 'Phase 2: showing crop UI');
     // Check if context is still mounted before showing UI
     if (!context.mounted) return null;
 
     // Show interactive cropping UI
     final cropResult =
         await showCropUI(context, tempResult, options.cropOptions);
-    if (cropResult == null) return null;
+    if (cropResult == null) {
+      MediaPickerLogger.d('CropHelper', 'Phase 2: user cancelled crop');
+      return null;
+    }
+
+    MediaPickerLogger.d('CropHelper', 'Phase 3: applying final processing');
 
     // Apply final processing with watermark if needed
     if (options.watermark != null) {
@@ -109,13 +120,21 @@ class CropHelper {
     MediaOptions options,
   ) async {
     try {
-      if (!await pathExists(imagePath)) return null;
+      if (!await pathExists(imagePath)) {
+        MediaPickerLogger.e(
+            'CropHelper', 'Image path does not exist: $imagePath');
+        return null;
+      }
 
       // Use the platform interface to process the image with the crop settings
-      return await MediaPickerPlusPlatform.instance
+      final result = await MediaPickerPlusPlatform.instance
           .processImage(imagePath, options);
+      MediaPickerLogger.d('CropHelper', 'Processing complete: $result');
+      return result;
     } catch (e) {
       // If processing fails, return the original image
+      MediaPickerLogger.e(
+          'CropHelper', 'Processing failed, returning original', e);
       return imagePath;
     }
   }

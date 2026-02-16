@@ -5,6 +5,7 @@ import 'media_options.dart';
 import 'media_picker_plus_platform_interface.dart';
 import 'media_source.dart';
 import 'media_type.dart';
+import 'src/media_picker_logger.dart';
 import 'video_compression_options.dart';
 
 /// An implementation of [MediaPickerPlusPlatform] that uses method channels.
@@ -24,17 +25,23 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
   @override
   Future<String?> pickMedia(
       MediaSource source, MediaType type, MediaOptions options) async {
+    MediaPickerLogger.d(
+        'MethodChannel', 'pickMedia: source=$source type=$type');
     try {
       final result = await methodChannel.invokeMethod<dynamic>('pickMedia', {
         'source': source.toString().split('.').last,
         'type': type.toString().split('.').last,
         'options': options.toMap(),
       });
-      return _pickMediaResultToPath(result);
+      final path = _pickMediaResultToPath(result);
+      MediaPickerLogger.d('MethodChannel', 'pickMedia result: $path');
+      return path;
     } on PlatformException catch (e) {
       if (_isPickerCancellationException(e)) {
+        MediaPickerLogger.d('MethodChannel', 'pickMedia cancelled');
         return null;
       }
+      MediaPickerLogger.e('MethodChannel', 'pickMedia error', e);
       rethrow;
     }
   }
@@ -68,8 +75,11 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     try {
       final result = await methodChannel.invokeMethod('hasCameraPermission');
       return _convertToBool(result);
-    } catch (e) {
-      return false;
+    } on PlatformException catch (e) {
+      if (_isPermissionDeniedException(e)) {
+        return false;
+      }
+      rethrow;
     }
   }
 
@@ -79,8 +89,11 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       final result =
           await methodChannel.invokeMethod('requestCameraPermission');
       return _convertToBool(result);
-    } catch (e) {
-      return false;
+    } on PlatformException catch (e) {
+      if (_isPermissionDeniedException(e)) {
+        return false;
+      }
+      rethrow;
     }
   }
 
@@ -89,8 +102,11 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     try {
       final result = await methodChannel.invokeMethod('hasGalleryPermission');
       return _convertToBool(result);
-    } catch (e) {
-      return false;
+    } on PlatformException catch (e) {
+      if (_isPermissionDeniedException(e)) {
+        return false;
+      }
+      rethrow;
     }
   }
 
@@ -100,8 +116,11 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
       final result =
           await methodChannel.invokeMethod('requestGalleryPermission');
       return _convertToBool(result);
-    } catch (e) {
-      return false;
+    } on PlatformException catch (e) {
+      if (_isPermissionDeniedException(e)) {
+        return false;
+      }
+      rethrow;
     }
   }
 
@@ -172,6 +191,8 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     if (options.watermark == null || options.watermark!.isEmpty) {
       throw ArgumentError('Watermark text cannot be null or empty');
     }
+    validateWatermarkText(options.watermark);
+    validateFilePath(imagePath);
 
     // Use the universal applyImage method to add watermark
     return applyImage(imagePath, options);
@@ -179,6 +200,9 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
 
   @override
   Future<String?> applyImage(String imagePath, MediaOptions options) async {
+    validateFilePath(imagePath);
+    validateWatermarkText(options.watermark);
+
     try {
       final result = await methodChannel.invokeMethod<String>('applyImage', {
         'imagePath': imagePath,
@@ -193,12 +217,18 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
   @override
   Future<String?> addWatermarkToVideo(
       String videoPath, MediaOptions options) async {
+    validateFilePath(videoPath);
+    validateWatermarkText(options.watermark);
+
     // Use the universal applyVideo method to add watermark
     return applyVideo(videoPath, options);
   }
 
   @override
   Future<String?> applyVideo(String videoPath, MediaOptions options) async {
+    validateFilePath(videoPath);
+    validateWatermarkText(options.watermark);
+
     try {
       final result = await methodChannel.invokeMethod<String>('applyVideo', {
         'videoPath': videoPath,
@@ -216,6 +246,8 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     double timeInSeconds = 1.0,
     MediaOptions? options,
   }) async {
+    validateFilePath(videoPath);
+
     try {
       final result = await methodChannel.invokeMethod<String>('getThumbnail', {
         'videoPath': videoPath,
@@ -234,6 +266,9 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     String? outputPath,
     required dynamic options,
   }) async {
+    validateFilePath(inputPath);
+    validateFilePath(outputPath);
+
     try {
       Map<String, dynamic> optionsMap;
 
@@ -258,9 +293,35 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     }
   }
 
+  /// Validates a file path to prevent path traversal attacks.
+  static void validateFilePath(String? path) {
+    if (path == null || path.isEmpty) return;
+    // Allow web URLs (data URIs, blob URLs)
+    if (path.startsWith('data:') || path.startsWith('blob:')) return;
+    // Prevent path traversal
+    if (path.contains('..')) {
+      throw ArgumentError('Invalid file path: path traversal not allowed');
+    }
+  }
+
+  /// Validates watermark text length.
+  static void validateWatermarkText(String? text, {int maxLength = 500}) {
+    if (text != null && text.length > maxLength) {
+      throw ArgumentError(
+          'watermarkText exceeds maximum length of $maxLength characters');
+    }
+  }
+
   bool _isPickerCancellationException(PlatformException exception) {
     final code = exception.code.toLowerCase();
     return code == 'cancelled' || code == 'operation_cancelled';
+  }
+
+  bool _isPermissionDeniedException(PlatformException exception) {
+    final code = exception.code.toLowerCase();
+    return code == 'permission_denied' ||
+        code == 'permissiondenied' ||
+        code.contains('permission');
   }
 
   /// Helper method to safely convert various types to boolean
@@ -273,6 +334,11 @@ class MethodChannelMediaPickerPlus extends MediaPickerPlusPlatform {
     }
     if (value is int) {
       return value != 0;
+    }
+    // Log unexpected type for debugging
+    if (kDebugMode) {
+      debugPrint(
+          'Warning: _convertToBool received unexpected type: ${value.runtimeType}');
     }
     return false;
   }

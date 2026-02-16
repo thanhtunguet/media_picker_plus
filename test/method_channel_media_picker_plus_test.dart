@@ -216,10 +216,10 @@ void main() {
 
       expect(
         () => api.applyImage('input.jpg', const MediaOptions()),
-        throwsA(isA<Exception>().having(
-          (e) => e.toString(),
-          'message',
-          contains('Error applying image transformations'),
+        throwsA(isA<PlatformException>().having(
+          (e) => e.code,
+          'code',
+          equals('ERROR'),
         )),
       );
     });
@@ -286,10 +286,10 @@ void main() {
       expect(
         () => api.pickMedia(
             MediaSource.gallery, MediaType.image, const MediaOptions()),
-        throwsA(isA<Exception>().having(
-          (e) => e.toString(),
-          'message',
-          contains('Error picking media: Permission denied'),
+        throwsA(isA<PlatformException>().having(
+          (e) => e.code,
+          'code',
+          equals('ERROR'),
         )),
       );
     });
@@ -330,15 +330,28 @@ void main() {
       expect(result, false);
     });
 
-    test('returns false on exception', () async {
+    test('returns false on permission_denied PlatformException', () async {
       final api = MethodChannelMediaPickerPlus();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
-        throw Exception('Error');
+        throw PlatformException(code: 'permission_denied', message: 'Denied');
       });
 
       final result = await api.hasCameraPermission();
       expect(result, false);
+    });
+
+    test('rethrows non-permission PlatformException', () async {
+      final api = MethodChannelMediaPickerPlus();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        throw PlatformException(code: 'ERROR', message: 'Unexpected error');
+      });
+
+      expect(
+        () => api.hasCameraPermission(),
+        throwsA(isA<PlatformException>()),
+      );
     });
 
     test('_convertToBool handles String "true"', () async {
@@ -411,15 +424,28 @@ void main() {
       expect(lastCall?.method, 'requestCameraPermission');
     });
 
-    test('returns false on exception', () async {
+    test('returns false on permission_denied PlatformException', () async {
       final api = MethodChannelMediaPickerPlus();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
-        throw Exception('Error');
+        throw PlatformException(code: 'permission_denied', message: 'Denied');
       });
 
       final result = await api.requestCameraPermission();
       expect(result, false);
+    });
+
+    test('rethrows non-permission PlatformException', () async {
+      final api = MethodChannelMediaPickerPlus();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        throw PlatformException(code: 'ERROR', message: 'Unexpected error');
+      });
+
+      expect(
+        () => api.requestCameraPermission(),
+        throwsA(isA<PlatformException>()),
+      );
     });
   });
 
@@ -437,15 +463,28 @@ void main() {
       expect(lastCall?.method, 'hasGalleryPermission');
     });
 
-    test('returns false on exception', () async {
+    test('returns false on permission_denied PlatformException', () async {
       final api = MethodChannelMediaPickerPlus();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
-        throw Exception('Error');
+        throw PlatformException(code: 'permission_denied', message: 'Denied');
       });
 
       final result = await api.hasGalleryPermission();
       expect(result, false);
+    });
+
+    test('rethrows non-permission PlatformException', () async {
+      final api = MethodChannelMediaPickerPlus();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        throw PlatformException(code: 'ERROR', message: 'Unexpected error');
+      });
+
+      expect(
+        () => api.hasGalleryPermission(),
+        throwsA(isA<PlatformException>()),
+      );
     });
   });
 
@@ -463,15 +502,28 @@ void main() {
       expect(lastCall?.method, 'requestGalleryPermission');
     });
 
-    test('returns false on exception', () async {
+    test('returns false on permission_denied PlatformException', () async {
       final api = MethodChannelMediaPickerPlus();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
-        throw Exception('Error');
+        throw PlatformException(code: 'permission_denied', message: 'Denied');
       });
 
       final result = await api.requestGalleryPermission();
       expect(result, false);
+    });
+
+    test('rethrows non-permission PlatformException', () async {
+      final api = MethodChannelMediaPickerPlus();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        throw PlatformException(code: 'ERROR', message: 'Unexpected error');
+      });
+
+      expect(
+        () => api.requestGalleryPermission(),
+        throwsA(isA<PlatformException>()),
+      );
     });
   });
 
@@ -537,10 +589,10 @@ void main() {
 
       expect(
         () => api.pickFile(const MediaOptions(), null),
-        throwsA(isA<Exception>().having(
-          (e) => e.toString(),
-          'message',
-          contains('Error picking file: File picker error'),
+        throwsA(isA<PlatformException>().having(
+          (e) => e.code,
+          'code',
+          equals('ERROR'),
         )),
       );
     });
@@ -603,7 +655,7 @@ void main() {
 
       expect(
         () => api.pickMultipleFiles(const MediaOptions(), null),
-        throwsA(isA<Exception>()),
+        throwsA(isA<PlatformException>()),
       );
     });
   });
@@ -645,7 +697,7 @@ void main() {
           MediaType.image,
           const MediaOptions(),
         ),
-        throwsA(isA<Exception>()),
+        throwsA(isA<PlatformException>()),
       );
     });
   });
@@ -665,6 +717,86 @@ void main() {
       expect(lastCall?.method, 'applyImage');
       final args = lastCall?.arguments as Map<dynamic, dynamic>?;
       expect(args?['imagePath'], 'input.jpg');
+    });
+  });
+
+  group('validateFilePath', () {
+    test('accepts normal file paths', () {
+      expect(
+        () => MethodChannelMediaPickerPlus.validateFilePath('/tmp/image.jpg'),
+        returnsNormally,
+      );
+    });
+
+    test('accepts null path', () {
+      expect(
+        () => MethodChannelMediaPickerPlus.validateFilePath(null),
+        returnsNormally,
+      );
+    });
+
+    test('accepts empty path', () {
+      expect(
+        () => MethodChannelMediaPickerPlus.validateFilePath(''),
+        returnsNormally,
+      );
+    });
+
+    test('accepts data URI', () {
+      expect(
+        () => MethodChannelMediaPickerPlus.validateFilePath(
+            'data:image/jpeg;base64,/9j/4AAQ'),
+        returnsNormally,
+      );
+    });
+
+    test('accepts blob URI', () {
+      expect(
+        () => MethodChannelMediaPickerPlus.validateFilePath(
+            'blob:https://example.com/abc123'),
+        returnsNormally,
+      );
+    });
+
+    test('throws ArgumentError for path traversal', () {
+      expect(
+        () =>
+            MethodChannelMediaPickerPlus.validateFilePath('/tmp/../etc/passwd'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+  });
+
+  group('validateWatermarkText', () {
+    test('accepts normal watermark text', () {
+      expect(
+        () => MethodChannelMediaPickerPlus.validateWatermarkText(
+            'Copyright 2024'),
+        returnsNormally,
+      );
+    });
+
+    test('accepts null watermark', () {
+      expect(
+        () => MethodChannelMediaPickerPlus.validateWatermarkText(null),
+        returnsNormally,
+      );
+    });
+
+    test('throws ArgumentError when text exceeds 500 chars', () {
+      final longText = 'A' * 501;
+      expect(
+        () => MethodChannelMediaPickerPlus.validateWatermarkText(longText),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('accepts text exactly at 500 char limit', () {
+      final maxText = 'A' * 500;
+      expect(
+        () => MethodChannelMediaPickerPlus.validateWatermarkText(maxText),
+        returnsNormally,
+      );
     });
   });
 
@@ -731,10 +863,10 @@ void main() {
 
       expect(
         () => api.applyVideo('input.mp4', const MediaOptions()),
-        throwsA(isA<Exception>().having(
-          (e) => e.toString(),
-          'message',
-          contains('Error applying video transformations'),
+        throwsA(isA<PlatformException>().having(
+          (e) => e.code,
+          'code',
+          equals('ERROR'),
         )),
       );
     });
@@ -812,10 +944,10 @@ void main() {
 
       expect(
         () => api.getThumbnail('video.mp4'),
-        throwsA(isA<Exception>().having(
-          (e) => e.toString(),
-          'message',
-          contains('Error extracting thumbnail'),
+        throwsA(isA<PlatformException>().having(
+          (e) => e.code,
+          'code',
+          equals('ERROR'),
         )),
       );
     });
@@ -842,7 +974,7 @@ void main() {
       expect(args?['options'], optionsMap);
     });
 
-    test('handles VideoCompressionOptions with video info', () async {
+    test('handles VideoCompressionOptions', () async {
       final api = MethodChannelMediaPickerPlus();
       const options = VideoCompressionOptions(
         quality: VideoCompressionQuality.p720,
@@ -851,37 +983,13 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
         allCalls.add(call);
-        if (call.method == 'getVideoInfo') {
-          return {'width': 1920, 'height': 1080};
-        }
         return 'output.mp4';
       });
 
       await api.compressVideo('input.mp4', options: options);
 
-      // Should call getVideoInfo first, then compressVideo
-      expect(allCalls.length, greaterThan(1));
-      expect(allCalls.any((call) => call.method == 'compressVideo'), isTrue);
-    });
-
-    test('handles VideoCompressionOptions when getVideoInfo fails', () async {
-      final api = MethodChannelMediaPickerPlus();
-      const options = VideoCompressionOptions(
-        quality: VideoCompressionQuality.p720,
-      );
-
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (call) async {
-        allCalls.add(call);
-        if (call.method == 'getVideoInfo') {
-          throw Exception('Video info error');
-        }
-        return 'output.mp4';
-      });
-
-      await api.compressVideo('input.mp4', options: options);
-
-      // Should still call compressVideo with fallback options
+      // Should call compressVideo directly (native handles dimensions)
+      expect(allCalls.length, equals(1));
       expect(allCalls.any((call) => call.method == 'compressVideo'), isTrue);
     });
 
@@ -894,9 +1002,6 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
         allCalls.add(call);
-        if (call.method == 'getVideoInfo') {
-          return {'width': 3840, 'height': 2160};
-        }
         return 'output.mp4';
       });
 
@@ -919,10 +1024,10 @@ void main() {
 
       expect(
         () => api.compressVideo('input.mp4', options: <String, dynamic>{}),
-        throwsA(isA<Exception>().having(
-          (e) => e.toString(),
-          'message',
-          contains('Error compressing video'),
+        throwsA(isA<PlatformException>().having(
+          (e) => e.code,
+          'code',
+          equals('ERROR'),
         )),
       );
     });

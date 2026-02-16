@@ -39,9 +39,11 @@ Goal: expand features and developer experience after macOS/Web are functional an
   - Documented Zed usage in `doc/zed-debugging.md`.
 
 - [ ] **Add CI/CD pipeline for automated testing**
-  - Set up GitHub Actions for automated testing
-  - Add platform-specific test runners
-  - Implement automated publishing workflow
+  - [x] Set up GitHub Actions for automated testing (workflows exist: `ci.yml`, `docs.yml`, `publish.yml`)
+  - [x] Fix `docs.yml` path typo preventing GitHub Pages deployment (`.github/workflows/docs.yml:52`)
+  - [ ] Enable integration tests in CI (currently commented out in `ci.yml`)
+  - [ ] Add platform-specific test runners
+  - Implement automated publishing workflow (already exists: `publish.yml`)
   - Add code coverage reporting
 
 ## Technical Debt & Improvements
@@ -49,8 +51,14 @@ Goal: expand features and developer experience after macOS/Web are functional an
 ### Code Quality
 - [ ] **Refactor existing code for better maintainability**
   - Extract common functionality into shared utilities
-  - Improve error handling consistency across platforms
-  - Add proper logging and debugging capabilities
+  - [x] Improve error handling consistency across platforms
+    - Permission methods now rethrow non-permission PlatformExceptions instead of silently swallowing all errors
+  - [x] Add proper logging and debugging capabilities
+    - Added `MediaPickerLogger` utility (`lib/src/media_picker_logger.dart`) with opt-in debug logging
+    - Web implementation now uses `MediaPickerLogger` instead of `print()` (fixing `avoid_print` lint)
+    - CropHelper and MethodChannel log key flow stages when enabled
+  - [x] Remove misleading zoom TODO comment in `multi_capture_screen.dart`
+    - setZoom is fully implemented on Android (CameraX) and iOS (videoZoomFactor)
   - Optimize performance for large media files
     - Moved Android image/video processing after picker/camera results to background threads to avoid UI blocking.
 
@@ -75,7 +83,10 @@ Goal: expand features and developer experience after macOS/Web are functional an
 
 ### Security & Privacy
 - [ ] **Implement security best practices**
-  - Add input validation for all parameters
+  - [x] Add input validation for all parameters
+    - Added path traversal prevention (validates file paths for `..` sequences)
+    - Added watermark text length validation (max 500 characters)
+    - Validation applied to all file path parameters in public API and method channel
   - Implement proper file access controls
   - Add privacy-focused permission descriptions
   - Secure temporary file handling

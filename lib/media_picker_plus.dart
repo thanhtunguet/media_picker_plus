@@ -6,6 +6,7 @@ import 'package:media_picker_plus/media_source.dart';
 import 'package:media_picker_plus/media_type.dart';
 
 import 'crop_helper.dart';
+import 'media_picker_plus_method_channel.dart';
 import 'media_picker_plus_platform_interface.dart';
 import 'multi_image_helper.dart';
 import 'multi_image_options.dart';
@@ -163,6 +164,8 @@ class MediaPickerPlus {
     if (options.watermark == null || options.watermark!.isEmpty) {
       throw ArgumentError('Watermark text cannot be null or empty');
     }
+    MethodChannelMediaPickerPlus.validateWatermarkText(options.watermark);
+    MethodChannelMediaPickerPlus.validateFilePath(imagePath);
 
     // Use the universal applyImage method to add watermark
     return MediaPickerPlusPlatform.instance.applyImage(imagePath, options);
@@ -173,6 +176,9 @@ class MediaPickerPlus {
     String videoPath, {
     required MediaOptions options,
   }) async {
+    MethodChannelMediaPickerPlus.validateWatermarkText(options.watermark);
+    MethodChannelMediaPickerPlus.validateFilePath(videoPath);
+
     return MediaPickerPlusPlatform.instance
         .addWatermarkToVideo(videoPath, options);
   }
@@ -189,6 +195,8 @@ class MediaPickerPlus {
     double timeInSeconds = 1.0,
     MediaOptions? options,
   }) async {
+    MethodChannelMediaPickerPlus.validateFilePath(videoPath);
+
     return MediaPickerPlusPlatform.instance.getThumbnail(
       videoPath,
       timeInSeconds: timeInSeconds,
@@ -205,6 +213,9 @@ class MediaPickerPlus {
     String imagePath, {
     required MediaOptions options,
   }) async {
+    MethodChannelMediaPickerPlus.validateFilePath(imagePath);
+    MethodChannelMediaPickerPlus.validateWatermarkText(options.watermark);
+
     return MediaPickerPlusPlatform.instance.applyImage(imagePath, options);
   }
 
@@ -216,6 +227,8 @@ class MediaPickerPlus {
     required int maxHeight,
     int imageQuality = 80,
   }) async {
+    MethodChannelMediaPickerPlus.validateFilePath(imagePath);
+
     final options = MediaOptions(
       maxWidth: maxWidth,
       maxHeight: maxHeight,
@@ -237,6 +250,9 @@ class MediaPickerPlus {
     String videoPath, {
     required MediaOptions options,
   }) async {
+    MethodChannelMediaPickerPlus.validateFilePath(videoPath);
+    MethodChannelMediaPickerPlus.validateWatermarkText(options.watermark);
+
     return MediaPickerPlusPlatform.instance.applyVideo(videoPath, options);
   }
 
@@ -247,6 +263,8 @@ class MediaPickerPlus {
     required int maxWidth,
     required int maxHeight,
   }) async {
+    MethodChannelMediaPickerPlus.validateFilePath(videoPath);
+
     final options = MediaOptions(
       maxWidth: maxWidth,
       maxHeight: maxHeight,
@@ -267,6 +285,9 @@ class MediaPickerPlus {
     String? outputPath,
     required dynamic options,
   }) async {
+    MethodChannelMediaPickerPlus.validateFilePath(inputPath);
+    MethodChannelMediaPickerPlus.validateFilePath(outputPath);
+
     return MediaPickerPlusPlatform.instance.compressVideo(
       inputPath,
       outputPath: outputPath,
