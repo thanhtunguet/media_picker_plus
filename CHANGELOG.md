@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Documentation
+- **Updated documentation accuracy**: Corrected completion percentages and feature status in platform documentation to match actual implementation:
+  - `doc/web.md`: Updated from ~10% to ~40% completion; added `getThumbnail` and `compressVideo` (stub) to feature lists; corrected Camera API status (getUserMedia, live preview implemented)
+  - `doc/macos.md`: Updated from ~15% to ~60% completion; corrected "Camera Preview" status to reflect implemented preview windows
+  - `README.md`: Updated package version from `^1.1.0-rc.4` to `^1.1.0-rc.15`
+
 ### Fixed
 - **Dart `compressVideo` removed dead `getVideoInfo` call**: The method channel `compressVideo()` no longer calls the unimplemented `getVideoInfo` native method. The native side already extracts real video dimensions internally, so the Dart-side dimension pre-fetch was redundant and always fell back to hardcoded defaults.
 - **iOS `compressVideo` rotation bug**: Fixed portrait video compression producing wrong dimensions. Now uses `preferredTransform` to detect rotation (matching the existing `applyVideo` pattern), calculates aspect-ratio-preserving output dimensions, and applies rotation-aware transforms.

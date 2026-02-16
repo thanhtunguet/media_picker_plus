@@ -1,7 +1,7 @@
 # Web Platform - Technical Documentation
 
 ## Overview
-The Web implementation provides basic media picking and processing capabilities using browser APIs and JavaScript libraries. Currently at ~10% completion with fundamental functionality implemented but many features requiring full implementation or browser compatibility workarounds.
+The Web implementation provides basic media picking and processing capabilities using browser APIs and JavaScript libraries. Currently at ~40% completion with fundamental functionality implemented but many features requiring full implementation or browser compatibility workarounds.
 
 ## Native Libraries Used
 
@@ -14,9 +14,9 @@ The Web implementation provides basic media picking and processing capabilities 
   - Purpose: Image cropping, resizing, watermark overlay
   - Status: ✅ Basic implementation complete
 
-- **MediaDevices API** - Camera access (planned)
+- **MediaDevices API** - Camera access
   - Purpose: getUserMedia for camera capture
-  - Status: ❌ Not implemented
+  - Status: ✅ Implemented using HTMLVideoElement with device selection
 
 ### External JavaScript Libraries
 - **FFmpeg.js** - Video processing (optional dependency)
@@ -32,7 +32,7 @@ The Web implementation provides basic media picking and processing capabilities 
 
 ## Implementation Status
 
-### ✅ Fully Implemented Features (10% Complete)
+### ✅ Fully Implemented Features (40% Complete)
 
 #### File Selection
 - **Gallery Picker**: Complete HTMLInputElement-based file selection
@@ -49,26 +49,26 @@ The Web implementation provides basic media picking and processing capabilities 
 
 ### 🔄 Partially Implemented Features
 
-#### Camera Access (Simulation)
-- **Capture Attribute**: Uses `capture="environment"` on file input
-- **Browser Camera**: ⚠️ Basic file input with camera preference
-- **Real Camera API**: ❌ No getUserMedia implementation
-- **Live Preview**: ❌ No real-time camera preview
+#### Camera Access
+- **Capture Attribute**: Uses `capture="environment"` on file input for mobile
+- **Browser Camera**: ✅ Uses MediaDevices API for camera capture
+- **Real Camera API**: ✅ getUserMedia implementation with device enumeration
+- **Live Preview**: ✅ Real-time camera preview via HTMLVideoElement
 - **Preferred Camera Device**: `preferredCameraDevice` is currently ignored on web.
 
 #### Video Processing
 - **Video Selection**: ✅ Complete video file selection
 - **Video Watermarking**: ⚠️ FFmpeg.js integration (requires setup)
+- **Thumbnail Extraction**: ✅ getThumbnail implemented using Canvas API
 - **Format Support**: ⚠️ Limited by browser codec support
 - **Processing Quality**: ❌ No quality control options
+- **Video Compression**: ❌ API stub only (no real transcoding)
 
-### ❌ Missing Features (90% Incomplete)
+### ❌ Missing Features (60% Incomplete)
 
 #### Advanced Camera Features
-- **Real Camera Access**: No getUserMedia implementation
-- **Camera Selection**: No device enumeration
 - **Camera Controls**: No focus, zoom, flash controls
-- **Live Streaming**: No real-time preview capabilities
+- **Torch/Flash**: No flash control during capture
 
 #### Advanced Image Processing
 - **Batch Processing**: No multiple image processing optimization

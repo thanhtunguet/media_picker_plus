@@ -66,7 +66,7 @@ Add this to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  media_picker_plus: ^1.1.0-rc.4
+  media_picker_plus: ^1.1.0-rc.15
 ```
 
 Or install via command line:
